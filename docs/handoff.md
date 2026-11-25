@@ -1,62 +1,75 @@
 # Handoff — Metanui
 
-## Status (2026-11-25): Phase 1 reactive core done
+## Status (2026-11-25): reactive core done, Metano 3.2.0, effect handle blocked
 
-The reactive core (`src/Metanui.Reactive`) is complete on branch `feat/reactive-core`: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano 3.1.0 generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
+The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
 
-- Plan and phase summaries: `plans/reactive-core.md`.
+- Plans and phase summaries: `plans/reactive-core.md`, `plans/metano-3.2-effect-handle.md`.
 - Design and its deviations from `@solidjs/signals` 2.0.4: `docs/design/0001-reactive-core.md`.
-- Generated TypeScript audit and Metano findings: `docs/design/0001-reactive-core-ts-audit.md`.
+- Generated TypeScript audit and Metano issue status: `docs/design/0001-reactive-core-ts-audit.md`.
+- DSL binding stub: `docs/design/0002-dsl-binding.md`.
 - Benchmark method, results and findings: `bench/reactivity/README.md` (micro-benchmarks: `bench/micro/README.md`).
+
+### Repo and PRs
+
+The repo is public at github.com/danfma/metanui. PR #1 is `feat/reactive-core` -> `main`. The branch `chore/metano-3.2-effect-handle` stacks on it (its PR targets `feat/reactive-core`).
 
 ### Benchmark summary
 
-js-reactivity-benchmark against Solid 2.0.4 and alien-signals 3.2.1, budget 10–15% over Solid. Primary numbers come from the idle host criptomaster (Fedora 45, i9-8950HK), median of three runs; raw outputs are in `bench/reactivity/results/criptomaster-2026-11-25/`.
+js-reactivity-benchmark against Solid 2.0.4 and alien-signals 3.2.1, budget 10-15% over Solid. Primary numbers come from the idle host criptomaster (Fedora 45, i9-8950HK), median of three runs; raw outputs are in `bench/reactivity/results/criptomaster-2026-11-25/`. These were measured on Metano 3.1.0 and have not been re-measured on 3.2.0.
 
-- **Bun 1.4.5 (JavaScriptCore): budget met on every test.** Metanui is 25–89% faster than Solid 2.0 (Solid's eager memos inflate the `lazy80%` gaps) and between 29% faster and 15% slower than alien-signals.
-- **Node v26.8.2 (V8): budget missed on `createSignals` (+17%, Solid's own times are noisy) and `cellx1000` (+21%).** On V8 Metanui trails alien-signals on every test, by up to 4.9× (`cellx1000`). The causes are F2 (node layout makes creation slow) and F3 (deep flush, cause open), plus the defensive `try/finally` in `Propagate`/`CheckDirty` (about 1.5–3 ns per call on V8).
+- **Bun 1.4.5 (JavaScriptCore): budget met on every test.** Metanui is 25-89% faster than Solid 2.0 and between 29% faster and 15% slower than alien-signals.
+- **Node v26.8.2 (V8): budget missed on `createSignals` (+17%) and `cellx1000` (+21%).** On V8 Metanui trails alien-signals on every test, by up to 4.9x (`cellx1000`). The causes are F2 (node layout makes creation slow) and F3 (deep flush, cause open), plus the defensive `try/finally` in `Propagate`/`CheckDirty`.
 
-### Open Metano issues (danfma/metano)
+### Metano
 
-| Issue | What | State in this repo |
-|---|---|---|
-| #768 | No import for a type referenced only in a property setter | Workaround in `Signal.cs` (`// Metano #768`); fixed on Metano's wave-9 branch |
-| #772 | Labeled statements dropped | Workaround in `DependencyGraph.cs`; fixed on wave-9 |
-| #773 | Discard `_ = expr` emitted verbatim | Workaround (`Read` helpers in scenarios); fixed on wave-9 |
-| #774 | `T? x = nonNull;` loses `\| null` | Workaround in `DependencyGraph.ShallowPropagate`; fixed on wave-9 |
-| #775 | `x!.A` does not narrow `x` | No workaround left; fixed on wave-9 |
-| #770 | Internal types need `[Transpile]` | Every internal transpiled type carries it. A reference to an internal type without it is emitted with no import and no diagnostic (seen again in the final fix wave) |
-| #776 | Import of a renamed type lost | Did not reproduce |
-| #778 | Overload dispatcher with a dead branch; `root(...)` throws for zero-parameter TS callbacks | No workaround needed for C# callers |
-| #779 | Tuple deconstruction unsupported | Workaround in `OwnershipScenarios.cs` |
-| #785 | Metano warnings never fail the build; up-to-date stamp written after a failed run | Open |
-| #786 | metano-runtime's Temporal polyfill clashes with tsgo | Open |
-| #787 | Emission noise (N1–N5, N7, N8 of the audit) | Open |
-| FR after #780 | `@internal` for internal types | Internal types are still exported from the generated barrels. Rule until it lands: hand-written TS imports only the public symbols (`Reactivity`, `Signal`, `Computed`, `IFlushScheduler`, `ManualFlushScheduler`) |
-| not filed yet | `null!`/`default!` of a non-generic reference type loses its `!` | Workaround in `FlushScenarios.cs` (`// Metano:`), from the final fix wave |
+The project is on Metano **3.2.0** (tool, NuGet packages and `metano-runtime`), moved with `scripts/update-metano.sh`. Since #785, Metano warnings fail the build.
 
-### Metano 3.2.0 follow-up
+**Workarounds removed in 3.2.0:** #768 (setter imports), #772 (native labeled `continue`), #773 (discards), #775, #778 (`root` from TS with any arity), #779 (deconstruction), #764/#765 (`MetanoPackageRoot` and the seeded `version`), #770 (no `[Transpile]` on internal types; internal types are no longer exported from barrels).
 
-Metano 3.2.0 is published, but this branch stays on 3.1.0 (tool pin and lock files). `Metano` and `Metano.Build.TypeScript` float (`Version="*"`), so a forced restore (`dotnet restore --force-evaluate`, `scripts/update-metano.sh`) picks 3.2.0 without anyone choosing it. 3.2.0 turns Metano warnings into build failures (#785), so the build may fail on warnings that 3.1.0 let through. Make the upgrade one deliberate commit:
+**Workarounds kept:** `Missing<T>` for #794; the explicit `Link?` do/while in `ShallowPropagate` for #796.
 
-1. run `scripts/update-metano.sh` and fix what fails;
-2. remove every workaround the audit ledger lists (`// Metano #<issue>` comments), re-probing each issue first;
-3. re-check the root dispatcher (#778) and the `@internal` export of internal types;
-4. rerun both suites, strict tsc and the benchmark correctness tests, and re-measure.
+**Open issues (danfma/metano):** #776, #786, #787, #781, #794, #796, #797, #798, #799, #800. See the audit for the detail of each. In short:
+
+- #796: a `var` local loses `| null`.
+- #797: deleting or renaming a `.cs` file leaves a stale `.ts`.
+- #798: a redundant `!`.
+- #799: `[Name]` acts as a suffix, so it does not clear MS0063 on the two `Root` overloads.
+- #800: no `IDisposable` mapping (see below).
+
+**Process notes:**
+
+- **#797 workaround:** after removing or renaming a `.cs` file, delete `.metano-stamp` before building, or the stale `.ts` stays in `targets/js/*/src`.
+- **MS0063 `NoWarn`:** the project-scoped `NoWarn` in `src/Metanui.Reactive/Metanui.Reactive.csproj` is temporary. Remove it when #799 lands, or when the 0002 `CreateRoot` design replaces the two `Root` overloads.
+
+### Effect handle (blocked)
+
+`Reactivity.Effect` returning an `IDisposable` handle (maintainer decision: an effect still belongs to its owner, as in Solid) is **blocked on Metano #800**, which targets **3.3.0**. Metano's settled design:
+
+- `IDisposable` maps to a metano-runtime `{ dispose(): void }` interface;
+- `using` lowers to try/finally;
+- there is no `Symbol.dispose` in 3.x;
+- `IAsyncDisposable` gives MS0001.
+
+The work in progress is on branch `wip/effect-handle` (2d7f3dd): the implementation and five scenarios. Resume it on Metano 3.3.0. Note: `Root(d => Reactivity.Effect(...))` binds to `Root<IDisposable>` once `Effect` returns a value.
+
+### The F-9 retry
+
+An errored computed's retry is now a **deferred invalidation**, visible one pass later. An eligible tracked re-read throws the cached error in the current pass and queues the computed on a retry chain in `FlushLoop`. At the start of the next pass, before the commit, the computed is marked Dirty and its subscribers are propagated. Every observer sees the recovery (or the fresh error) one pass later, consistently. This deviates from Solid's F-9 timing and is recorded in spec 4.2.
 
 ## Next steps
 
-1. **Metano 3.2.0 upgrade** (above).
-2. **`docs/design/0002-dsl-binding.md`:** how the DSL binds reactive values to element properties. Compare a single `Prop<T>` input type, per-component invalidation and a Metano lazy-argument feature (spec 6.1). The same design must settle the owner capture API (`getOwner`/`runWithOwner`), context, and a common read abstraction over `Signal<T>` and `Computed<T>` (architecture review A4).
-3. **A separate V8 optimisation phase:** F2 (node layout), F3 (deep flush), and the defensive `try/finally`.
-4. **Follow-ups from the final review:**
+1. **Effect handle on Metano 3.3.0:** resume `wip/effect-handle` once #800 ships.
+2. **`docs/design/0002-dsl-binding.md`:** the DSL binding design, starting from the stub (decisions taken and open questions are there). It must also settle context through the owner chain and a common read abstraction over `Signal<T>` and `Computed<T>`.
+3. **V8 optimisation phase:** F2 (node layout) is the lead hypothesis, then F3 (deep flush) and the defensive `try/finally`. A Metano object-creation benchmark showed that derived classes with declared fields are about 2.4x slower to create on V8. Metano was advised to emit declaration-only fields.
+4. **Remaining follow-ups:**
    - a `TrackingScope` struct for the save/set/restore of the tracking state, if Metano emits it without allocation;
    - deduplicate `Computed.Update` and `Computed.RunFirst`;
    - split `RootNode` and an error-boundary node;
    - move `Tracking.Pass` into `FlushLoop`;
    - split `ErrorScenarios.cs` by theme;
    - one type per file for `IFlushScheduler`/`ManualFlushScheduler`;
-   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, a write during a pending resume;
+   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, a write during a pending resume, the A,B / A,C retry-queue order;
    - rethrow cached errors with `ExceptionDispatchInfo` so the .NET stack of `throw _error` is kept;
    - sanitise the `.cpuprofile` paths before publishing benchmark artefacts.
 
