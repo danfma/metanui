@@ -1,6 +1,5 @@
 import { throwError, toException } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { DependencyGraph } from "../graph/dependency-graph.js";
 import { ReactiveFlags } from "../graph/reactive-flags.js";
 import { CleanupEntry } from "../ownership/cleanup-entry.js";
 import { OwnerNode } from "../ownership/owner-node.js";
@@ -40,7 +39,7 @@ export abstract class EffectNode extends OwnerNode {
 
     const flags = this.flags;
 
-    if ((flags & ReactiveFlags.Dirty) !== 0 || (flags & ReactiveFlags.Pending) !== 0 && DependencyGraph.checkDirty(this.deps!, this)) {
+    if ((flags & ReactiveFlags.Dirty) !== 0 || (flags & ReactiveFlags.Pending) !== 0 && this.isAnyDependencyDirty()) {
       if (this.tryRunCompute()) {
         FlushLoop.enqueueApply(this);
       }
@@ -110,7 +109,7 @@ export abstract class EffectNode extends OwnerNode {
     Teardown.run(applyCleanups);
     this.depsTail = null;
     this.flags = ReactiveFlags.None;
-    DependencyGraph.purgeDeps(this);
+    this.unlinkDependenciesOnDisposal();
     this.releaseUserState();
   }
 

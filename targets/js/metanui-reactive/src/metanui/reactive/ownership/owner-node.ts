@@ -29,6 +29,11 @@ export abstract class OwnerNode extends ReactiveNode {
   /** @internal */
   isDisposed: boolean = false;
 
+  /** @internal */
+  nextDeferredUnlink: OwnerNode | null = null;
+
+  private static _deferredUnlinks: OwnerNode | null = null;
+
   constructor() {
     super();
     const parent = Tracking.currentOwner;
@@ -97,6 +102,29 @@ export abstract class OwnerNode extends ReactiveNode {
   }
 
   /** @internal */
+  unlinkDependenciesOnDisposal(): void {
+    if (Tracking.updatesInDirtyCheck === 0) {
+      DependencyGraph.purgeDeps(this);
+
+      return;
+    }
+
+    this.nextDeferredUnlink = OwnerNode._deferredUnlinks;
+    OwnerNode._deferredUnlinks = this;
+  }
+
+  /** @internal */
+  isAnyDependencyDirty(): boolean {
+    const dirty = DependencyGraph.checkDirty(this.deps!, this);
+
+    if (!(OwnerNode._deferredUnlinks == null) && Tracking.updatesInDirtyCheck === 0) {
+      OwnerNode.unlinkDeferredDependencies();
+    }
+
+    return dirty;
+  }
+
+  /** @internal */
   purgeStaleDeps(): void {
     if (this.isDisposed) {
       this.depsTail = null;
@@ -104,6 +132,16 @@ export abstract class OwnerNode extends ReactiveNode {
     }
 
     DependencyGraph.purgeDeps(this);
+  }
+
+  private static unlinkDeferredDependencies(): void {
+    while (!(OwnerNode._deferredUnlinks == null)) {
+      const node = OwnerNode._deferredUnlinks;
+      OwnerNode._deferredUnlinks = node.nextDeferredUnlink;
+      node.nextDeferredUnlink = null;
+      node.depsTail = null;
+      DependencyGraph.purgeDeps(node);
+    }
   }
 
   private attachTo(parent: OwnerNode): void {

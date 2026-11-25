@@ -29,4 +29,11 @@ internal static class Tracking
     /// re-read only in a later pass than the one where it failed.
     /// </summary>
     public static int Pass;
+
+    /// <summary>
+    /// Nesting depth of the computed updates a dirty check is running. While it is above 0, a node
+    /// disposed by such an update keeps its dependency links until the check ends (see
+    /// <see cref="OwnerNode.UnlinkDependenciesOnDisposal" />).
+    /// </summary>
+    public static int UpdatesInDirtyCheck;
 }
