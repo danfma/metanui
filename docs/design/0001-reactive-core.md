@@ -163,6 +163,8 @@ Reactivity.Root(dispose =>
         (value, previous) => Console.WriteLine($"{previous} -> {value}"));
 });
 
+Reactivity.Flush();   // the first apply runs, previous = value: prints "0 -> 0"
+
 count.Value = 5;      // queued; count.Value still reads 0
 Reactivity.Flush();   // count = 5, doubled = 10, apply prints "0 -> 10"
 ```

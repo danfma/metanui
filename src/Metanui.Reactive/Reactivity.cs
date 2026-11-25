@@ -28,9 +28,9 @@ public static partial class Reactivity
     /// Creates a split effect. <paramref name="compute" /> is tracked and runs now, then in the
     /// compute phase of every flush pass where one of its dependencies changed. <paramref name="apply" />
     /// is untracked and receives the computed value and the value of the previous apply
-    /// (the computed value itself the first time, so <c>previous</c> is never <c>default</c>); every apply of a pass runs after all computes of that pass,
-    /// and the first one runs at the end of the current flush, or of the next one when created outside
-    /// a flush. Writes inside <paramref name="apply" /> are allowed and run another pass.
+    /// (the computed value itself the first time, so <c>previous</c> is never <c>default</c>); every
+    /// apply of a pass runs after all computes of that pass, and the first one runs at the end of the
+    /// current flush, or of the next one when created outside a flush. Writes inside <paramref name="apply" /> are allowed and run another pass.
     /// </summary>
     /// <remarks>
     /// Solid's apply returns its cleanup; here an apply registers cleanups with
