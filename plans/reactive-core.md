@@ -493,7 +493,7 @@ Done in 0be6d15, 8aeb211, 9511d35 and 694b96d. A fairness review verified identi
 ---
 
 ## Task 8b: Release disposed effects from the flush queue (Phase 8b)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 Benchmark finding F1 (bench/reactivity/README.md): disposing an effect does not take it out of `FlushLoop`'s queues. Under `ManualFlushScheduler`, 20 roots of 100,000 effects disposed without a flush retain about 900 MB until the next flush; with a flush, about 2 MB remain. Maintainer decision (2026-11-25): **release references on disposal**. The disposed node may stay in the queue, where it is already skipped, but it must no longer retain its graph or user closures.
 
@@ -503,18 +503,23 @@ Benchmark finding F1 (bench/reactivity/README.md): disposing an effect does not 
 
 **Interfaces:** no public API change.
 
-- [ ] **Step 1: Write the scenario** `DisposedQueuedEffectReleasesItsClosures`. An effect whose compute and apply close over a marker object is disposed while its apply is still queued. Then `Flush()` runs. Assert that no apply and no cleanup ran after disposal, and that the effect no longer appears as a subscriber of its source (write the source, flush, and check that nothing re-runs). Memory itself is checked by the probe.
-- [ ] **Step 2: Run both suites.** Expected: the scenario passes or fails according to current behaviour. Capture which one, and say so in the report.
-- [ ] **Step 3: Implement.** In `EffectNode`/`SplitEffect` disposal (`OnDisposed`), drop the references to the compute and apply delegates, the cached value and the applied value, after running the cleanups and purging the deps. The delegate fields need nullability for this, and the generated TS must keep `tsc --strict` clean. Apply the same release to a disposed `Computed` (its compute delegate and cached value/error) if the code shows the same retention.
-- [ ] **Step 4: Measure.** Run `scripts/bench-reactivity.sh probe retain` locally on Bun, with and without a flush. Expected: the no-flush heap is close to the with-flush heap (order of MB, not hundreds of MB). Record both numbers and the load.
-- [ ] **Step 5: Run both suites and strict tsc.** Expected: all pass.
-- [ ] **Step 6: Commit** `fix: release disposed effects from the flush queue`.
+- [x] **Step 1: Write the scenario** `DisposedQueuedEffectReleasesItsClosures`. An effect whose compute and apply close over a marker object is disposed while its apply is still queued. Then `Flush()` runs. Assert that no apply and no cleanup ran after disposal, and that the effect no longer appears as a subscriber of its source (write the source, flush, and check that nothing re-runs). Memory itself is checked by the probe.
+- [x] **Step 2: Run both suites.** Expected: the scenario passes or fails according to current behaviour. Capture which one, and say so in the report.
+- [x] **Step 3: Implement.** In `EffectNode`/`SplitEffect` disposal (`OnDisposed`), drop the references to the compute and apply delegates, the cached value and the applied value, after running the cleanups and purging the deps. The delegate fields need nullability for this, and the generated TS must keep `tsc --strict` clean. Apply the same release to a disposed `Computed` (its compute delegate and cached value/error) if the code shows the same retention.
+- [x] **Step 4: Measure.** Run `scripts/bench-reactivity.sh probe retain` locally on Bun, with and without a flush. Expected (revised 2026-11-25 after measurement): closures, values and graph are released; the bare nodes stay linked in the queue until the next flush, which the maintainer accepted and documented. Record both numbers and the load.
+- [x] **Step 5: Run both suites and strict tsc.** Expected: all pass.
+- [x] **Step 6: Commit** `fix: release disposed effects from the flush queue`.
 
 ### Verification Plan
-- Both suites green. The `retain` probe without a flush stays within a small multiple of the with-flush number. Strict tsc is clean.
+- Both suites are green and strict tsc is clean. The `retain` probe shows the no-flush heap falling (835 → ~455 MB, bare nodes only), and the with-flush heap staying at ~2 MB.
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 6cde2ad, f9d3e63 and 0be4b87. 59/59 pass on .NET and Bun, and strict tsc is clean. The review approved it. It checked every released field: none is read after disposal, and the hot read path is unchanged.
+- **Disposal now releases user state.** A disposed `EffectNode`/`SplitEffect` releases its compute and apply delegates and its values through `ReleaseUserState`, after its cleanups run and its dependencies are purged. A disposed `Computed` releases `_compute`/`_comparer` but keeps `_value`/`_error`, so reads after disposal behave as before, including self-disposal mid-run.
+- **The `retain` probe (Bun)**, run without a flush, now holds 835 → ~455 MB. That remainder is the bare nodes still held by the queue links. With a flush it holds 2 MB. The maintainer accepted this residual retention: it is transient under real schedulers. It is documented in the `ManualFlushScheduler`/`Reactivity.Flush` remarks and in spec 4.5.
+- **Behaviour changes:**
+  - An effect disposed by its own compute or apply cleanup now skips that compute or apply. This is recorded in spec 4.5 as a divergence from Solid, checked against rc.8 because 2.0.4 is not available locally.
+  - `TryRunCompute` returns `!IsDisposed`, so a disposed node is never queued for apply.
 
 ---
 
