@@ -14,6 +14,9 @@ internal static class FlushLoop
     private const string PassLimitMessage =
         "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
 
+    /// <summary>Cached so that scheduling a flush does not allocate a delegate each time.</summary>
+    private static readonly Action RunFlush = Run;
+
     public static IFlushScheduler Scheduler = new ManualFlushScheduler();
 
     private static SignalNode? _head;
@@ -94,7 +97,7 @@ internal static class FlushLoop
 
         try
         {
-            Scheduler.Schedule(Run);
+            Scheduler.Schedule(RunFlush);
         }
         catch
         {

@@ -1,6 +1,6 @@
 import { HashCode, copyRecordWith } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Reactivity, Signal } from "metanui-reactive/metanui/reactive";
+import { Computed, Reactivity, Signal } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -31,7 +31,7 @@ class EffectScenarios$Point {
 
 export class EffectScenarios {
   private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
-  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun)];
+  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("cleanup in a computation nested in an apply stays out of the apply", EffectScenarios.nestedCleanupStaysOutOfApply), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun)];
 
   constructor() { }
 
@@ -125,6 +125,30 @@ export class EffectScenarios {
     count.value = 2;
     Reactivity.flush();
     expect.equal("apply1,cleanup1,apply2,", log, "cleanup order");
+  }
+
+  private static nestedCleanupStaysOutOfApply(expect: IExpect): void {
+    let log = "";
+    const count = new Signal(1);
+    Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
+      log = (log ?? "") + ("apply" + value + ",");
+      const nested = new Computed(() => {
+        Reactivity.onCleanup(() => log = (log ?? "") + "computed-cleanup,");
+
+        return value;
+      });
+      const read = nested.value;
+      Reactivity.effect(() => {
+        Reactivity.onCleanup(() => log = (log ?? "") + "effect-cleanup,");
+
+        return read;
+      }, (innerValue: number, innerPrevious: number | null) => {
+      });
+    });
+    Reactivity.flush();
+    count.value = 2;
+    Reactivity.flush();
+    expect.equal("apply1,apply2,", log, "no nested cleanup ran with the outer apply");
   }
 
   private static writeInApplySchedulesAnotherPass(expect: IExpect): void {

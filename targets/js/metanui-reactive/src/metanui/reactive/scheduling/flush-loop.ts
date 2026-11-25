@@ -8,6 +8,7 @@ import { ManualFlushScheduler } from "../manual-flush-scheduler.js";
 export class FlushLoop {
   private static readonly maxPasses: number = 100;
   private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
+  private static readonly runFlush: () => void = FlushLoop.run;
   static scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
   private static _head: SignalNode | null = null;
   private static _tail: SignalNode | null = null;
@@ -64,7 +65,7 @@ export class FlushLoop {
 
     FlushLoop._scheduled = true;
     try {
-      FlushLoop.scheduler.schedule(FlushLoop.run);
+      FlushLoop.scheduler.schedule(FlushLoop.runFlush);
     } catch (_err) {
       FlushLoop._scheduled = false;
       throw _err;
