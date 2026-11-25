@@ -70,7 +70,7 @@ public static class EffectScenarios
     private static void FirstApplyPreviousEqualsValueForValueType(IExpect expect)
     {
         var appliedValue = -1;
-        int? appliedPrevious = null;
+        var appliedPrevious = -1;
         var count = Reactivity.Signal(7);
 
         Reactivity.Effect(
@@ -85,14 +85,13 @@ public static class EffectScenarios
         Reactivity.Flush();
 
         expect.Equal(7, appliedValue, "applied value");
-        expect.Equal<int?>(7, appliedPrevious, "first apply previous is the value");
+        expect.Equal(7, appliedPrevious, "first apply previous is the value");
     }
 
     private static void ApplyReceivesPrevious(IExpect expect)
     {
         var appliedValue = -1;
-        // The previous value is typed `T | null` in TypeScript (default(T) is null there).
-        int? appliedPrevious = null;
+        var appliedPrevious = -1;
         var count = Reactivity.Signal(1);
 
         Reactivity.Effect(
@@ -109,7 +108,7 @@ public static class EffectScenarios
         Reactivity.Flush();
 
         expect.Equal(2, appliedValue, "applied value");
-        expect.Equal<int?>(1, appliedPrevious, "applied previous");
+        expect.Equal(1, appliedPrevious, "applied previous");
     }
 
     private static void AppliesRunAfterAllComputes(IExpect expect)

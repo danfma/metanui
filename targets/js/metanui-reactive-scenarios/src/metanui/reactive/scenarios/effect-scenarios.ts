@@ -62,7 +62,7 @@ export class EffectScenarios {
 
   private static firstApplyPreviousEqualsValueForValueType(expect: IExpect): void {
     let appliedValue = -1;
-    let appliedPrevious = null as number | null;
+    let appliedPrevious = -1;
     const count = Reactivity.signal(7);
     Reactivity.effect(() => count.value, (value: number, previous: number) => {
       appliedValue = value;
@@ -70,12 +70,12 @@ export class EffectScenarios {
     });
     Reactivity.flush();
     expect.equal(7, appliedValue, "applied value");
-    expect.equal<number | null>(7, appliedPrevious, "first apply previous is the value");
+    expect.equal(7, appliedPrevious, "first apply previous is the value");
   }
 
   private static applyReceivesPrevious(expect: IExpect): void {
     let appliedValue = -1;
-    let appliedPrevious = null as number | null;
+    let appliedPrevious = -1;
     const count = Reactivity.signal(1);
     Reactivity.effect(() => count.value, (value: number, previous: number) => {
       appliedValue = value;
@@ -85,7 +85,7 @@ export class EffectScenarios {
     count.value = 2;
     Reactivity.flush();
     expect.equal(2, appliedValue, "applied value");
-    expect.equal<number | null>(1, appliedPrevious, "applied previous");
+    expect.equal(1, appliedPrevious, "applied previous");
   }
 
   private static appliesRunAfterAllComputes(expect: IExpect): void {
