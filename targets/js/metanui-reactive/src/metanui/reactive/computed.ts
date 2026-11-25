@@ -16,7 +16,7 @@ export class Computed<T> extends ComputedNode {
   private _comparer: IEqualityComparer<T> | null = null;
   private _value: T = null!;
   private _error: Exception | null = null;
-  private _errorPass: number = 0;
+  private _failedInPass: number = 0;
 
   constructor(compute: () => T, comparer: IEqualityComparer<T> | null = null) {
     super();
@@ -197,7 +197,7 @@ export class Computed<T> extends ComputedNode {
 
   private cacheError(error: Exception): void {
     this._error = error;
-    this._errorPass = Tracking.pass;
+    this._failedInPass = Tracking.pass;
     this.flags |= ReactiveFlags.Errored;
   }
 
@@ -206,7 +206,7 @@ export class Computed<T> extends ComputedNode {
       throw this._error!;
     }
 
-    const retry = this.isNextDependencyOf(observer) && this._errorPass !== Tracking.pass && !this.isDisposed;
+    const retry = this.shouldRetryOnReread(observer);
     DependencyGraph.link(this, observer, Tracking.cycle);
 
     if (retry) {
@@ -214,6 +214,10 @@ export class Computed<T> extends ComputedNode {
     }
 
     throw this._error!;
+  }
+
+  private shouldRetryOnReread(observer: ReactiveNode): boolean {
+    return this.isNextDependencyOf(observer) && this._failedInPass !== Tracking.pass && !this.isDisposed;
   }
 
   private isNextDependencyOf(observer: ReactiveNode): boolean {

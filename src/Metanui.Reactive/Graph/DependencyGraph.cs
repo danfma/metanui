@@ -240,6 +240,9 @@ internal static class DependencyGraph
                 continue;
             }
 
+            // Upstream `while (stack !== undefined)`: pop until an entry that is not null (a null
+            // `next` is pushed when the branch had no sibling left) and resume there with
+            // `continue top`. The stack is shared, so this walk pops only above its own base.
             while (LinkStack.Top > stackBase)
             {
                 var popped = LinkStack.Pop();

@@ -46,6 +46,9 @@ internal static class FlushLoop
     /// <summary>The scheduler that runs the requested flushes.</summary>
     public static IFlushScheduler Scheduler => _scheduler;
 
+    /// <summary>Whether a flush is running; cleanup errors raised meanwhile are rethrown when it ends.</summary>
+    public static bool IsRunning => _running;
+
     /// <summary>
     /// Makes <paramref name="scheduler" /> run the flushes from now on. A flush requested from the
     /// previous scheduler may never run (a manual one never runs it), so that request is forgotten
@@ -88,7 +91,7 @@ internal static class FlushLoop
     /// </summary>
     public static void EnqueueRetry(ComputedNode computed)
     {
-        if (computed.NextRetry is not null || computed == _retryTail)
+        if (IsQueuedForRetry(computed))
         {
             return;
         }
@@ -105,6 +108,13 @@ internal static class FlushLoop
         _retryTail = computed;
         RequestFlush();
     }
+
+    /// <summary>
+    /// Whether <paramref name="computed" /> is in the retry queue: it links to a next one, or it is the
+    /// tail, the only queued computed whose link is null.
+    /// </summary>
+    private static bool IsQueuedForRetry(ComputedNode computed) =>
+        computed.NextRetry is not null || computed == _retryTail;
 
     /// <summary>Queues a notified effect for the compute phase of the running pass.</summary>
     public static void EnqueueCompute(EffectNode effect)
@@ -172,9 +182,6 @@ internal static class FlushLoop
         }
     }
 
-    /// <summary>Whether a flush is running; cleanup errors raised meanwhile are rethrown when it ends.</summary>
-    public static bool IsRunning => _running;
-
     /// <summary>
     /// Runs the flush (spec 4.7) in passes until no work is left: retry the computeds queued for a
     /// retry and propagate from the ones that recovered, commit every pending write, propagate from
@@ -224,7 +231,7 @@ internal static class FlushLoop
 
         if (!completed)
         {
-            DiscardPendingWrites();
+            DiscardPendingWritesAndRetries();
 
             throw new InvalidOperationException(PassLimitMessage);
         }
@@ -300,7 +307,10 @@ internal static class FlushLoop
         }
     }
 
-    // The compute queue is empty between passes unless an exception interrupted the last flush.
+    /// <summary>
+    /// Whether any queue holds work: pending writes, retries, effect computes or applies. The compute
+    /// queue is empty between passes unless an exception interrupted the last flush.
+    /// </summary>
     private static bool HasWork() =>
         _head is not null
         || _retryHead is not null
@@ -492,7 +502,7 @@ internal static class FlushLoop
     /// tracked re-read queues another retry. Computes and applies a failed flush left queued stay, and
     /// run with the next flush.
     /// </summary>
-    private static void DiscardPendingWrites()
+    private static void DiscardPendingWritesAndRetries()
     {
         while (_head is not null)
         {

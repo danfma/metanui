@@ -21,7 +21,9 @@ public sealed class Computed<T> : ComputedNode
     private IEqualityComparer<T>? _comparer;
     private T _value = default!;
     private Exception? _error;
-    private int _errorPass;
+
+    /// <summary>The flush pass of the last failed run: a re-read in that same pass never retries.</summary>
+    private int _failedInPass;
 
     internal Computed(Func<T> compute, IEqualityComparer<T>? comparer = null)
     {
@@ -250,15 +252,15 @@ public sealed class Computed<T> : ComputedNode
     private void CacheError(Exception error)
     {
         _error = error;
-        _errorPass = Tracking.Pass;
+        _failedInPass = Tracking.Pass;
         Flags |= ReactiveFlags.Errored;
     }
 
     /// <summary>
     /// Read of an errored computed: subscribes the observer like a normal read, then rethrows the
-    /// cached error. Solid 2.0.4 <c>read</c> (F-9): only a tracked re-read (the observer read this
-    /// computed at the same position in its previous run) in a later flush pass than the failure
-    /// retries the function.
+    /// cached error. Solid 2.0.4 <c>read</c> (spec 4.2, rule F-9): only a tracked re-read (the
+    /// observer read this computed at the same position in its previous run) in a later flush pass
+    /// than the failure retries the function.
     /// </summary>
     /// <remarks>
     /// Unlike Solid, the retry does not run here: it is queued, and the next flush pass runs it at its
@@ -275,7 +277,7 @@ public sealed class Computed<T> : ComputedNode
             throw _error!;
         }
 
-        var retry = IsNextDependencyOf(observer) && _errorPass != Tracking.Pass && !IsDisposed;
+        var retry = ShouldRetryOnReread(observer);
 
         DependencyGraph.Link(this, observer, Tracking.Cycle);
 
@@ -286,6 +288,13 @@ public sealed class Computed<T> : ComputedNode
 
         throw _error!;
     }
+
+    /// <summary>
+    /// Whether this read by <paramref name="observer" /> asks for a retry: a tracked re-read, in a
+    /// later flush pass than the failure, of a computed that is not disposed.
+    /// </summary>
+    private bool ShouldRetryOnReread(ReactiveNode observer) =>
+        IsNextDependencyOf(observer) && _failedInPass != Tracking.Pass && !IsDisposed;
 
     /// <summary>Whether <paramref name="observer" />'s running pass is about to reuse its link to this computed.</summary>
     private bool IsNextDependencyOf(ReactiveNode observer)

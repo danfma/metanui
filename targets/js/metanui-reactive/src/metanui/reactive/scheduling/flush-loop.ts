@@ -62,7 +62,7 @@ export class FlushLoop {
   }
 
   static enqueueRetry(computed: ComputedNode): void {
-    if (!(computed.nextRetry == null) || computed === FlushLoop._retryTail) {
+    if (FlushLoop.isQueuedForRetry(computed)) {
       return;
     }
 
@@ -74,6 +74,10 @@ export class FlushLoop {
 
     FlushLoop._retryTail = computed;
     FlushLoop.requestFlush();
+  }
+
+  private static isQueuedForRetry(computed: ComputedNode): boolean {
+    return !(computed.nextRetry == null) || computed === FlushLoop._retryTail;
   }
 
   static enqueueCompute(effect: EffectNode): void {
@@ -143,7 +147,7 @@ export class FlushLoop {
     const completed = FlushLoop.runPassesOrRequestResume();
 
     if (!completed) {
-      FlushLoop.discardPendingWrites();
+      FlushLoop.discardPendingWritesAndRetries();
       throw new InvalidOperationException(FlushLoop.passLimitMessage);
     }
 
@@ -318,7 +322,7 @@ export class FlushLoop {
     }
   }
 
-  private static discardPendingWrites(): void {
+  private static discardPendingWritesAndRetries(): void {
     while (!(FlushLoop._head == null)) {
       FlushLoop.dequeuePendingWrite().discardPending();
     }

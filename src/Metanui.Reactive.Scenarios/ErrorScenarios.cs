@@ -181,6 +181,11 @@ public static class ErrorScenarios
         expect.Equal(2, runs, "compute runs after the fix");
     }
 
+    /// <summary>
+    /// A computed that fails before reading any dependency has nothing to invalidate it: untracked
+    /// reads and a first tracked read only rethrow, and a tracked re-read in a later flush pass is what
+    /// retries it (spec 4.2, rule F-9).
+    /// </summary>
     private static void ErroredComputedWithoutDepsRetriesOnTrackedReread(IExpect expect)
     {
         var runs = 0;
@@ -282,8 +287,9 @@ public static class ErrorScenarios
     /// <summary>
     /// The effect reads <c>flaky</c> before <c>C</c>, so a trigger change leaves it pending through
     /// <c>C</c>. Its dirty check recomputes <c>C</c>, whose tracked re-read asks for a retry of
-    /// <c>flaky</c> after the effect's check already passed it. A retry that ran there turned the
-    /// effect dirty in the middle of the check, which then re-armed it and dropped the change.
+    /// <c>flaky</c> after the effect's check already passed it. Regression guard for the former inline
+    /// retry: it ran there, turned the effect dirty in the middle of the check, which then re-armed it
+    /// and dropped the change.
     /// </summary>
     private static void RetryRecoveryUpdatesAPendingSibling(IExpect expect)
     {
@@ -323,7 +329,8 @@ public static class ErrorScenarios
     /// <summary>
     /// The computed variant of <see cref="RetryRecoveryUpdatesAPendingSibling" />: <c>D</c> reads
     /// <c>flaky</c> before <c>C</c>, has no subscriber, and is refreshed by an untracked read while
-    /// pending. The retry happens outside a flush, so the flush it requests carries the change to D.
+    /// pending. The retry is requested outside a flush, so the flush it requests runs it and carries
+    /// the change to D.
     /// </summary>
     private static void RetryRecoveryUpdatesAPendingSiblingComputed(IExpect expect)
     {
@@ -352,8 +359,8 @@ public static class ErrorScenarios
         trigger.Value = 1;
         Reactivity.Flush();
 
-        // Refreshing D recomputes C, whose tracked re-read retries flaky; D gets the change in the
-        // next pass, like a signal write.
+        // Refreshing D recomputes C, whose tracked re-read queues a retry of flaky; the flush runs it
+        // and D gets the change, like a signal write.
         _ = d.Peek();
         Reactivity.Flush();
 
@@ -362,8 +369,8 @@ public static class ErrorScenarios
 
     /// <summary>
     /// <see cref="RetryRecoveryUpdatesAPendingSiblingComputed" /> observed by an effect: the retry is
-    /// requested inside the effect's dirty check, one level below the effect. A retry that ran there
-    /// left <c>D</c> dirty with its subscriber never notified.
+    /// requested inside the effect's dirty check, one level below the effect. Regression guard for the
+    /// former inline retry: it ran there and left <c>D</c> dirty with its subscriber never notified.
     /// </summary>
     private static void RetryRecoveryReachesAnEffectThroughAPendingComputed(IExpect expect)
     {
@@ -399,9 +406,9 @@ public static class ErrorScenarios
     }
 
     /// <summary>
-    /// A computed that always fails, re-read by an effect after a flush: the retry fails again in the
-    /// next pass, and that error, cached in the pass that reruns the effect, must not make the effect
-    /// request another retry on every pass.
+    /// A computed that always fails, re-read by an effect after a flush: the retry fails again at the
+    /// start of the next pass and notifies nobody, so the effect does not run again to request another
+    /// retry on every pass.
     /// </summary>
     private static void RetryThatFailsAgainDoesNotRetryOnEveryPass(IExpect expect)
     {
@@ -438,8 +445,9 @@ public static class ErrorScenarios
 
     /// <summary>
     /// The effect reads <c>flaky</c> directly and through <c>x</c>. Every apply must pair values from
-    /// the same state: both from the error, or both from the recovered value. A retry that ran during
-    /// the read gave the effect the recovered <c>flaky</c> next to the old <c>x</c>.
+    /// the same state: both from the error, or both from the recovered value. Regression guard for the
+    /// former inline retry: it ran during the read and gave the effect the recovered <c>flaky</c> next
+    /// to the old <c>x</c>.
     /// </summary>
     private static void RetryNeverShowsAMixOfRecoveredAndOldValue(IExpect expect)
     {
@@ -1584,13 +1592,6 @@ public static class ErrorScenarios
         });
     }
 
-    /// <summary>An errored computed, a computed that reads it, and the disposer of the root that owns both.</summary>
-    private sealed record OwnedRetryGraph(
-        Computed<int> Flaky,
-        Computed<int> Reader,
-        Action Dispose
-    );
-
     private static T ReadOr<T>(Computed<T> computed, T fallback)
     {
         try
@@ -1655,4 +1656,11 @@ public static class ErrorScenarios
             public RequestedFlush? Next { get; set; }
         }
     }
+
+    /// <summary>An errored computed, a computed that reads it, and the disposer of the root that owns the reader.</summary>
+    private sealed record OwnedRetryGraph(
+        Computed<int> Flaky,
+        Computed<int> Reader,
+        Action Dispose
+    );
 }

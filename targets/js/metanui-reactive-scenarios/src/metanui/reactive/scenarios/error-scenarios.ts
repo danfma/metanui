@@ -8,31 +8,6 @@ import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
-class ErrorScenarios$OwnedRetryGraph {
-  constructor(readonly flaky: Computed<number>, readonly reader: Computed<number>, readonly dispose: () => void) { }
-
-  equals(other: any): boolean {
-    return other != null && Object.getPrototypeOf(other) === Object.getPrototypeOf(this) && defaultEquals(this.flaky, other.flaky) && defaultEquals(this.reader, other.reader) && this.dispose === other.dispose;
-  }
-
-  hashCode(): number {
-    const hc = new HashCode();
-    hc.add(this.flaky);
-    hc.add(this.reader);
-    hc.add(this.dispose);
-
-    return hc.toHashCode();
-  }
-
-  with(overrides?: Partial<ErrorScenarios$OwnedRetryGraph>): ErrorScenarios$OwnedRetryGraph {
-    return copyRecordWith<ErrorScenarios$OwnedRetryGraph>(this, overrides);
-  }
-
-  toString(): string {
-    return `OwnedRetryGraph { Flaky = ${this.flaky}, Reader = ${this.reader}, Dispose = ${this.dispose} }`;
-  }
-}
-
 class ErrorScenarios$RecordingScheduler implements IFlushScheduler {
   private _first: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
   private _last: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
@@ -72,6 +47,31 @@ class ErrorScenarios$RecordingScheduler$RequestedFlush {
   next: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
 
   constructor(readonly flush: () => void) { }
+}
+
+class ErrorScenarios$OwnedRetryGraph {
+  constructor(readonly flaky: Computed<number>, readonly reader: Computed<number>, readonly dispose: () => void) { }
+
+  equals(other: any): boolean {
+    return other != null && Object.getPrototypeOf(other) === Object.getPrototypeOf(this) && defaultEquals(this.flaky, other.flaky) && defaultEquals(this.reader, other.reader) && this.dispose === other.dispose;
+  }
+
+  hashCode(): number {
+    const hc = new HashCode();
+    hc.add(this.flaky);
+    hc.add(this.reader);
+    hc.add(this.dispose);
+
+    return hc.toHashCode();
+  }
+
+  with(overrides?: Partial<ErrorScenarios$OwnedRetryGraph>): ErrorScenarios$OwnedRetryGraph {
+    return copyRecordWith<ErrorScenarios$OwnedRetryGraph>(this, overrides);
+  }
+
+  toString(): string {
+    return `OwnedRetryGraph { Flaky = ${this.flaky}, Reader = ${this.reader}, Dispose = ${this.dispose} }`;
+  }
 }
 
 export class ErrorScenarios {
