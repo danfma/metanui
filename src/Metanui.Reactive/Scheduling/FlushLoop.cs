@@ -186,8 +186,8 @@ internal static class FlushLoop
     /// Runs the flush (spec 4.7) in passes until no work is left: retry the computeds queued for a
     /// retry and propagate from the ones that recovered, commit every pending write, propagate from
     /// the signals that changed, run the queued effect computes in queue order, then the applies they
-    /// produced. Writes made by the applies, and retries queued by the computes, start another pass. Called while a flush is
-    /// running, it returns at once and lets the running flush drain.
+    /// produced. Writes made by the applies, and retries queued by the computes, start another pass.
+    /// Called while a flush is running, it returns at once and lets the running flush drain.
     /// </summary>
     /// <remarks>
     /// An error no boundary handles leaves at once (Solid 2.0.4 ordering). The work still queued is
