@@ -420,25 +420,35 @@ Done in 4ccb775, 06c790b and de64c09. 54/54 scenarios pass on .NET and Bun, and 
 ---
 
 ## Task 7: Real schedulers and the TS output audit (Phase 7)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
 - Create: `tests/js/reactive/microtask-scheduler.test.ts`, `tests/Metanui.Reactive.Tests/SynchronizationContextSchedulerTests.cs`
 - Create: `docs/design/0001-reactive-core-ts-audit.md`
 
-- [ ] **Step 1: Write the Bun test.** A test-local `IFlushScheduler` using `queueMicrotask`. Write a signal and check that an effect's apply has not run synchronously, then `await Promise.resolve()` and expect it to have run once.
-- [ ] **Step 2: Write the TUnit test.** A test-local scheduler that posts to a single-threaded `SynchronizationContext`. Write, check that nothing has applied, pump the context, and expect one apply.
-- [ ] **Step 3: Run both.** Expected: pass with no core changes. If the core needs a change, the port is wrong: fix it in `Reactivity`/`FlushLoop` and rerun everything.
-- [ ] **Step 4: Write the audit.** Go through the generated TS for every file in `src/Metanui.Reactive` against spec 5.3 and list every deviation with the C# line, the emitted TS and the expected TS. Each deviation gets a Metano issue (opened with the maintainer's approval or through the Metano session) and, if one is in place, its `// Metano #<issue>` workaround.
-- [ ] **Step 5: Commit** `test: add real scheduler tests and the TS output audit`.
+- [x] **Step 1: Write the Bun test.** A test-local `IFlushScheduler` using `queueMicrotask`. Write a signal and check that an effect's apply has not run synchronously, then `await Promise.resolve()` and expect it to have run once.
+- [x] **Step 2: Write the TUnit test.** A test-local scheduler that posts to a single-threaded `SynchronizationContext`. Write, check that nothing has applied, pump the context, and expect one apply.
+- [x] **Step 3: Run both.** Expected: pass with no core changes. If the core needs a change, the port is wrong: fix it in `Reactivity`/`FlushLoop` and rerun everything.
+- [x] **Step 4: Write the audit.** Go through the generated TS for every file in `src/Metanui.Reactive` against spec 5.3 and list every deviation with the C# line, the emitted TS and the expected TS. Each deviation gets a Metano issue (opened with the maintainer's approval or through the Metano session) and, if one is in place, its `// Metano #<issue>` workaround.
+- [x] **Step 5: Commit** `test: add real scheduler tests and the TS output audit`.
 
 ### Verification Plan
 - `bun test tests/js/reactive` and `dotnet test tests/Metanui.Reactive.Tests` green, scheduler tests included
 - `docs/design/0001-reactive-core-ts-audit.md` exists; every deviation has an issue reference
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 84dda82 and 4905632. 55/55 pass on .NET and Bun. Review approved, after one docs fix round on the strength of the benchmark claim, preserving the harness and the issue references.
+- **Real schedulers, in test code only.** A Bun microtask test and a TUnit pumped SynchronizationContext test both prove asynchrony. A synchronous scheduler fails them (mutation-checked). No core change was needed.
+- **Audit:** `docs/design/0001-reactive-core-ts-audit.md`.
+  - `tsc --strict` (5.9.3) is clean.
+  - `tsgo --strict` reports only TS2430, from metano-runtime's Temporal polyfill (#786).
+  - Emission noise is filed as #787.
+  - The `root(...)` arity dispatcher throws for zero-parameter TS callbacks (#778).
+  - Metano warnings never fail the build, and the up-to-date stamp is written even after a failed build (#785). MSBuildTreatWarningsAsErrors stays off (ruling).
+- **Defensive try/finally in Propagate/CheckDirty is kept.** It is within noise on JavaScriptCore (Bun), with per-call overhead under 0.05 ns. V8 was not measured. The path it protects is untested. The harness is in `bench/micro/`.
+- **Metano wave-9 branch:** #768, #772, #773, #774 and #775 are fixed there. The workarounds stay until the release.
+- **Machine load** reached about 32 during this phase, from parallel Metano test suites. Benchmarks must record the load average and run on a quiet machine.
 
 ---
 
