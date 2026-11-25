@@ -1,7 +1,7 @@
 import { throwError } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Computed, Reactivity, Signal, type IFlushScheduler } from "metanui-reactive/metanui/reactive";
+import { Reactivity, type IFlushScheduler } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -42,8 +42,8 @@ export class FlushScenarios {
 
   private static writeDuringFlushSchedulesNoExtraFlush(expect: IExpect): void {
     const scheduler = new FlushScenarios$CountingScheduler(false);
-    const source = new Signal(0);
-    const relayed = new Signal(0);
+    const source = Reactivity.signal(0);
+    const relayed = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number | null) => relayed.value = (value + 1) | 0);
     FlushScenarios.withScheduler(scheduler, () => {
       Reactivity.flush();
@@ -56,8 +56,8 @@ export class FlushScenarios {
 
   private static flushInsideApplyIsNoOp(expect: IExpect): void {
     let log = "";
-    const source = new Signal(0);
-    const relayed = new Signal(0);
+    const source = Reactivity.signal(0);
+    const relayed = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number | null) => {
       relayed.value = (value + 1) | 0;
       Reactivity.flush();
@@ -70,7 +70,7 @@ export class FlushScenarios {
 
   private static throwingSchedulerDoesNotBlockLaterWrites(expect: IExpect): void {
     const scheduler = new FlushScenarios$CountingScheduler(true);
-    const signal = new Signal(0);
+    const signal = Reactivity.signal(0);
     let error = null as Exception | null;
     FlushScenarios.withScheduler(scheduler, () => {
       Reactivity.flush();
@@ -84,9 +84,9 @@ export class FlushScenarios {
   }
 
   private static throwingComparerStillPropagates(expect: IExpect): void {
-    const plain = new Signal(0);
-    const throwing = new Signal(0, new FlushScenarios$ThrowingComparer());
-    const doubled = new Computed(() => Math.imul(plain.value, 2));
+    const plain = Reactivity.signal(0);
+    const throwing = Reactivity.signal(0, new FlushScenarios$ThrowingComparer());
+    const doubled = Reactivity.computed(() => Math.imul(plain.value, 2));
     expect.equal(0, doubled.value, "initial value");
     plain.value = 1;
     throwing.value = 1;

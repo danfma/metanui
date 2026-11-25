@@ -79,7 +79,7 @@ Citations refer to the Solid 2.0 migration guide and cheatsheet (`solidjs/solid`
 
 - `Effect(compute, apply)`: `compute` is tracked and returns a value; `apply(value, previous)` is untracked and performs the side effect. `apply` may return a cleanup that runs before the next `apply` and on disposal.
 - `compute` runs during the flush, together with all other computations; every `apply` of the flush runs after **all** computes of that flush. This ordering is what lets renderers read the whole graph before touching the platform.
-- On creation, `compute` runs immediately; the first `apply` runs at the end of the current flush (or the next one if created outside a flush).
+- On creation, `compute` runs immediately; the first `apply` runs at the end of the current flush (or the next one if created outside a flush). The first `apply` receives `previous = value`, so `previous` is never `default` (which would be 0 on .NET but null in TypeScript for a value type).
 - Writes performed inside `apply` schedule another flush pass. A pass limit detects infinite update loops and throws.
 
 ### 4.4 Errors in effects
@@ -153,8 +153,8 @@ Reserve flag bits for a pending-async state and an error state, and keep the "va
 ## 6. C# API
 
 ```csharp
-var count = new Signal<int>(0);
-var doubled = new Computed<int>(() => count.Value * 2);
+var count = Reactivity.Signal(0);
+var doubled = Reactivity.Computed(() => count.Value * 2);
 
 Reactivity.Root(dispose =>
 {
@@ -167,6 +167,7 @@ count.Value = 5;      // queued; count.Value still reads 0
 Reactivity.Flush();   // count = 5, doubled = 10, apply prints "0 -> 10"
 ```
 
+- Signals and computeds are created only through `Reactivity.Signal(...)` and `Reactivity.Computed(...)` (the constructors are internal), mirroring Solid's flat `createSignal`/`createMemo`.
 - `Signal<T>` and `Computed<T>` are classes with a `Value` property. Metano must emit `Value` as a TS `get value()` (and `set value()` on signals) that calls straight into the engine.
 - Free functions live in a static class (`Reactivity` is a placeholder name: the namespace is already `Metanui.Reactive`).
 - A lambda is allocated once per computation **creation**, never per read or per run.

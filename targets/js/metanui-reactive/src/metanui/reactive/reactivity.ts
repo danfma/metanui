@@ -1,8 +1,11 @@
+import { Computed } from "./computed.js";
 import { SplitEffect } from "./effects/split-effect.js";
 import type { IFlushScheduler } from "./i-flush-scheduler.js";
 import { RootNode } from "./ownership/root-node.js";
 import { FlushLoop } from "./scheduling/flush-loop.js";
+import { Signal } from "./signal.js";
 import { Tracking } from "./tracking.js";
+import type { IEqualityComparer } from "metano-runtime/system/collections";
 
 export class Reactivity {
   constructor() { }
@@ -17,6 +20,14 @@ export class Reactivity {
 
   static flush(): void {
     FlushLoop.run();
+  }
+
+  static signal<T>(initialValue: T, comparer: IEqualityComparer<T> | null = null): Signal<T> {
+    return new Signal(initialValue, comparer);
+  }
+
+  static computed<T>(compute: () => T, comparer: IEqualityComparer<T> | null = null): Computed<T> {
+    return new Computed(compute, comparer);
   }
 
   static effect<T>(compute: () => T, apply: (arg1: T, arg2: T | null) => void): void {

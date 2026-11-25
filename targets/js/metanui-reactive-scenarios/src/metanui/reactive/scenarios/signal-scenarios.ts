@@ -1,5 +1,5 @@
 import { HashCode, copyRecordWith, valueHashCode } from "metano-runtime";
-import { Reactivity, Signal } from "metanui-reactive/metanui/reactive";
+import { Reactivity } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { Scenario } from "./scenario.js";
 
@@ -45,12 +45,12 @@ export class SignalScenarios {
   constructor() { }
 
   private static readsInitialValue(expect: IExpect): void {
-    expect.equal(42, new Signal(42).value, "initial value");
-    expect.equal(new SignalScenarios$Point(1, 2), new Signal(new SignalScenarios$Point(1, 2)).value, "record value");
+    expect.equal(42, Reactivity.signal(42).value, "initial value");
+    expect.equal(new SignalScenarios$Point(1, 2), Reactivity.signal(new SignalScenarios$Point(1, 2)).value, "record value");
   }
 
   private static writeIsInvisibleUntilFlush(expect: IExpect): void {
-    const signal = new Signal(0);
+    const signal = Reactivity.signal(0);
     signal.value = 5;
     expect.equal(0, signal.value, "value before flush");
     expect.equal(0, signal.peek(), "peek before flush");
@@ -60,7 +60,7 @@ export class SignalScenarios {
   }
 
   private static lastWriteWins(expect: IExpect): void {
-    const signal = new Signal(0);
+    const signal = Reactivity.signal(0);
     signal.value = 1;
     signal.value = 2;
     signal.value = 3;
@@ -69,14 +69,14 @@ export class SignalScenarios {
   }
 
   private static flushWithoutWritesIsNoOp(expect: IExpect): void {
-    const signal = new Signal(7);
+    const signal = Reactivity.signal(7);
     Reactivity.flush();
     Reactivity.flush();
     expect.equal(7, signal.value, "value unchanged by empty flushes");
   }
 
   private static customComparerIsUsed(expect: IExpect): void {
-    const signal = new Signal("a", new SignalScenarios$CaseInsensitiveComparer());
+    const signal = Reactivity.signal("a", new SignalScenarios$CaseInsensitiveComparer());
     signal.value = "A";
     Reactivity.flush();
     expect.equal("a", signal.value, "equal under the comparer keeps the committed value");

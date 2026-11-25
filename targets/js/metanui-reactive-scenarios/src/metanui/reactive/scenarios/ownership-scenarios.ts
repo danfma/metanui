@@ -1,5 +1,5 @@
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Computed, Reactivity, Signal } from "metanui-reactive/metanui/reactive";
+import { Reactivity, type Computed } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -27,7 +27,7 @@ export class OwnershipScenarios {
     let alive = 0;
     let created = 0;
     let log = "";
-    const count = new Signal(1);
+    const count = Reactivity.signal(1);
     Reactivity.effect(() => {
       const run = count.value;
       Reactivity.effect(() => {
@@ -55,13 +55,13 @@ export class OwnershipScenarios {
 
   private static computedOwnedByRootIsDisposed(expect: IExpect): void {
     let runs = 0;
-    const source = new Signal(0);
+    const source = Reactivity.signal(0);
     let dispose = () => {
     };
     const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
       dispose = disposeRoot;
 
-      return new Computed(() => {
+      return Reactivity.computed(() => {
         runs = (runs + 1) | 0;
 
         return source.value;
@@ -81,8 +81,8 @@ export class OwnershipScenarios {
 
   private static untrackDoesNotSubscribe(expect: IExpect): void {
     let computes = 0;
-    const tracked = new Signal(0);
-    const untracked = new Signal(0);
+    const tracked = Reactivity.signal(0);
+    const untracked = Reactivity.signal(0);
     Reactivity.effect(() => {
       computes = (computes + 1) | 0;
 
@@ -100,7 +100,7 @@ export class OwnershipScenarios {
 
   private static disposeDuringFlushSkipsQueuedEffects(expect: IExpect): void {
     let appliesOfB = 0;
-    const source = new Signal(0);
+    const source = Reactivity.signal(0);
     let disposeInner = () => {
     };
     Reactivity.effect(() => source.value, (value: number, previous: number | null) => {
@@ -121,8 +121,8 @@ export class OwnershipScenarios {
   }
 
   private static writeInsideUntrackInComputedThrows(expect: IExpect): void {
-    const target = new Signal(0);
-    const writer = new Computed(() => {
+    const target = Reactivity.signal(0);
+    const writer = Reactivity.computed(() => {
       Reactivity.untrack(() => target.value = 1);
 
       return 0;
@@ -134,8 +134,8 @@ export class OwnershipScenarios {
   }
 
   private static writeInRootInsideComputedThrows(expect: IExpect): void {
-    const target = new Signal(0);
-    const writer = new Computed(() => {
+    const target = Reactivity.signal(0);
+    const writer = Reactivity.computed(() => {
       Reactivity.rootFuncOfActionT<number>((dispose: () => void) => target.value = 1);
 
       return 0;
@@ -147,7 +147,7 @@ export class OwnershipScenarios {
   }
 
   private static writeInNestedRootIsAllowed(expect: IExpect): void {
-    const target = new Signal(0);
+    const target = Reactivity.signal(0);
     const error = ScenarioRunner.catch(() => Reactivity.rootFuncOfActionT<number>((outer: () => void) => Reactivity.rootFuncOfActionT<number>((inner: () => void) => target.value = 1)));
     Reactivity.flush();
     expect.isTrue(error == null, "the write in the nested root does not throw");

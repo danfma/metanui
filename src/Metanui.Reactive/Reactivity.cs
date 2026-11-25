@@ -16,12 +16,19 @@ public static partial class Reactivity
     /// </summary>
     public static void Flush() => FlushLoop.Run();
 
+    /// <summary>Creates a signal holding <paramref name="initialValue" />.</summary>
+    public static Signal<T> Signal<T>(T initialValue, IEqualityComparer<T>? comparer = null) =>
+        new(initialValue, comparer);
+
+    /// <summary>Creates a computed value, evaluated lazily and cached until a dependency changes.</summary>
+    public static Computed<T> Computed<T>(Func<T> compute, IEqualityComparer<T>? comparer = null) =>
+        new(compute, comparer);
+
     /// <summary>
     /// Creates a split effect. <paramref name="compute" /> is tracked and runs now, then in the
     /// compute phase of every flush pass where one of its dependencies changed. <paramref name="apply" />
     /// is untracked and receives the computed value and the value of the previous apply
-    /// (<c>default</c> the first time: for a value type that is 0 on .NET but null in TypeScript, an
-    /// open API decision); every apply of a pass runs after all computes of that pass,
+    /// (the computed value itself the first time, so <c>previous</c> is never <c>default</c>); every apply of a pass runs after all computes of that pass,
     /// and the first one runs at the end of the current flush, or of the next one when created outside
     /// a flush. Writes inside <paramref name="apply" /> are allowed and run another pass.
     /// </summary>

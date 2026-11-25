@@ -13,7 +13,7 @@ public sealed class Signal<T> : SignalNode
     private T _pending;
     private bool _hasPending;
 
-    public Signal(T initialValue, IEqualityComparer<T>? comparer = null)
+    internal Signal(T initialValue, IEqualityComparer<T>? comparer = null)
     {
         _comparer = comparer ?? EqualityComparer<T>.Default;
         _value = initialValue;

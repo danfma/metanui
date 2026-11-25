@@ -1,7 +1,7 @@
 import { HashCode, copyRecordWith } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Computed, Reactivity, Signal } from "metanui-reactive/metanui/reactive";
+import { Reactivity } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -32,7 +32,7 @@ class EffectScenarios$Point {
 
 export class EffectScenarios {
   private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
-  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun)];
+  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun)];
 
   constructor() { }
 
@@ -40,8 +40,8 @@ export class EffectScenarios {
     let computes = 0;
     let applies = 0;
     let appliedValue = "";
-    let previousWasDefault = false;
-    const name = new Signal("first");
+    let appliedPrevious = "";
+    const name = Reactivity.signal("first");
     Reactivity.effect(() => {
       computes = (computes + 1) | 0;
 
@@ -49,7 +49,7 @@ export class EffectScenarios {
     }, (value: string, previous: string | null) => {
       applies = (applies + 1) | 0;
       appliedValue = value;
-      previousWasDefault = previous == null;
+      appliedPrevious = previous!;
     });
     expect.equal(1, computes, "computes after creation");
     expect.equal(0, applies, "applies after creation");
@@ -57,13 +57,26 @@ export class EffectScenarios {
     expect.equal(1, computes, "computes after flush");
     expect.equal(1, applies, "applies after flush");
     expect.equal("first", appliedValue, "applied value");
-    expect.isTrue(previousWasDefault, "applied previous is default");
+    expect.equal("first", appliedPrevious, "first apply previous is the value");
+  }
+
+  private static firstApplyPreviousEqualsValueForValueType(expect: IExpect): void {
+    let appliedValue = -1;
+    let appliedPrevious = null as number | null;
+    const count = Reactivity.signal(7);
+    Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
+      appliedValue = value;
+      appliedPrevious = previous;
+    });
+    Reactivity.flush();
+    expect.equal(7, appliedValue, "applied value");
+    expect.equal<number | null>(7, appliedPrevious, "first apply previous is the value");
   }
 
   private static applyReceivesPrevious(expect: IExpect): void {
     let appliedValue = -1;
     let appliedPrevious = null as number | null;
-    const count = new Signal(1);
+    const count = Reactivity.signal(1);
     Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
       appliedValue = value;
       appliedPrevious = previous;
@@ -77,7 +90,7 @@ export class EffectScenarios {
 
   private static appliesRunAfterAllComputes(expect: IExpect): void {
     let log = "";
-    const count = new Signal(0);
+    const count = Reactivity.signal(0);
     Reactivity.effect(() => {
       log = (log ?? "") + "c1,";
 
@@ -98,8 +111,8 @@ export class EffectScenarios {
   private static applyIsUntracked(expect: IExpect): void {
     let computes = 0;
     let applies = 0;
-    const tracked = new Signal(0);
-    const readInApply = new Signal(0);
+    const tracked = Reactivity.signal(0);
+    const readInApply = Reactivity.signal(0);
     Reactivity.effect(() => {
       computes = (computes + 1) | 0;
 
@@ -117,7 +130,7 @@ export class EffectScenarios {
 
   private static applyCleanupRunsBeforeNextApply(expect: IExpect): void {
     let log = "";
-    const count = new Signal(1);
+    const count = Reactivity.signal(1);
     Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
       log = (log ?? "") + ("apply" + value + ",");
       Reactivity.onCleanup(() => log = (log ?? "") + ("cleanup" + value + ","));
@@ -134,7 +147,7 @@ export class EffectScenarios {
     let rootError = null as Exception | null;
     Reactivity.effect(() => 0, (value: number, previous: number | null) => {
       computedError = ScenarioRunner.catch(() => {
-        const computed = new Computed(() => 1);
+        const computed = Reactivity.computed(() => 1);
       });
       effectError = ScenarioRunner.catch(() => Reactivity.effect(() => 1, (innerValue: number, innerPrevious: number | null) => {
       }));
@@ -149,8 +162,8 @@ export class EffectScenarios {
 
   private static computedCleanupInApplyBelongsToComputed(expect: IExpect): void {
     let log = "";
-    const count = new Signal(1);
-    const nested = new Computed(() => {
+    const count = Reactivity.signal(1);
+    const nested = Reactivity.computed(() => {
       const value = count.value;
       Reactivity.onCleanup(() => log = (log ?? "") + ("computed-cleanup" + value + ","));
 
@@ -168,8 +181,8 @@ export class EffectScenarios {
 
   private static writeInApplySchedulesAnotherPass(expect: IExpect): void {
     let lastApplied = -1;
-    const source = new Signal(1);
-    const relayed = new Signal(0);
+    const source = Reactivity.signal(1);
+    const relayed = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number | null) => relayed.value = Math.imul(value, 10));
     Reactivity.effect(() => relayed.value, (value: number, previous: number | null) => lastApplied = value);
     Reactivity.flush();
@@ -177,7 +190,7 @@ export class EffectScenarios {
   }
 
   private static effectWriteLoopThrows(expect: IExpect): void {
-    const count = new Signal(0);
+    const count = Reactivity.signal(0);
     Reactivity.effect(() => count.value, (value: number, previous: number | null) => count.value = (value + 1) | 0);
     const error = ScenarioRunner.catch(Reactivity.flush);
     expect.isTrue(error instanceof InvalidOperationException, "the pass limit throws");
@@ -188,7 +201,7 @@ export class EffectScenarios {
   private static equalRecordWriteDoesNotRerun(expect: IExpect): void {
     let computes = 0;
     let applies = 0;
-    const point = new Signal(new EffectScenarios$Point(1, 2));
+    const point = Reactivity.signal(new EffectScenarios$Point(1, 2));
     Reactivity.effect(() => {
       computes = (computes + 1) | 0;
 

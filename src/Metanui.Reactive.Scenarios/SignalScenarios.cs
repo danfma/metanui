@@ -14,13 +14,13 @@ public static class SignalScenarios
 
     private static void ReadsInitialValue(IExpect expect)
     {
-        expect.Equal(42, new Signal<int>(42).Value, "initial value");
-        expect.Equal(new Point(1, 2), new Signal<Point>(new Point(1, 2)).Value, "record value");
+        expect.Equal(42, Reactivity.Signal(42).Value, "initial value");
+        expect.Equal(new Point(1, 2), Reactivity.Signal(new Point(1, 2)).Value, "record value");
     }
 
     private static void WriteIsInvisibleUntilFlush(IExpect expect)
     {
-        var signal = new Signal<int>(0);
+        var signal = Reactivity.Signal(0);
 
         signal.Value = 5;
 
@@ -35,7 +35,7 @@ public static class SignalScenarios
 
     private static void LastWriteWins(IExpect expect)
     {
-        var signal = new Signal<int>(0);
+        var signal = Reactivity.Signal(0);
 
         signal.Value = 1;
         signal.Value = 2;
@@ -47,7 +47,7 @@ public static class SignalScenarios
 
     private static void FlushWithoutWritesIsNoOp(IExpect expect)
     {
-        var signal = new Signal<int>(7);
+        var signal = Reactivity.Signal(7);
 
         Reactivity.Flush();
         Reactivity.Flush();
@@ -57,7 +57,7 @@ public static class SignalScenarios
 
     private static void CustomComparerIsUsed(IExpect expect)
     {
-        var signal = new Signal<string>("a", new CaseInsensitiveComparer());
+        var signal = Reactivity.Signal("a", new CaseInsensitiveComparer());
 
         signal.Value = "A";
         Reactivity.Flush();
