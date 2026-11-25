@@ -93,7 +93,7 @@ All four were reported to the Metano session. The MS0063 comment fix landed in 0
 ---
 
 ## Task 3: Fix the stale already-Pending sibling after an errored computed retries (Phase 3)
-Status: Not started
+Status: Complete
 
 This was parked by the core's final review. Repro shape:
 - `flaky` is a computed with no deps that fails on its first run.
@@ -103,15 +103,26 @@ This was parked by the core's final review. Repro shape:
 
 Once C's retry recovers `flaky`, `ShallowPropagate` sets E Dirty. But `CheckDirty(E)` returns false, and `RunIfDirty` re-arms `Watching`, which wipes Dirty. So E keeps -1.
 
-- [ ] Scenario `RetryRecoveryUpdatesAPendingSibling`, reproducing exactly the shape above. It must fail on the current code.
-- [ ] Fix: in `EffectNode.RunIfDirty`, re-test `(Flags & ReactiveFlags.Dirty) != 0` after `CheckDirty` returns false, before re-arming. Check whether `Computed` has the same gap (a computed sibling read through `Refresh`/`CheckDirty`). If it does, fix it the same way and add a scenario.
-- [ ] Hot path: this is one flag read, on the not-dirty branch only.
+- [x] Scenario `RetryRecoveryUpdatesAPendingSibling`, reproducing exactly the shape above. It must fail on the current code.
+- [x] Fix: in `EffectNode.RunIfDirty`, re-test `(Flags & ReactiveFlags.Dirty) != 0` after `CheckDirty` returns false, before re-arming. Check whether `Computed` has the same gap (a computed sibling read through `Refresh`/`CheckDirty`). If it does, fix it the same way and add a scenario.
+- [x] Hot path: this is one flag read, on the not-dirty branch only.
 
 ### Verification Plan
 - The new scenario fails before the fix and passes after it. Both suites pass.
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 0584165, 9dec4a2 and a61517d. 80/80 pass on .NET and 82 on Bun, with strict tsc clean. The review needed one fix round, after the intermediate design caused an in-flush glitch (an apply saw `42,0`). The re-review approved the final design and argued glitch-freedom in general.
+- **Final design: the F-9 retry is a deferred invalidation.** An eligible tracked re-read throws the cached error in the current pass and queues the computed on an intrusive retry chain in `FlushLoop`. At the start of the next pass, before the commit, the computed is marked Dirty and its subscribers are propagated, as a signal commit does. Every observer, the reader included, sees the recovery or the fresh error one pass later, consistently. Recovery and error→error take the same path.
+- **What changed in the code:**
+  - `Retry()` and the inline sibling propagation from the core's fix wave item 2 are gone.
+  - The interim re-tests in `RunIfDirty`/`RecomputeIfDependencyChanged` were removed.
+  - The DependencyGraph walks are untouched.
+- **Flush rules:**
+  - Pending retries are discarded together with pending writes at the pass limit.
+  - A computed disposed while on the chain is skipped and unlinked.
+  - Queuing the same computed twice is guarded. The scenario for the A,B / A,C order is deferred, see the ledger.
+- **Spec:** 4.2 records the one-pass timing as a deviation from Solid's F-9, and the 4.7 flowchart shows the retry step.
+- **Scenarios added:** three stale-sibling shapes, the glitch shape, error→error, disposed-on-chain and queue-once.
 
 ---
 
