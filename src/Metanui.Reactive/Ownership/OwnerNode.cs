@@ -25,6 +25,13 @@ public abstract class OwnerNode : ReactiveNode
     internal bool IsDisposed;
 
     /// <summary>
+    /// Next computed in the flush queue of retried computeds (see <see cref="FlushLoop.EnqueueRecovered" />).
+    /// Only computeds use it; it lives here because <see cref="Computed{T}" /> is generic and the flush
+    /// queue is not.
+    /// </summary>
+    internal OwnerNode? NextRecovered;
+
+    /// <summary>
     /// Creates the node as the newest child of the current owner, if any. Creating it directly in an
     /// effect's apply, which has no owner, throws: nothing would ever dispose it (Solid 2.0.4
     /// <c>PRIMITIVE_IN_EFFECT_CALLBACK</c>).
