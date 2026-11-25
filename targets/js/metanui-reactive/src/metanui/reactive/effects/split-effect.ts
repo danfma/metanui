@@ -13,7 +13,7 @@ export class SplitEffect<T> extends EffectNode {
     this._apply = apply;
   }
 
-  protected compute(): void {
+  protected override compute(): void {
     const value = this._compute!();
 
     if (!this.isDisposed) {
@@ -21,14 +21,14 @@ export class SplitEffect<T> extends EffectNode {
     }
   }
 
-  protected apply(): void {
+  protected override apply(): void {
     const previous = this._hasApplied ? this._applied : this._value;
     this._applied = this._value;
     this._hasApplied = true;
     this._apply!(this._value, previous);
   }
 
-  protected releaseUserState(): void {
+  protected override releaseUserState(): void {
     this._compute = null;
     this._apply = null;
     this._value = null!;

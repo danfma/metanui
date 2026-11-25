@@ -3,14 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "imports": {
-    "#/*": {
-      "source": "./src/*.ts",
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.js",
-      "default": "./src/*.ts"
-    }
-  },
   "sideEffects": false,
   "exports": {
     "./metanui/reactive": {
@@ -40,6 +32,6 @@
     }
   },
   "peerDependencies": {
-    "metano-runtime": "^3.1.0"
+    "metano-runtime": "^3.2.0"
   }
 }

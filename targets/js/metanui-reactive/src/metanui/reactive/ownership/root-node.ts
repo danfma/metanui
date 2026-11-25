@@ -51,12 +51,12 @@ export class RootNode extends OwnerNode {
   }
 
   /** @internal */
-  update(): boolean {
+  override update(): boolean {
     return throwError(new InvalidOperationException("A root cannot be updated."));
   }
 
   /** @internal */
-  notify(): void {
+  override notify(): void {
     throwError(new InvalidOperationException("A root cannot be notified."));
   }
 

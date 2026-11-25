@@ -32,7 +32,7 @@ export abstract class SignalNode extends ReactiveNode {
   abstract discardPending(): void;
 
   /** @internal */
-  notify(): void {
+  override notify(): void {
     throwError(new InvalidOperationException("A signal cannot be notified."));
   }
 }

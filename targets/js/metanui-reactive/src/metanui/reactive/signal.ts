@@ -87,7 +87,7 @@ export class Signal<T> extends SignalNode {
   }
 
   /** @internal */
-  update(): boolean {
+  override update(): boolean {
     if (!this._hasPending) {
       return false;
     }
@@ -104,7 +104,7 @@ export class Signal<T> extends SignalNode {
   }
 
   /** @internal */
-  discardPending(): void {
+  override discardPending(): void {
     this._hasPending = false;
     this._pending = this._value;
   }

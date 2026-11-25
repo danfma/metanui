@@ -98,13 +98,13 @@ export abstract class EffectNode extends OwnerNode {
   }
 
   /** @internal */
-  notify(): void {
+  override notify(): void {
     this.flags &= ~ReactiveFlags.Watching;
     FlushLoop.enqueueCompute(this);
   }
 
   /** @internal */
-  onDisposed(): void {
+  override onDisposed(): void {
     const applyCleanups = this._applyCleanups;
     this._applyCleanups = null;
     Teardown.run(applyCleanups);
@@ -115,7 +115,7 @@ export abstract class EffectNode extends OwnerNode {
   }
 
   /** @internal */
-  update(): boolean {
+  override update(): boolean {
     return throwError(new InvalidOperationException("An effect cannot be updated."));
   }
 
