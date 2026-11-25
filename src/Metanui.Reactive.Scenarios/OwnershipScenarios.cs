@@ -122,20 +122,17 @@ public static class OwnershipScenarios
         var runs = 0;
         var source = Reactivity.Signal(0);
 
-        Action dispose = () => { };
+        var (dispose, computed) = Reactivity.Root(disposeRoot =>
+            (
+                disposeRoot,
+                Reactivity.Computed(() =>
+                {
+                    runs++;
 
-        // Metano #779: tuple deconstruction (`var (a, b) = ...`) is not supported (MS0001)
-        var computed = Reactivity.Root(disposeRoot =>
-        {
-            dispose = disposeRoot;
-
-            return Reactivity.Computed(() =>
-            {
-                runs++;
-
-                return source.Value;
-            });
-        });
+                    return source.Value;
+                })
+            )
+        );
 
         // Owned by the scenario root, outside the inner root: it keeps pulling the computed.
         Reactivity.Effect(() => computed.Value, (value, previous) => { });

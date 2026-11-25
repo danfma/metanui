@@ -98,17 +98,11 @@ export class OwnershipScenarios {
   private static computedOwnedByRootIsDisposed(expect: IExpect): void {
     let runs = 0;
     const source = Reactivity.signal(0);
-    let dispose = () => {
-    };
-    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
-      dispose = disposeRoot;
+    const [dispose, computed] = Reactivity.rootFuncOfActionT<[() => void, Computed<number>]>((disposeRoot: () => void) => [disposeRoot, Reactivity.computed(() => {
+      runs = (runs + 1) | 0;
 
-      return Reactivity.computed(() => {
-        runs = (runs + 1) | 0;
-
-        return source.value;
-      });
-    });
+      return source.value;
+    })] as [() => void, Computed<number>]);
     Reactivity.effect(() => computed.value, (value: number, previous: number) => {
     });
     Reactivity.flush();
