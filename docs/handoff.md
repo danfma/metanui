@@ -1,8 +1,70 @@
-# Handoff — Metanui kickoff (2026-11-24)
+# Handoff — Metanui
+
+## Status (2026-11-25): Phase 1 reactive core done
+
+The reactive core (`src/Metanui.Reactive`) is complete on branch `feat/reactive-core`: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano 3.1.0 generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
+
+- Plan and phase summaries: `plans/reactive-core.md`.
+- Design and its deviations from `@solidjs/signals` 2.0.4: `docs/design/0001-reactive-core.md`.
+- Generated TypeScript audit and Metano findings: `docs/design/0001-reactive-core-ts-audit.md`.
+- Benchmark method, results and findings: `bench/reactivity/README.md` (micro-benchmarks: `bench/micro/README.md`).
+
+### Benchmark summary
+
+js-reactivity-benchmark against Solid 2.0.4 and alien-signals 3.2.1, budget 10–15% over Solid. Primary numbers come from the idle host criptomaster (Fedora 45, i9-8950HK), median of three runs; raw outputs are in `bench/reactivity/results/criptomaster-2026-11-25/`.
+
+- **Bun 1.4.5 (JavaScriptCore): budget met on every test.** Metanui is 25–89% faster than Solid 2.0 (Solid's eager memos inflate the `lazy80%` gaps) and between 29% faster and 15% slower than alien-signals.
+- **Node v26.8.2 (V8): budget missed on `createSignals` (+17%, Solid's own times are noisy) and `cellx1000` (+21%).** On V8 Metanui trails alien-signals on every test, by up to 4.9× (`cellx1000`). The causes are F2 (node layout makes creation slow) and F3 (deep flush, cause open), plus the defensive `try/finally` in `Propagate`/`CheckDirty` (about 1.5–3 ns per call on V8).
+
+### Open Metano issues (danfma/metano)
+
+| Issue | What | State in this repo |
+|---|---|---|
+| #768 | No import for a type referenced only in a property setter | Workaround in `Signal.cs` (`// Metano #768`); fixed on Metano's wave-9 branch |
+| #772 | Labeled statements dropped | Workaround in `DependencyGraph.cs`; fixed on wave-9 |
+| #773 | Discard `_ = expr` emitted verbatim | Workaround (`Read` helpers in scenarios); fixed on wave-9 |
+| #774 | `T? x = nonNull;` loses `\| null` | Workaround in `DependencyGraph.ShallowPropagate`; fixed on wave-9 |
+| #775 | `x!.A` does not narrow `x` | No workaround left; fixed on wave-9 |
+| #770 | Internal types need `[Transpile]` | Every internal transpiled type carries it. A reference to an internal type without it is emitted with no import and no diagnostic (seen again in the final fix wave) |
+| #776 | Import of a renamed type lost | Did not reproduce |
+| #778 | Overload dispatcher with a dead branch; `root(...)` throws for zero-parameter TS callbacks | No workaround needed for C# callers |
+| #779 | Tuple deconstruction unsupported | Workaround in `OwnershipScenarios.cs` |
+| #785 | Metano warnings never fail the build; up-to-date stamp written after a failed run | Open |
+| #786 | metano-runtime's Temporal polyfill clashes with tsgo | Open |
+| #787 | Emission noise (N1–N5, N7, N8 of the audit) | Open |
+| FR after #780 | `@internal` for internal types | Internal types are still exported from the generated barrels. Rule until it lands: hand-written TS imports only the public symbols (`Reactivity`, `Signal`, `Computed`, `IFlushScheduler`, `ManualFlushScheduler`) |
+| not filed yet | `null!`/`default!` of a non-generic reference type loses its `!` | Workaround in `FlushScenarios.cs` (`// Metano:`), from the final fix wave |
+
+### Metano 3.2.0 follow-up
+
+Metano 3.2.0 is published, but this branch stays on 3.1.0 (tool pin and lock files). `Metano` and `Metano.Build.TypeScript` float (`Version="*"`), so a forced restore (`dotnet restore --force-evaluate`, `scripts/update-metano.sh`) picks 3.2.0 without anyone choosing it. 3.2.0 turns Metano warnings into build failures (#785), so the build may fail on warnings that 3.1.0 let through. Make the upgrade one deliberate commit:
+
+1. run `scripts/update-metano.sh` and fix what fails;
+2. remove every workaround the audit ledger lists (`// Metano #<issue>` comments), re-probing each issue first;
+3. re-check the root dispatcher (#778) and the `@internal` export of internal types;
+4. rerun both suites, strict tsc and the benchmark correctness tests, and re-measure.
+
+## Next steps
+
+1. **Metano 3.2.0 upgrade** (above).
+2. **`docs/design/0002-dsl-binding.md`:** how the DSL binds reactive values to element properties. Compare a single `Prop<T>` input type, per-component invalidation and a Metano lazy-argument feature (spec 6.1). The same design must settle the owner capture API (`getOwner`/`runWithOwner`), context, and a common read abstraction over `Signal<T>` and `Computed<T>` (architecture review A4).
+3. **A separate V8 optimisation phase:** F2 (node layout), F3 (deep flush), and the defensive `try/finally`.
+4. **Follow-ups from the final review:**
+   - a `TrackingScope` struct for the save/set/restore of the tracking state, if Metano emits it without allocation;
+   - deduplicate `Computed.Update` and `Computed.RunFirst`;
+   - split `RootNode` and an error-boundary node;
+   - move `Tracking.Pass` into `FlushLoop`;
+   - split `ErrorScenarios.cs` by theme;
+   - one type per file for `IFlushScheduler`/`ManualFlushScheduler`;
+   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, a write during a pending resume;
+   - rethrow cached errors with `ExceptionDispatchInfo` so the .NET stack of `throw _error` is kept;
+   - sanitise the `.cpuprofile` paths before publishing benchmark artefacts.
+
+## Kickoff context (2026-11-24)
 
 Origin: a design discussion in the Metano repo session (wave 8). The maintainer chose to build a toolkit with its own runtime written in C#, rather than wrapping SolidJS, so the same programming model can run on .NET (Avalonia) and on the web (DOM via Metano).
 
-## Decisions taken
+### Decisions taken
 
 1. **Model:** fine-grained reactivity (signals). No virtual DOM, no whole-render diffing, no hook-order rules.
    - Signals map naturally to retained-mode UIs: DOM nodes and Avalonia controls get property-level effects.
@@ -17,25 +79,8 @@ Origin: a design discussion in the Metano repo session (wave 8). The maintainer 
    - Metano always at the latest NuGet release (`Version="*"` + `scripts/update-metano.sh`).
    - Bun for JS.
 
-## Current state of the repo
 
-- Scaffold only:
-  - `global.json` (SDK 11.0.100);
-  - `Directory.Build.props` (net11.0, C# 15, warnings as errors, CPM with floating versions);
-  - `Directory.Packages.props` (Metano, Metano.Build floating);
-  - `dotnet-tools.json` (Metano.Compiler.TypeScript 3.0.2, csharpier);
-  - `Metanui.slnx`;
-  - a Bun workspace over `targets/js/*`.
-- `src/Metanui.Reactive` is a smoke project (one placeholder record) that proves the pipeline. `dotnet build` transpiles it into `targets/js/metanui-reactive` (package.json with `metano-runtime ^3.0.2` peer dep). Replace the placeholder with the real core.
-- Copied from Metano's `.claude/`:
-  - agents `bob`, `backend-reviewer`, `frontend-reviewer`, `compiler-transpiler-expert`;
-  - rules `backend.md`, `frontend.md`;
-  - skill `csharp-15`.
-  - `compiler-man` is a global agent.
-  - Speckit skills were not copied; add them with `.specify/` if spec-driven work is wanted here.
-- No git commit yet: review the scaffold, then commit.
-
-## Things to know before coding
+### Things to know before coding
 
 - **Metano versions on NuGet today:** `Metano` / `Metano.Compiler.TypeScript` 3.0.2, but **`Metano.Build` latest is 2.10.1**. The build works with it.
   - Check upstream whether `Metano.Build` stopped being published in 3.x (a likely release-pipeline gap). Open a Metano issue if so.
@@ -49,7 +94,7 @@ Origin: a design discussion in the Metano repo session (wave 8). The maintainer 
   - `[ObjectArgs]` gives `T.create({...})` call shapes. On primary constructors it arrives with Metano wave 8 (#739).
 - **Where the DOM API comes from:** C# facades with `[Import]` / `[Emit]` / `[NoEmit]` (TS-only, report MS0051 elsewhere), or a small hand-written TS module imported by the generated code. Keep DOM access out of the shared core.
 
-## Proposed phases
+### Proposed phases
 
 ```mermaid
 flowchart LR
@@ -75,7 +120,7 @@ flowchart LR
 2. **Phase 2:** an Avalonia renderer for the same sample app, plus the analyzers the DSL needs (missing keys, reactive reads outside a tracking scope).
 3. **Phase 3:** shared layout and styling with a closed scope: flex plus a small modifier set; platform escape hatches.
 
-## Open questions for the maintainer
+### Open questions for the maintainer
 
 1. **Reactive reads in the DSL.** `Text($"Count {count.Value}")` evaluates once. Two options:
    - explicit lambdas `Text(() => ...)`;
