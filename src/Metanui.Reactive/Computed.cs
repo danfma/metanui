@@ -2,9 +2,11 @@ namespace Metanui.Reactive;
 
 /// <summary>
 /// A value derived from other reactive values. Lazy (computed on the first read), cached, and
-/// recomputed only when a dependency actually changed. Owned by the owner current at construction and
-/// disposed with it; one created outside any owner stays subscribed to its sources until it is
-/// unwatched (spec 4.2).
+/// recomputed only when a dependency actually changed: Solid's <c>createMemo</c> with
+/// <c>lazy: true</c>. Owned by the owner current at construction and disposed with it; one created
+/// outside any owner stays subscribed to its sources until it is unwatched. Losing its last
+/// subscriber unlinks it and disposes what its last run created, and the next read runs it again
+/// (spec 4.2).
 /// </summary>
 /// <remarks>
 /// An exception thrown by the function is cached with <see cref="ReactiveFlags.Errored" /> and

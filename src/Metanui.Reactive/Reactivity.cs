@@ -27,6 +27,9 @@ public static partial class Reactivity
     /// The flush also releases the disposed effects still queued, which until then keep their bare
     /// node (no callbacks, values or dependencies). A real scheduler flushes soon after the work is
     /// queued; under <see cref="ManualFlushScheduler" /> only this call does.
+    /// Called inside a computation outside a flush (a computed read from user code), it runs a whole
+    /// nested flush, as Solid 2.0.4 does; the computation then mixes values read before and after
+    /// that commit, so do not call it there (spec 4.6).
     /// </remarks>
     public static void Flush() => FlushLoop.Run();
 
@@ -86,9 +89,10 @@ public static partial class Reactivity
     /// </summary>
     /// <remarks>
     /// Like a <see cref="Root{T}" /> body, <paramref name="body" /> runs once, untracked, and the
-    /// boundary is owned by the current owner. Phase 1 ships only this owner-level handler, not a UI
-    /// boundary that swaps content. Errors thrown by cleanups never reach a boundary: the disposal
-    /// rethrows them (spec 4.5).
+    /// boundary is owned by the current owner. It hands out no disposer: it is disposed with its
+    /// owner, so create a top-level boundary inside a <see cref="Root{T}" />. Phase 1 ships only this
+    /// owner-level handler, not a UI boundary that swaps content. Errors thrown by cleanups never
+    /// reach a boundary: the disposal rethrows them (spec 4.5).
     /// </remarks>
     public static void ErrorBoundary(Action body, Action<Exception> onError) =>
         new RootNode(onError).RunBoundary(body);
