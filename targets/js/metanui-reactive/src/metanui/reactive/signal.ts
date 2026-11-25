@@ -58,10 +58,7 @@ export class Signal<T> extends SignalNode {
     }
 
     this._pending = value;
-    this.queue();
-  }
 
-  private queue(): void {
     if (!this._hasPending) {
       this._hasPending = true;
       FlushLoop.enqueue(this);
