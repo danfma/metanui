@@ -127,9 +127,10 @@ internal static class DependencyGraph
     /// <summary>Marks every subscriber reachable from <paramref name="link" /> as pending and notifies the watching ones.</summary>
     /// <remarks>
     /// The <c>finally</c> here and in <see cref="CheckDirty" /> is defensive: user code cannot throw out
-    /// of a walk (Computed caches its errors, cleanups collect theirs), so only an engine or host error
-    /// (a broken invariant, a JS <c>RangeError</c>) reaches it, and it keeps such an error from leaving
-    /// stale frames under an enclosing walk. It costs nothing measurable on Bun
+    /// of a walk (Computed caches its errors, cleanups collect theirs). An engine or host error (a
+    /// broken invariant, a JS <c>RangeError</c>) may reach it, and then it keeps that error from leaving
+    /// stale frames under an enclosing walk; that path is untested. Its cost is within noise on
+    /// JavaScriptCore (Bun), under 0.05 ns per call; V8 is not measured
     /// (docs/design/0001-reactive-core-ts-audit.md).
     /// </remarks>
     public static void Propagate(Link link)
