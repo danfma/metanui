@@ -17,8 +17,8 @@ public static class ErrorScenarios
             ErroredComputedWithoutDepsRetriesOnTrackedReread
         ),
         new Scenario(
-            "error in a nested dirty check leaves the graph usable",
-            ErrorInNestedCheckDirtyLeavesGraphUsable
+            "error raised in a multi-level dirty check reaches the reader and later walks stay correct",
+            ErrorInMultiLevelDirtyCheckReachesReader
         ),
         new Scenario("boundary receives an effect apply error", BoundaryReceivesEffectError),
         new Scenario(
@@ -155,7 +155,13 @@ public static class ErrorScenarios
         expect.Equal(2, runs, "compute runs after the retry");
     }
 
-    private static void ErrorInNestedCheckDirtyLeavesGraphUsable(IExpect expect)
+    /// <summary>
+    /// A computed two levels below the reader throws while the dirty check recomputes it: the error
+    /// is cached on the way up and reaches the reader, and a later walk over a branching graph is still
+    /// correct. Computed catches the error inside the walk, so this does not exercise the defensive
+    /// restore of the stack base in DependencyGraph, which no user code reaches.
+    /// </summary>
+    private static void ErrorInMultiLevelDirtyCheckReachesReader(IExpect expect)
     {
         var source = Reactivity.Signal(0);
 
@@ -177,7 +183,7 @@ public static class ErrorScenarios
         root.Value = 2;
         Reactivity.Flush();
 
-        expect.Equal(-1, guarded.Value, "the error crossed the nested dirty check");
+        expect.Equal(-1, guarded.Value, "the error crossed the multi-level dirty check");
         expect.Equal(10, sum.Value, "a branching graph read afterwards is correct");
     }
 
