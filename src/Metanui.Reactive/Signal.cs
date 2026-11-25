@@ -46,19 +46,23 @@ public sealed class Signal<T> : SignalNode
             }
 
             _pending = value;
-
-            if (_hasPending)
-            {
-                return;
-            }
-
-            _hasPending = true;
             Queue();
         }
     }
 
     // Metano #768: the import of a type referenced only inside a property setter body is not emitted
-    private void Queue() => FlushLoop.Enqueue(this);
+    private void Queue()
+    {
+        if (!_hasPending)
+        {
+            _hasPending = true;
+            FlushLoop.Enqueue(this);
+        }
+
+        // Requested on every write, not only the first: if the scheduler threw, the write stayed
+        // queued with no flush scheduled, and a later write must schedule it.
+        FlushLoop.RequestFlush();
+    }
 
     // Metano #768: same missing import, for InvalidOperationException
     private static void RejectWriteInsideComputation() =>
@@ -85,5 +89,11 @@ public sealed class Signal<T> : SignalNode
         _value = _pending;
 
         return true;
+    }
+
+    internal override void DiscardPending()
+    {
+        _hasPending = false;
+        _pending = _value;
     }
 }

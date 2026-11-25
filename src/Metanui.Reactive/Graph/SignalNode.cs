@@ -12,6 +12,9 @@ public abstract class SignalNode : ReactiveNode
     /// </summary>
     internal SignalNode? NextPending;
 
+    /// <summary>Drops the pending write, if any, keeping the committed value.</summary>
+    internal abstract void DiscardPending();
+
     /// <summary>Signals are never notified: they are sources, not subscribers.</summary>
     internal override void Notify() =>
         throw new InvalidOperationException("A signal cannot be notified.");

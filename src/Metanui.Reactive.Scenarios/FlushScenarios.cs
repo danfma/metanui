@@ -1,0 +1,149 @@
+namespace Metanui.Reactive.Scenarios;
+
+/// <summary>Scenarios for the flush loop guards: reentrancy, scheduling and failures mid-flush.</summary>
+public static class FlushScenarios
+{
+    public static Scenario[] All { get; } =
+    [
+        new Scenario(
+            "write during a flush schedules no extra flush",
+            WriteDuringFlushSchedulesNoExtraFlush
+        ),
+        new Scenario("flush inside an apply is a no-op", FlushInsideApplyIsNoOp),
+        new Scenario(
+            "throwing scheduler does not block later writes",
+            ThrowingSchedulerDoesNotBlockLaterWrites
+        ),
+        new Scenario(
+            "throwing comparer still propagates committed signals",
+            ThrowingComparerStillPropagates
+        ),
+    ];
+
+    private static void WriteDuringFlushSchedulesNoExtraFlush(IExpect expect)
+    {
+        var scheduler = new CountingScheduler(failFirst: false);
+        var source = new Signal<int>(0);
+        var relayed = new Signal<int>(0);
+
+        Reactivity.Effect(() => source.Value, (value, previous) => relayed.Value = value + 1);
+
+        WithScheduler(scheduler, () =>
+        {
+            Reactivity.Flush();
+            source.Value = 1;
+            Reactivity.Flush();
+        });
+
+        expect.Equal(2, relayed.Value, "write in apply committed by the running flush");
+        expect.Equal(1, scheduler.Requests, "flushes requested");
+    }
+
+    private static void FlushInsideApplyIsNoOp(IExpect expect)
+    {
+        var log = "";
+        var source = new Signal<int>(0);
+        var relayed = new Signal<int>(0);
+
+        Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                relayed.Value = value + 1;
+                Reactivity.Flush();
+                log += "a" + relayed.Value + ",";
+            }
+        );
+
+        Reactivity.Effect(() => relayed.Value, (value, previous) => log += "b" + value + ",");
+
+        Reactivity.Flush();
+
+        expect.Equal("a0,b0,b1,", log, "the nested flush neither commits nor runs applies early");
+    }
+
+    private static void ThrowingSchedulerDoesNotBlockLaterWrites(IExpect expect)
+    {
+        var scheduler = new CountingScheduler(failFirst: true);
+        var signal = new Signal<int>(0);
+        Exception? error = null;
+
+        WithScheduler(scheduler, () =>
+        {
+            // Clears a flush another scenario may have left scheduled.
+            Reactivity.Flush();
+            error = ScenarioRunner.Catch(() => signal.Value = 1);
+            signal.Value = 2;
+        });
+
+        expect.IsTrue(
+            error is InvalidOperationException,
+            "the scheduler exception reaches the writer"
+        );
+        expect.Equal(2, scheduler.Requests, "the later write schedules again");
+
+        Reactivity.Flush();
+
+        expect.Equal(2, signal.Value, "the queued write commits");
+    }
+
+    private static void ThrowingComparerStillPropagates(IExpect expect)
+    {
+        var plain = new Signal<int>(0);
+        var throwing = new Signal<int>(0, new ThrowingComparer());
+        var doubled = new Computed<int>(() => plain.Value * 2);
+
+        expect.Equal(0, doubled.Value, "initial value");
+
+        plain.Value = 1;
+        throwing.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(
+            error is InvalidOperationException,
+            "the comparer exception leaves the flush"
+        );
+        expect.Equal(2, doubled.Value, "the signal committed before the throw was propagated");
+        expect.IsTrue(ScenarioRunner.Catch(Reactivity.Flush) is null, "the next flush is clean");
+    }
+
+    private static void WithScheduler(IFlushScheduler scheduler, Action action)
+    {
+        var previous = Reactivity.Scheduler;
+
+        Reactivity.Scheduler = scheduler;
+
+        try
+        {
+            action();
+        }
+        finally
+        {
+            Reactivity.Scheduler = previous;
+        }
+    }
+
+    /// <summary>Counts flush requests without running them; optionally throws on the first one.</summary>
+    private sealed class CountingScheduler(bool failFirst) : IFlushScheduler
+    {
+        public int Requests { get; private set; }
+
+        public void Schedule(Action flush)
+        {
+            Requests++;
+
+            if (failFirst && Requests == 1)
+            {
+                throw new InvalidOperationException("Scheduler failed.");
+            }
+        }
+    }
+
+    private sealed class ThrowingComparer : IEqualityComparer<int>
+    {
+        public bool Equals(int x, int y) => throw new InvalidOperationException("Comparer failed.");
+
+        public int GetHashCode(int value) => value;
+    }
+}

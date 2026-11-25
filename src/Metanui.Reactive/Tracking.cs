@@ -14,4 +14,7 @@ internal static class Tracking
     /// every recomputation so that a repeated read of the same dependency links only once.
     /// </summary>
     public static int Cycle;
+
+    /// <summary>The effect whose apply is running; null outside an apply. Owns the cleanups registered meanwhile.</summary>
+    public static EffectNode? ActiveApply;
 }
