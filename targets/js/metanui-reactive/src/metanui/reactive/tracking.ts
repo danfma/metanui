@@ -1,7 +1,8 @@
 import type { ReactiveNode } from "./graph/reactive-node.js";
 
 export class Tracking {
-  static observer: ReactiveNode | null = null;
+  static activeObserver: ReactiveNode | null = null;
+  static cycle: number = 0;
 
   constructor() { }
 }

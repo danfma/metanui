@@ -1,12 +1,16 @@
-import { defaultEqualityComparerFor, type ClassType } from "metano-runtime";
+import { defaultEqualityComparerFor, throwError, type ClassType } from "metano-runtime";
+import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
+import { DependencyGraph } from "./graph/dependency-graph.js";
 import { ReactiveFlags } from "./graph/reactive-flags.js";
 import { SignalNode } from "./graph/signal-node.js";
 import { FlushLoop } from "./scheduling/flush-loop.js";
+import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
 
 let Signal$rt: ClassType<Signal<unknown>> | undefined;
 
 export class Signal<T> extends SignalNode {
+  private static readonly writeInsideComputationMessage: string = "Writing to a signal inside a computation is not allowed; move the write outside.";
   private readonly _comparer: IEqualityComparer<T>;
   private _value: T;
   private _pending: T;
@@ -37,10 +41,20 @@ export class Signal<T> extends SignalNode {
   }
 
   get value(): T {
+    const observer = Tracking.activeObserver;
+
+    if (!(observer == null)) {
+      DependencyGraph.link(this, observer, Tracking.cycle);
+    }
+
     return this._value;
   }
 
   set value(value: T) {
+    if (!(Tracking.activeObserver == null)) {
+      Signal.rejectWriteInsideComputation();
+    }
+
     this._pending = value;
 
     if (this._hasPending) {
@@ -53,6 +67,10 @@ export class Signal<T> extends SignalNode {
 
   private queue(): void {
     FlushLoop.enqueue(this);
+  }
+
+  private static rejectWriteInsideComputation(): void {
+    throwError(new InvalidOperationException(Signal.writeInsideComputationMessage));
   }
 
   peek(): T {
@@ -74,10 +92,5 @@ export class Signal<T> extends SignalNode {
     this._value = this._pending;
 
     return true;
-  }
-
-  /** @internal */
-  commitPending(): void {
-    this.update();
   }
 }

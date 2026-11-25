@@ -1,3 +1,4 @@
+export { ComputedScenarios } from "./computed-scenarios.js";
 export { IExpect$runtimeType } from "./i-expect.js";
 export type { IExpect } from "./i-expect.js";
 export { ReactiveScenarios } from "./reactive-scenarios.js";
