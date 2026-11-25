@@ -17,6 +17,12 @@ internal sealed class RootNode : OwnerNode
     /// <summary>The error boundary's handler; null for a plain root.</summary>
     private readonly Action<Exception>? _errorHandler;
 
+    /// <summary>
+    /// Nesting depth of running error handlers. A handler runs with no owner, yet an exception it
+    /// throws goes to the next boundary up, so a disposer called there defers its cleanup error.
+    /// </summary>
+    private static int _handlerDepth;
+
     internal RootNode(Action<Exception>? errorHandler = null)
     {
         UnderComputation = IsUnderComputation(Parent);
@@ -98,17 +104,17 @@ internal sealed class RootNode : OwnerNode
 
     /// <summary>
     /// The disposer handed to the body. It rethrows the first cleanup error of the disposal at once
-    /// only when nothing on the way out would take it: outside a flush, and with no computation or
-    /// error boundary among the current owners (a computed would cache it, an effect compute or a
-    /// boundary body would hand it to a boundary). Otherwise the error waits for the end of the
-    /// running flush, or for the next flush or root disposal (Solid <c>disposeRootSelf</c>; spec 4.5:
-    /// cleanup errors never go to an error handler).
+    /// only when nothing on the way out would take it: outside a flush and any error handler, and with
+    /// no computation or error boundary among the current owners (a computed would cache it, an effect
+    /// compute, a boundary body or a handler would hand it to a boundary). Otherwise the error waits
+    /// for the end of the running flush, or for the next flush or root disposal (Solid
+    /// <c>disposeRootSelf</c>; spec 4.5: cleanup errors never go to an error handler).
     /// </summary>
     private void DisposeFromCaller()
     {
         Dispose();
 
-        if (!FlushLoop.IsRunning && !IsCaughtByOwner(Tracking.CurrentOwner))
+        if (!FlushLoop.IsRunning && _handlerDepth == 0 && !IsCaughtByOwner(Tracking.CurrentOwner))
         {
             Teardown.RethrowFirstError();
         }
@@ -127,6 +133,7 @@ internal sealed class RootNode : OwnerNode
         Tracking.CurrentOwner = null;
         Tracking.ActiveObserver = null;
         Tracking.ActiveApply = null;
+        _handlerDepth++;
 
         try
         {
@@ -141,6 +148,7 @@ internal sealed class RootNode : OwnerNode
         }
         finally
         {
+            _handlerDepth--;
             Tracking.CurrentOwner = previousOwner;
             Tracking.ActiveObserver = previousObserver;
             Tracking.ActiveApply = previousApply;

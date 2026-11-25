@@ -12,6 +12,7 @@ export class RootNode extends OwnerNode {
   readonly underComputation: boolean = false;
 
   private readonly _errorHandler: ((obj: Exception) => void) | null = null;
+  private static _handlerDepth: number = 0;
 
   constructor(errorHandler: ((obj: Exception) => void) | null = null) {
     super();
@@ -71,7 +72,7 @@ export class RootNode extends OwnerNode {
   private disposeFromCaller(): void {
     this.dispose();
 
-    if (!FlushLoop.isRunning && !RootNode.isCaughtByOwner(Tracking.currentOwner)) {
+    if (!FlushLoop.isRunning && RootNode._handlerDepth === 0 && !RootNode.isCaughtByOwner(Tracking.currentOwner)) {
       Teardown.rethrowFirstError();
     }
   }
@@ -83,6 +84,7 @@ export class RootNode extends OwnerNode {
     Tracking.currentOwner = null;
     Tracking.activeObserver = null;
     Tracking.activeApply = null;
+    RootNode._handlerDepth = (RootNode._handlerDepth + 1) | 0;
     try {
       this._errorHandler!(error);
     } catch (e$) {
@@ -93,6 +95,7 @@ export class RootNode extends OwnerNode {
         throw e$;
       }
     } finally {
+      RootNode._handlerDepth = (RootNode._handlerDepth - 1) | 0;
       Tracking.currentOwner = previousOwner;
       Tracking.activeObserver = previousObserver;
       Tracking.activeApply = previousApply;
