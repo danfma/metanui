@@ -127,8 +127,39 @@ internal static class DependencyGraph
     /// <summary>Marks every subscriber reachable from <paramref name="link" /> as pending and notifies the watching ones.</summary>
     public static void Propagate(Link link)
     {
+        var stackBase = LinkStack.Top;
+
+        try
+        {
+            PropagateAbove(link, stackBase);
+        }
+        finally
+        {
+            LinkStack.Truncate(stackBase);
+        }
+    }
+
+    /// <summary>
+    /// Walks the dependencies of a pending <paramref name="sub" />, recomputing the dirty ones, and
+    /// reports whether <paramref name="sub" /> must recompute.
+    /// </summary>
+    public static bool CheckDirty(Link link, ReactiveNode sub)
+    {
+        var stackBase = LinkStack.Top;
+
+        try
+        {
+            return CheckDirtyAbove(link, sub);
+        }
+        finally
+        {
+            LinkStack.Truncate(stackBase);
+        }
+    }
+
+    private static void PropagateAbove(Link link, int stackBase)
+    {
         var next = link.NextSub;
-        LinkStack? stack = null;
 
         while (true)
         {
@@ -187,7 +218,7 @@ internal static class DependencyGraph
 
                     if (nextSub is not null)
                     {
-                        stack = new LinkStack(next, stack);
+                        LinkStack.Push(next);
                         next = nextSub;
                     }
 
@@ -203,31 +234,21 @@ internal static class DependencyGraph
                 continue;
             }
 
-            // Metano: labeled continue (C# 15) is not transpiled, so the upstream `continue top`
-            // pop loop becomes: skip the empty frames, then resume from the first non-empty one.
-            while (stack is not null && stack.Value is null)
-            {
-                stack = stack.Prev;
-            }
+            // Upstream pops with a labeled `continue top`, which Metano does not transpile.
+            var resumed = LinkStack.PopNonNull(stackBase);
 
-            if (stack is null)
+            if (resumed is null)
             {
                 break;
             }
 
-            link = stack.Value!;
-            stack = stack.Prev;
+            link = resumed;
             next = link.NextSub;
         }
     }
 
-    /// <summary>
-    /// Walks the dependencies of a pending <paramref name="sub" />, recomputing the dirty ones, and
-    /// reports whether <paramref name="sub" /> must recompute.
-    /// </summary>
-    public static bool CheckDirty(Link link, ReactiveNode sub)
+    private static bool CheckDirtyAbove(Link link, ReactiveNode sub)
     {
-        LinkStack? stack = null;
         var checkDepth = 0;
         var dirty = false;
 
@@ -262,7 +283,7 @@ internal static class DependencyGraph
                 == (ReactiveFlags.Mutable | ReactiveFlags.Pending)
             )
             {
-                stack = new LinkStack(link, stack);
+                LinkStack.Push(link);
                 link = dep.Deps!;
                 sub = dep;
                 ++checkDepth;
@@ -284,17 +305,13 @@ internal static class DependencyGraph
 
             // Metano: labeled continue (C# 15) is not transpiled, so the upstream `continue top`
             // leaves this loop through `resumed`.
-            var resumed = false;
+            var resumedAbove = false;
 
             while (checkDepth > 0)
             {
-                // Upstream `while (checkDepth--)`. Metano: `stack!` does not narrow `stack` in TS,
-                // so pop through a non-null local.
-                var frame = stack!;
-
+                // Upstream `while (checkDepth--)`.
                 --checkDepth;
-                link = frame.Value!;
-                stack = frame.Prev;
+                link = LinkStack.Pop()!;
 
                 if (dirty)
                 {
@@ -326,13 +343,13 @@ internal static class DependencyGraph
                 if (nextDep is not null)
                 {
                     link = nextDep;
-                    resumed = true;
+                    resumedAbove = true;
 
                     break;
                 }
             }
 
-            if (resumed)
+            if (resumedAbove)
             {
                 continue;
             }

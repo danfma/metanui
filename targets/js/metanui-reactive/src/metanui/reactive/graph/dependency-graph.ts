@@ -88,8 +88,25 @@ export class DependencyGraph {
   }
 
   static propagate(link: Link): void {
+    const stackBase = LinkStack.top;
+    try {
+      DependencyGraph.propagateAbove(link, stackBase);
+    } finally {
+      LinkStack.truncate(stackBase);
+    }
+  }
+
+  static checkDirty(link: Link, sub: ReactiveNode): boolean {
+    const stackBase = LinkStack.top;
+    try {
+      return DependencyGraph.checkDirtyAbove(link, sub);
+    } finally {
+      LinkStack.truncate(stackBase);
+    }
+  }
+
+  private static propagateAbove(link: Link, stackBase: number): void {
     let next = link.nextSub;
-    let stack = null as LinkStack | null;
     while (true) {
       const sub = link.sub;
       let flags = sub.flags;
@@ -125,7 +142,7 @@ export class DependencyGraph {
           const nextSub = subSubs.nextSub;
 
           if (!(nextSub == null)) {
-            stack = new LinkStack(next, stack);
+            LinkStack.push(next);
             next = nextSub;
           }
 
@@ -139,22 +156,18 @@ export class DependencyGraph {
         continue;
       }
 
-      while (!(stack == null) && stack.value == null) {
-        stack = stack.prev;
-      }
+      const resumed = LinkStack.popNonNull(stackBase);
 
-      if (stack == null) {
+      if (resumed == null) {
         break;
       }
 
-      link = stack.value!;
-      stack = stack.prev;
+      link = resumed;
       next = link.nextSub;
     }
   }
 
-  static checkDirty(link: Link, sub: ReactiveNode): boolean {
-    let stack = null as LinkStack | null;
+  private static checkDirtyAbove(link: Link, sub: ReactiveNode): boolean {
     let checkDepth = 0;
     let dirty = false;
     while (true) {
@@ -176,7 +189,7 @@ export class DependencyGraph {
           }
         } else {
           if ((flags & (ReactiveFlags.Mutable | ReactiveFlags.Pending)) === (ReactiveFlags.Mutable | ReactiveFlags.Pending)) {
-            stack = new LinkStack(link, stack);
+            LinkStack.push(link);
             link = dep.deps!;
             sub = dep;
             checkDepth = (checkDepth + 1) | 0;
@@ -194,12 +207,10 @@ export class DependencyGraph {
         }
       }
 
-      let resumed = false;
+      let resumedAbove = false;
       while (checkDepth > 0) {
-        const frame = stack!;
         checkDepth = (checkDepth - 1) | 0;
-        link = frame.value!;
-        stack = frame.prev;
+        link = LinkStack.pop()!;
 
         if (dirty) {
           const subs = sub.subs!;
@@ -223,12 +234,12 @@ export class DependencyGraph {
 
         if (!(nextDep == null)) {
           link = nextDep;
-          resumed = true;
+          resumedAbove = true;
           break;
         }
       }
 
-      if (resumed) {
+      if (resumedAbove) {
         continue;
       }
 
