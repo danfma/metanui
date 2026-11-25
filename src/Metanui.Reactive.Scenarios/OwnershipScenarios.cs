@@ -91,6 +91,7 @@ public static class OwnershipScenarios
                     {
                         alive++;
                         created++;
+
                         Reactivity.OnCleanup(() =>
                         {
                             alive--;

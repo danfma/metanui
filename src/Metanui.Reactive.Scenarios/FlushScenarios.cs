@@ -91,6 +91,7 @@ public static class FlushScenarios
             error is InvalidOperationException,
             "the scheduler exception reaches the writer"
         );
+
         expect.Equal(2, scheduler.Requests, "the later write schedules again");
 
         Reactivity.Flush();
@@ -115,6 +116,7 @@ public static class FlushScenarios
             error is InvalidOperationException,
             "the comparer exception leaves the flush"
         );
+
         expect.Equal(2, doubled.Value, "the signal committed before the throw was propagated");
         expect.IsTrue(ScenarioRunner.Catch(Reactivity.Flush) is null, "the next flush is clean");
     }
