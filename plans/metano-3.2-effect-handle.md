@@ -21,13 +21,13 @@ Branch: `chore/metano-3.2-effect-handle` in the worktree `.claude/worktrees/meta
 ---
 
 ## Task 1: Upgrade to Metano 3.2.0 and remove the workarounds (Phase 1)
-Status: Not started
+Status: Complete
 
 **Files:** `dotnet-tools.json`, `Directory.Packages.props`, `bun.lock`, generated `package.json`s, every file with a `// Metano` comment, `src/Metanui.Reactive.Scenarios/Metanui.Reactive.Scenarios.csproj` (`MetanoPackageRoot`), `targets/js/metanui-reactive/package.json` (seeded `version`), internal types carrying `[Transpile]`, `docs/design/0001-reactive-core-ts-audit.md` (status of each issue).
 
-- [ ] Run `scripts/update-metano.sh`. The tool, `Metano` and `Metano.Build.TypeScript` must all be 3.2.0, and `metano-runtime` must be ^3.2.0 in the generated packages. Then run `bun install`.
-- [ ] Build and record every new error that #785 turns from a warning into an error. Fix each one at its source. Use a commented `WarningsNotAsErrors` entry only when a code is an accepted false positive.
-- [ ] Remove the workarounds that 3.2.0 fixes, one commit per issue group, rebuilding and re-running both suites after each:
+- [x] Run `scripts/update-metano.sh`. The tool, `Metano` and `Metano.Build.TypeScript` must all be 3.2.0, and `metano-runtime` must be ^3.2.0 in the generated packages. Then run `bun install`.
+- [x] Build and record every new error that #785 turns from a warning into an error. Fix each one at its source. Use a commented `WarningsNotAsErrors` entry only when a code is an accepted false positive.
+- [x] Remove the workarounds that 3.2.0 fixes, one commit per issue group, rebuilding and re-running both suites after each:
   - #768: the setter import helpers. `Signal.RejectWriteInsideComputation` stays out of line on purpose, because it keeps the cold path out of the setter; only its comment changes.
   - #772: the labeled `continue` rewrites. Restore the upstream labeled form only if the generated TS is a clean native label. Otherwise keep the rewrite and say why.
   - #773: discard workarounds.
@@ -37,15 +37,28 @@ Status: Not started
   - #779: tuple deconstruction.
   - #764/#765: `MetanoPackageRoot` and the seeded `version`.
   - #770: the explicit `[Transpile]` on internal types, if they are now transpiled automatically.
-- [ ] Keep the #794 workaround (`Missing<T>`) and the #776 note.
-- [ ] Update the audit document: mark each issue as fixed in 3.2.0 or still open, and re-run `tsc --strict` on both packages.
+- [x] Keep the #794 workaround (`Missing<T>`) and the #776 note.
+- [x] Update the audit document: mark each issue as fixed in 3.2.0 or still open, and re-run `tsc --strict` on both packages.
 
 ### Verification Plan
 - `dotnet build`: 0 warnings, 0 errors. Run `dotnet test tests/Metanui.Reactive.Tests`, `bun test tests/js/reactive` and `scripts/bench-reactivity.sh test`: all must pass. `tsc --strict` must be clean on both generated packages.
 - `grep -rn "// Metano" src tests` lists only the issues that are still open.
 
 ### Phase Summary
-_(write when phase completes)_
+Done in ec928dc..a24116b. Verified with 0 warnings, 72/72 on .NET, 74/74 on Bun (two new tests cover the TS `root` dispatcher), bench-reactivity test 12/12 and a clean strict tsc. Review and re-review approved the result.
+- **Tool and packages:** the tool and NuGet are on Metano 3.2.0; `metano-runtime` is at ^3.2.0 everywhere, including the bench and test consumers.
+- **Workarounds removed:**
+  - #768: setter imports. `RejectWriteInsideComputation` stays out of line on purpose.
+  - #772: native labeled `continue`, which is leaner than the rewrite.
+  - #773: discards.
+  - #775
+  - #778: `root` from TS with any arity.
+  - #779: deconstruction.
+  - #764/#765: `MetanoPackageRoot` and the seeded `version`.
+  - #770: no explicit `[Transpile]`. Internal types are no longer exported from barrels.
+- **Kept:** `ShallowPropagate` uses upstream's exact do/while with an explicit `Link?` (#796, a variant of #774). `Missing<T>` stays for #794.
+- **#785 surfaced only MS0063** on the two `Root` overloads. Neither `[Name]` (it acts as a suffix in 3.2.0, reported upstream) nor `[Ignore]` (it breaks the C# callers) resolves it. A commented project-scoped `NoWarn` stays as a temporary measure until Metano fixes `[Name]` or the 0002 `CreateRoot` design replaces the overloads.
+- **New Metano issues:** #796 (a `var` local loses `| null`), #797 (deleting a `.cs` file leaves stale `.ts`; workaround: delete `.metano-stamp`), #798 (a redundant `!`).
 
 ---
 
