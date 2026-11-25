@@ -25,7 +25,7 @@ js-reactivity-benchmark against Solid 2.0.4 and alien-signals 3.2.1, budget 10-1
 
 The project is on Metano **3.2.0** (tool, NuGet packages and `metano-runtime`), moved with `scripts/update-metano.sh`. Since #785, Metano warnings fail the build.
 
-**Workarounds removed in 3.2.0:** #768 (setter imports), #772 (native labeled `continue`), #773 (discards), #775, #778 (`root` from TS with any arity), #779 (deconstruction), #764/#765 (`MetanoPackageRoot` and the seeded `version`), #770 (no `[Transpile]` on internal types; internal types are no longer exported from barrels).
+**Workarounds removed in 3.2.0:** #768 (setter imports), #772 (native labeled `continue`), #773 (discards), #774 (the nullable-local walk; partly replaced by the #796 workaround below), #778 (`root` from TS with any arity), #779 (deconstruction), #764/#765 (`MetanoPackageRoot` and the seeded `version`), #770 (no `[Transpile]` on internal types; internal types are no longer exported from barrels).
 
 **Workarounds kept:** `Missing<T>` for #794; the explicit `Link?` do/while in `ShallowPropagate` for #796.
 
@@ -44,7 +44,7 @@ The project is on Metano **3.2.0** (tool, NuGet packages and `metano-runtime`), 
 
 ### Effect handle (blocked)
 
-`Reactivity.Effect` returning an `IDisposable` handle (maintainer decision: an effect still belongs to its owner, as in Solid) is **blocked on Metano #800**, which targets **3.3.0**. Metano's settled design:
+`Reactivity.Effect` returning an `IDisposable` handle (maintainer decision: an effect still belongs to its owner, as in Solid) is **blocked on Metano #800**, which targets **3.3.0**. The same issue blocks the 0002 `CreateRoot` scope, which is also `IDisposable`. The design below was agreed with the Metano session; it is not yet on the tracker (#800 has no comments):
 
 - `IDisposable` maps to a metano-runtime `{ dispose(): void }` interface;
 - `using` lowers to try/finally;
@@ -55,12 +55,21 @@ The work in progress is on branch `wip/effect-handle` (2d7f3dd): the implementat
 
 ### The F-9 retry
 
-An errored computed's retry is now a **deferred invalidation**, visible one pass later. An eligible tracked re-read throws the cached error in the current pass and queues the computed on a retry chain in `FlushLoop`. At the start of the next pass, before the commit, the computed is marked Dirty and its subscribers are propagated. Every observer sees the recovery (or the fresh error) one pass later, consistently. This deviates from Solid's F-9 timing and is recorded in spec 4.2.
+An errored computed's retry runs at the **start of the next flush pass**, not inline (spec 4.2). An eligible tracked re-read throws the cached error in the current pass, links its observer, then queues the computed on a retry chain in `FlushLoop`. At the start of the next pass, before the commit and with no graph walk in progress, the flush reruns each queued computed that is still errored and not disposed (`ComputedNode.RetryAtPassStart`):
+
+- **Recovery:** its subscribers are propagated like a signal commit, so every observer that runs in that pass sees the recovered value.
+- **Fails again:** the new error is kept silently and nobody is notified. An always-failing computed costs one observer run and one boundary call per change, as in Solid. An observer keeps the first error instance until it runs again for another reason (accepted trade-off, pinned by a scenario).
+- **No longer errored** (an unwatch cleared the error, or a read recomputed it): skipped.
+
+Known behaviour, stated precisely:
+
+- **Queue-once guard:** a computed already on the chain is not queued again (`IsQueuedForRetry`: it has a next link, or it is the tail). Both branches are covered by "errored computed re-read by several observers is retried once" (A,B then B,A). A dedicated A,B / A,C scenario would exercise the same non-tail branch; without the guard, re-queuing A would link the tail back to A and loop the chain.
+- **Retry as an extra pass (untested):** a retry queued in the last pass the budget allows counts as work, so that flush stops with the pass-limit error and discards the retry with the pending writes. Confirm with a scenario before relying on it.
 
 ## Next steps
 
 1. **Effect handle on Metano 3.3.0:** resume `wip/effect-handle` once #800 ships.
-2. **`docs/design/0002-dsl-binding.md`:** the DSL binding design, starting from the stub (decisions taken and open questions are there). It must also settle context through the owner chain and a common read abstraction over `Signal<T>` and `Computed<T>`.
+2. **`docs/design/0002-dsl-binding.md`:** the DSL binding design, starting from the stub (decisions taken and open questions are there). It must also settle context through the owner chain, a common read abstraction over `Signal<T>` and `Computed<T>`, and the re-entrant `Run` rules. The `CreateRoot` scope is `IDisposable`, so it is also blocked on Metano #800 (3.3.0).
 3. **V8 optimisation phase:** F2 (node layout) is the lead hypothesis, then F3 (deep flush) and the defensive `try/finally`. A Metano object-creation benchmark showed that derived classes with declared fields are about 2.4x slower to create on V8. Metano was advised to emit declaration-only fields.
 4. **Remaining follow-ups:**
    - a `TrackingScope` struct for the save/set/restore of the tracking state, if Metano emits it without allocation;
@@ -69,7 +78,7 @@ An errored computed's retry is now a **deferred invalidation**, visible one pass
    - move `Tracking.Pass` into `FlushLoop`;
    - split `ErrorScenarios.cs` by theme;
    - one type per file for `IFlushScheduler`/`ManualFlushScheduler`;
-   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, a write during a pending resume, the A,B / A,C retry-queue order;
+   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, a write during a pending resume, the A,B / A,C retry-queue order (optional, see the F-9 section), a retry queued in the last allowed pass;
    - rethrow cached errors with `ExceptionDispatchInfo` so the .NET stack of `throw _error` is kept;
    - sanitise the `.cpuprofile` paths before publishing benchmark artefacts.
 
@@ -95,16 +104,21 @@ Origin: a design discussion in the Metano repo session (wave 8). The maintainer 
 
 ### Things to know before coding
 
-- **Metano versions on NuGet today:** `Metano` / `Metano.Compiler.TypeScript` 3.0.2, but **`Metano.Build` latest is 2.10.1**. The build works with it.
-  - Check upstream whether `Metano.Build` stopped being published in 3.x (a likely release-pipeline gap). Open a Metano issue if so.
-- **Metano 3.0.2 uses Roslyn 5.3**, so it cannot transpile C# 15 `closed` hierarchies or unions. Those land in Metano **3.1.0**, which is held until #738 (closed family = TS union type with a `kind` getter) lands.
-  - Until then, web-targeted code avoids `closed`/`union` syntax.
-  - .NET-only code (Avalonia renderer, analyzers) can use all of C# 15.
-- **Metano emission rules that matter for a runtime:**
-  - Avoid patterns that still allocate closures: switch expressions in field initializers, `?? throw` outside switches until Metano wave 8 ships.
+Current facts (Metano 3.2.0):
+
+- `Metano`, `Metano.Build.TypeScript` and the `Metano.Compiler.TypeScript` tool are all on 3.2.0, and `metano-runtime` on ^3.2.0; `scripts/update-metano.sh` moves them together.
+- Metano warnings fail the build (#785). The only exemption is the commented MS0063 `NoWarn` (see "Metano" above).
+- `closed` hierarchies and unions are transpiled since Metano 3.1.0; check what the current release emits before using them in web-targeted code.
+- The open issues and kept workarounds are in "Metano" above and in the audit (section 9).
+
+Historical (kickoff, Metano 3.0.2; kept for context, superseded by the facts above):
+
+- `Metano.Build` stopped at 2.10.1 while `Metano` was 3.0.2; 3.0.2 used Roslyn 5.3 and could not transpile `closed`/unions.
+- **Metano emission rules that matter for a runtime** (re-check against the current release):
+  - Avoid patterns that still allocated closures: switch expressions in field initializers, `?? throw` outside switches (spec 5.3).
   - Records get value equality; signals of records should compare with `Equals`.
   - `List<T>` maps to the runtime List class, not a native array. Use `AsReadOnlyJsArray()` / `JsArray<T>` at DOM boundaries.
-  - `[ObjectArgs]` gives `T.create({...})` call shapes. On primary constructors it arrives with Metano wave 8 (#739).
+  - `[ObjectArgs]` gives `T.create({...})` call shapes; on primary constructors it was due with Metano wave 8 (#739).
 - **Where the DOM API comes from:** C# facades with `[Import]` / `[Emit]` / `[NoEmit]` (TS-only, report MS0051 elsewhere), or a small hand-written TS module imported by the generated code. Keep DOM access out of the shared core.
 
 ### Proposed phases
