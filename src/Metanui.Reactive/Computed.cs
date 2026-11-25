@@ -127,12 +127,15 @@ public sealed class Computed<T> : ComputedNode
     /// Runs the function again, before the pass commits anything, and reports whether it recovered:
     /// only a recovery is a change for the subscribers. A run that fails again keeps the new error
     /// silently, since every observer already saw an error for the change that asked for the retry.
-    /// A computed disposed since it was queued, or no longer errored (an unwatch cleared the error,
-    /// or a read recomputed it), is skipped.
+    /// A computed disposed since it was queued, no longer errored (an unwatch cleared the error, or a
+    /// read recomputed it), or left with no subscriber is skipped: nobody would see the recovery, and
+    /// the next tracked re-read asks again. Without that last check, a computed that failed before
+    /// reading any dependency (whose unwatch keeps the error) would run and link its new dependencies
+    /// with no subscriber left to unlink them.
     /// </summary>
     internal override bool RetryAtPassStart()
     {
-        if (IsDisposed || (Flags & ReactiveFlags.Errored) == 0)
+        if (IsDisposed || (Flags & ReactiveFlags.Errored) == 0 || Subs is null)
         {
             return false;
         }

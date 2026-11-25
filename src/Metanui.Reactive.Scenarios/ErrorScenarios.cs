@@ -53,6 +53,10 @@ public static class ErrorScenarios
             RetryOfComputedClearedByUnwatchDoesNotRun
         ),
         new Scenario(
+            "retry of a computed without dependencies that lost its last observer does not run",
+            RetryOfUnobservedComputedWithoutDepsDoesNotRun
+        ),
+        new Scenario(
             "errored computed re-read by several observers is retried once",
             ErroredComputedReReadBySeveralObserversIsRetriedOnce
         ),
@@ -641,6 +645,58 @@ public static class ErrorScenarios
         expect.Equal(2, runs, "the flush skips the retry");
         expect.Equal(1, computes, "the effect computed once");
         expect.Equal("0,", applies, "applies");
+    }
+
+    /// <summary>
+    /// The variant of <see cref="RetryOfComputedClearedByUnwatchDoesNotRun" /> for a computed that
+    /// failed before reading any dependency: losing its last observer does not clear its error, since
+    /// it has no dependency to drop. The effect that queued the retry is disposed by its own apply in
+    /// the same pass, so nobody would see a recovery; the flush must not run the function, which would
+    /// link the computed to <c>source</c> with no subscriber left to unlink it.
+    /// </summary>
+    private static void RetryOfUnobservedComputedWithoutDepsDoesNotRun(IExpect expect)
+    {
+        var runs = 0;
+        var source = Reactivity.Signal(5);
+        var trigger = Reactivity.Signal(0);
+
+        var flaky = Reactivity.Computed(() =>
+        {
+            runs++;
+
+            return runs == 1
+                ? throw new InvalidOperationException("First run fails.")
+                : source.Value;
+        });
+
+        Reactivity.Root(dispose =>
+        {
+            Reactivity.Effect(
+                () =>
+                {
+                    _ = trigger.Value;
+
+                    return ReadOr(flaky, -1);
+                },
+                (value, previous) =>
+                {
+                    if (trigger.Peek() == 1)
+                    {
+                        dispose();
+                    }
+                }
+            );
+        });
+
+        Reactivity.Flush();
+
+        expect.Equal(1, runs, "the first run failed");
+
+        // The trigger pass re-reads flaky, which queues the retry, and its apply disposes the effect.
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, runs, "the flush skips the retry nobody observes");
     }
 
     /// <summary>
