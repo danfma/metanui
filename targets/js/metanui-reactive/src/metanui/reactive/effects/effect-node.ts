@@ -2,12 +2,12 @@ import { throwError } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { DependencyGraph } from "../graph/dependency-graph.js";
 import { ReactiveFlags } from "../graph/reactive-flags.js";
-import { ReactiveNode } from "../graph/reactive-node.js";
+import { CleanupEntry } from "../ownership/cleanup-entry.js";
+import { OwnerNode } from "../ownership/owner-node.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
-import { CleanupEntry } from "./cleanup-entry.js";
 
-export abstract class EffectNode extends ReactiveNode {
+export abstract class EffectNode extends OwnerNode {
   /** @internal */
   nextQueued: EffectNode | null = null;
 
@@ -31,6 +31,10 @@ export abstract class EffectNode extends ReactiveNode {
 
   /** @internal */
   runIfDirty(): void {
+    if (this.isDisposed) {
+      return;
+    }
+
     const flags = this.flags;
 
     if ((flags & ReactiveFlags.Dirty) !== 0 || (flags & ReactiveFlags.Pending) !== 0 && DependencyGraph.checkDirty(this.deps!, this)) {
@@ -45,15 +49,22 @@ export abstract class EffectNode extends ReactiveNode {
 
   /** @internal */
   runApply(): void {
+    if (this.isDisposed) {
+      return;
+    }
+
     const previousObserver = Tracking.activeObserver;
+    const previousOwner = Tracking.currentOwner;
     const previousApply = Tracking.activeApply;
     Tracking.activeObserver = null;
+    Tracking.currentOwner = null;
     try {
       this.runApplyCleanups();
       Tracking.activeApply = this;
       this.apply();
     } finally {
       Tracking.activeObserver = previousObserver;
+      Tracking.currentOwner = previousOwner;
       Tracking.activeApply = previousApply;
     }
   }
@@ -70,6 +81,14 @@ export abstract class EffectNode extends ReactiveNode {
   }
 
   /** @internal */
+  onDisposed(): void {
+    this.runApplyCleanups();
+    this.depsTail = null;
+    this.flags = ReactiveFlags.None;
+    DependencyGraph.purgeDeps(this);
+  }
+
+  /** @internal */
   update(): boolean {
     return throwError(new InvalidOperationException("An effect cannot be updated."));
   }
@@ -79,15 +98,19 @@ export abstract class EffectNode extends ReactiveNode {
   protected abstract apply(): void;
 
   private runCompute(): void {
+    this.disposeOwned();
     this.depsTail = null;
     this.flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
     const previousObserver = Tracking.activeObserver;
+    const previousOwner = Tracking.currentOwner;
     Tracking.activeObserver = this;
+    Tracking.currentOwner = this;
     try {
       Tracking.cycle = (Tracking.cycle + 1) | 0;
       this.compute();
     } finally {
       Tracking.activeObserver = previousObserver;
+      Tracking.currentOwner = previousOwner;
       this.flags &= ~ReactiveFlags.RecursedCheck;
       DependencyGraph.purgeDeps(this);
     }

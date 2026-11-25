@@ -40,11 +40,7 @@ public sealed class Signal<T> : SignalNode
         }
         set
         {
-            if (Tracking.ActiveObserver is not null)
-            {
-                RejectWriteInsideComputation();
-            }
-
+            RejectWriteInsideComputation();
             _pending = value;
             Queue();
         }
@@ -64,9 +60,20 @@ public sealed class Signal<T> : SignalNode
         FlushLoop.RequestFlush();
     }
 
-    // Metano #768: same missing import, for InvalidOperationException
-    private static void RejectWriteInsideComputation() =>
-        throw new InvalidOperationException(WriteInsideComputationMessage);
+    // Metano #768: same missing import, for RootNode and InvalidOperationException
+    /// <summary>
+    /// Solid 2.0.4 rejects a write while the current owner is a computation, tracked or not (inside
+    /// <see cref="Reactivity.Untrack{T}" /> too). A root body and an apply are not computations.
+    /// </summary>
+    private static void RejectWriteInsideComputation()
+    {
+        var owner = Tracking.CurrentOwner;
+
+        if (owner is not null && owner is not RootNode)
+        {
+            throw new InvalidOperationException(WriteInsideComputationMessage);
+        }
+    }
 
     /// <summary>Reads the committed value without subscribing the current observer.</summary>
     public T Peek() => _value;

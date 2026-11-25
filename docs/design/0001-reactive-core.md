@@ -70,10 +70,10 @@ Citations refer to the Solid 2.0 migration guide and cheatsheet (`solidjs/solid`
 - `Computed<T>` derives a value from a function. It is lazy (computed on first read), cached, and recomputed only when a dependency actually changed (push dirty flags, pull values).
 - Glitch-free: during a flush no observer ever sees a mix of old and new values.
 - Same equality cut-off as signals: a recomputation that yields an equal value does not dirty downstream observers.
-- Ownership follows Solid's `createMemo`: a `Computed` attaches to the current owner when constructed and is disposed with it. A `Computed` created outside any owner lives until it is unreachable (no owner, no subscribers). Signals are plain values and have no owner.
+- Ownership follows Solid's `createMemo`: a `Computed` attaches to the current owner when constructed and is disposed with it (unlinked from its dependencies; a later read returns the last value without recomputing). A `Computed` created outside any owner stays linked from its sources' subscriber lists until it loses its last subscriber (alien-signals/Vue behaviour), so it lives as long as its sources unless it is disposed; create computeds under an owner to bound their lifetime. Signals are plain values and have no owner.
 - Dependencies are re-collected on every run (dynamic dependencies); links no longer read are removed.
 - An exception thrown by the function is cached as the node's state and rethrown to every reader until a dependency changes (Solid 2.0 propagates errors through the graph).
-- Writing a signal inside a computed function is an error. The builder verifies the exact Solid 2.0 behaviour (throw vs dev warning) and matches it.
+- Writing a signal inside a computed function is an error. The builder verifies the exact Solid 2.0 behaviour (throw vs dev warning) and matches it. Solid 2.0.4 throws (`REACTIVE_WRITE_IN_OWNED_SCOPE`) whenever the current owner is set, including inside `untrack`; Metanui throws `InvalidOperationException` when the current owner is a computation (computed or effect compute, untracked or not). Writes in an effect's apply and directly in a `Root` body are allowed; the latter is a deliberate deviation (Solid rejects it).
 
 ### 4.3 Effect (split)
 
@@ -89,7 +89,7 @@ Citations refer to the Solid 2.0 migration guide and cheatsheet (`solidjs/solid`
 
 ### 4.5 Ownership and cleanup
 
-- Every computation is created under the current **owner**. `Root(dispose => ...)` creates an owner with no parent and hands back its disposer.
+- Every computation is created under the current **owner**. `Root(dispose => ...)` creates an owner and hands back its disposer. As in Solid 2.0.4, a root created under an owner is owned by it and disposed with it; the disposer tears it down earlier. A root body is untracked.
 - When a computation re-runs, everything it created during the previous run (child computations, cleanups) is disposed first.
 - Disposal is depth-first; cleanups of one owner run in reverse registration order.
 - `OnCleanup(action)` registers a cleanup on the current owner.

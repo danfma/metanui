@@ -1,8 +1,9 @@
-import { defaultEqualityComparerFor, throwError, type ClassType } from "metano-runtime";
+import { defaultEqualityComparerFor, type ClassType } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { DependencyGraph } from "./graph/dependency-graph.js";
 import { ReactiveFlags } from "./graph/reactive-flags.js";
 import { SignalNode } from "./graph/signal-node.js";
+import { RootNode } from "./ownership/root-node.js";
 import { FlushLoop } from "./scheduling/flush-loop.js";
 import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
@@ -51,10 +52,7 @@ export class Signal<T> extends SignalNode {
   }
 
   set value(value: T) {
-    if (!(Tracking.activeObserver == null)) {
-      Signal.rejectWriteInsideComputation();
-    }
-
+    Signal.rejectWriteInsideComputation();
     this._pending = value;
     this.queue();
   }
@@ -69,7 +67,11 @@ export class Signal<T> extends SignalNode {
   }
 
   private static rejectWriteInsideComputation(): void {
-    throwError(new InvalidOperationException(Signal.writeInsideComputationMessage));
+    const owner = Tracking.currentOwner;
+
+    if (!(owner == null) && !(owner instanceof RootNode)) {
+      throw new InvalidOperationException(Signal.writeInsideComputationMessage);
+    }
   }
 
   peek(): T {

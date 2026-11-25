@@ -11,10 +11,13 @@ namespace Metanui.Reactive.Effects;
 /// Adapted from alien-signals 3.2.1 (stackblitz/alien-signals@8734d386d925025d0e99419bd9161c17b112c5ee,
 /// src/index.ts <c>effect</c>, <c>notify</c> and <c>run</c>): upstream runs one function per effect;
 /// here <c>run</c> recomputes and queues the apply instead. Effects are not linked under a parent
-/// effect (upstream <c>HasChildEffect</c>): ownership is a separate tree (Task 5).
+/// effect (upstream <c>HasChildEffect</c>): ownership is the separate <see cref="OwnerNode" /> tree.
+/// The compute owns what it creates. The apply runs with no owner (Solid 2.0.4 effect phase), so it
+/// cannot create computations; its cleanups form a separate chain, run before the next apply and
+/// last on disposal, like the cleanup a Solid effect function returns.
 /// </remarks>
 [Transpile]
-internal abstract class EffectNode : ReactiveNode
+internal abstract class EffectNode : OwnerNode
 {
     /// <summary>Next effect in the flush queue of computes to run.</summary>
     internal EffectNode? NextQueued;
@@ -40,6 +43,11 @@ internal abstract class EffectNode : ReactiveNode
     /// </summary>
     internal void RunIfDirty()
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+
         var flags = Flags;
 
         if (
@@ -56,13 +64,23 @@ internal abstract class EffectNode : ReactiveNode
         }
     }
 
-    /// <summary>Apply phase of a flush: runs the cleanups of the previous apply, then the apply, untracked.</summary>
+    /// <summary>
+    /// Apply phase of a flush: runs the cleanups of the previous apply, then the apply, untracked and
+    /// with no owner. A disposed effect's queued apply is skipped.
+    /// </summary>
     internal void RunApply()
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+
         var previousObserver = Tracking.ActiveObserver;
+        var previousOwner = Tracking.CurrentOwner;
         var previousApply = Tracking.ActiveApply;
 
         Tracking.ActiveObserver = null;
+        Tracking.CurrentOwner = null;
 
         try
         {
@@ -73,6 +91,7 @@ internal abstract class EffectNode : ReactiveNode
         finally
         {
             Tracking.ActiveObserver = previousObserver;
+            Tracking.CurrentOwner = previousOwner;
             Tracking.ActiveApply = previousApply;
         }
     }
@@ -92,6 +111,18 @@ internal abstract class EffectNode : ReactiveNode
         FlushLoop.EnqueueCompute(this);
     }
 
+    /// <summary>
+    /// After the compute's children and cleanups: runs the last apply's cleanups (last, as Solid runs
+    /// the effect's returned cleanup) and unsubscribes from every dependency.
+    /// </summary>
+    internal override void OnDisposed()
+    {
+        RunApplyCleanups();
+        DepsTail = null;
+        Flags = ReactiveFlags.None;
+        DependencyGraph.PurgeDeps(this);
+    }
+
     /// <summary>Effects are subscribers only, so no dependency walk ever asks them to update.</summary>
     internal override bool Update() =>
         throw new InvalidOperationException("An effect cannot be updated.");
@@ -102,14 +133,18 @@ internal abstract class EffectNode : ReactiveNode
     /// <summary>Runs the user apply with the last computed value and the previously applied one.</summary>
     protected abstract void Apply();
 
+    /// <summary>Disposes what the previous compute created, then runs the compute as the observer and owner.</summary>
     private void RunCompute()
     {
+        DisposeOwned();
         DepsTail = null;
         Flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
 
         var previousObserver = Tracking.ActiveObserver;
+        var previousOwner = Tracking.CurrentOwner;
 
         Tracking.ActiveObserver = this;
+        Tracking.CurrentOwner = this;
 
         try
         {
@@ -119,6 +154,7 @@ internal abstract class EffectNode : ReactiveNode
         finally
         {
             Tracking.ActiveObserver = previousObserver;
+            Tracking.CurrentOwner = previousOwner;
             Flags &= ~ReactiveFlags.RecursedCheck;
             DependencyGraph.PurgeDeps(this);
         }
