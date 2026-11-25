@@ -15,7 +15,7 @@ namespace Metanui.Reactive;
 /// before reading any dependency is not stuck for good; here the retry runs in the next flush pass
 /// (spec 4.2).
 /// </remarks>
-public sealed class Computed<T> : OwnerNode
+public sealed class Computed<T> : ComputedNode
 {
     private Func<T>? _compute;
     private IEqualityComparer<T>? _comparer;
@@ -119,6 +119,22 @@ public sealed class Computed<T> : OwnerNode
             Flags &= ~ReactiveFlags.RecursedCheck;
             PurgeStaleDeps();
         }
+    }
+
+    /// <summary>
+    /// Marks the computed dirty, so its next read runs the function again, and reports a change, since
+    /// a retry always replaces the error. A computed disposed since it was queued is skipped.
+    /// </summary>
+    internal override bool RetryAtPassStart()
+    {
+        if (IsDisposed)
+        {
+            return false;
+        }
+
+        Flags |= ReactiveFlags.Dirty;
+
+        return true;
     }
 
     /// <summary>Computeds are never notified: only watching nodes (effects) are.</summary>

@@ -21,8 +21,8 @@ internal static class FlushLoop
 
     private static SignalNode? _head;
     private static SignalNode? _tail;
-    private static OwnerNode? _retryHead;
-    private static OwnerNode? _retryTail;
+    private static ComputedNode? _retryHead;
+    private static ComputedNode? _retryTail;
     private static EffectNode? _computeHead;
     private static EffectNode? _computeTail;
     private static EffectNode? _applyHead;
@@ -86,7 +86,7 @@ internal static class FlushLoop
     /// Queues an errored computed for a retry (spec 4.2), once until the next pass invalidates it, and
     /// requests a flush for it.
     /// </summary>
-    public static void EnqueueRetry(OwnerNode computed)
+    public static void EnqueueRetry(ComputedNode computed)
     {
         if (computed.NextRetry is not null || computed == _retryTail)
         {
@@ -308,10 +308,9 @@ internal static class FlushLoop
         || _applyHead is not null;
 
     /// <summary>
-    /// Invalidates each computed queued for a retry: marks it dirty, so its next read runs the function
-    /// again, and marks its subscribers as a signal commit marks a changed signal's (see
-    /// <see cref="PropagateChanges" />), since a retry always replaces the error. A computed disposed
-    /// since it was queued is skipped. Each one leaves the queue before its propagation, so one that
+    /// Runs the retry of each queued computed (<see cref="ComputedNode.RetryAtPassStart" />) and, when
+    /// it reports a change, marks its subscribers as a signal commit marks a changed signal's (see
+    /// <see cref="PropagateChanges" />). Each one leaves the queue before its propagation, so one that
     /// throws leaves the rest queued for the next flush.
     /// </summary>
     private static void PropagateRetries()
@@ -320,12 +319,10 @@ internal static class FlushLoop
         {
             var computed = DequeueRetry();
 
-            if (computed.IsDisposed)
+            if (!computed.RetryAtPassStart())
             {
                 continue;
             }
-
-            computed.Flags |= ReactiveFlags.Dirty;
 
             var subs = computed.Subs;
 
@@ -337,7 +334,7 @@ internal static class FlushLoop
         }
     }
 
-    private static OwnerNode DequeueRetry()
+    private static ComputedNode DequeueRetry()
     {
         var computed = _retryHead!;
 

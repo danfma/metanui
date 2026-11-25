@@ -1,12 +1,11 @@
 import { ArgumentNullException } from "metano-runtime/system/exceptions/argument-null-exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
+import type { ComputedNode } from "../computed-node.js";
 import type { EffectNode } from "../effects/effect-node.js";
 import { DependencyGraph } from "../graph/dependency-graph.js";
-import { ReactiveFlags } from "../graph/reactive-flags.js";
 import type { SignalNode } from "../graph/signal-node.js";
 import type { IFlushScheduler } from "../i-flush-scheduler.js";
 import { ManualFlushScheduler } from "../manual-flush-scheduler.js";
-import type { OwnerNode } from "../ownership/owner-node.js";
 import { Teardown } from "../ownership/teardown.js";
 import { Tracking } from "../tracking.js";
 
@@ -18,8 +17,8 @@ export class FlushLoop {
   private static _scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
   private static _head: SignalNode | null = null;
   private static _tail: SignalNode | null = null;
-  private static _retryHead: OwnerNode | null = null;
-  private static _retryTail: OwnerNode | null = null;
+  private static _retryHead: ComputedNode | null = null;
+  private static _retryTail: ComputedNode | null = null;
   private static _computeHead: EffectNode | null = null;
   private static _computeTail: EffectNode | null = null;
   private static _applyHead: EffectNode | null = null;
@@ -62,7 +61,7 @@ export class FlushLoop {
     FlushLoop._tail = node;
   }
 
-  static enqueueRetry(computed: OwnerNode): void {
+  static enqueueRetry(computed: ComputedNode): void {
     if (!(computed.nextRetry == null) || computed === FlushLoop._retryTail) {
       return;
     }
@@ -202,11 +201,10 @@ export class FlushLoop {
     while (!(FlushLoop._retryHead == null)) {
       const computed = FlushLoop.dequeueRetry();
 
-      if (computed.isDisposed) {
+      if (!computed.retryAtPassStart()) {
         continue;
       }
 
-      computed.flags |= ReactiveFlags.Dirty;
       const subs = computed.subs;
 
       if (!(subs == null)) {
@@ -216,7 +214,7 @@ export class FlushLoop {
     }
   }
 
-  private static dequeueRetry(): OwnerNode {
+  private static dequeueRetry(): ComputedNode {
     const computed = FlushLoop._retryHead!;
     FlushLoop._retryHead = computed.nextRetry;
     computed.nextRetry = null;
