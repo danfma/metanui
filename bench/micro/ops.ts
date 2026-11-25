@@ -26,8 +26,7 @@ function deep(reactivity: ReactivityApi): Op {
 
   const last = tip;
 
-  // One-parameter body: `root` dispatches on Function.length (danfma/metano#778).
-  reactivity.root((_dispose) => {
+  reactivity.root(() => {
     reactivity.effect(
       () => last.value,
       (value) => {
@@ -52,7 +51,7 @@ function wide(reactivity: ReactivityApi): Op {
   let sink = 0;
   let write = 0;
 
-  reactivity.root((_dispose) => {
+  reactivity.root(() => {
     for (let index = 0; index < graphSize; index++) {
       const derived = reactivity.computed(() => source.value + index);
 
@@ -80,7 +79,7 @@ function many(reactivity: ReactivityApi): Op {
   let sink = 0;
   let write = 0;
 
-  const sources = reactivity.root((_dispose) =>
+  const sources = reactivity.root(() =>
     Array.from({ length: graphSize }, () => {
       const source = reactivity.signal(0);
       const doubled = reactivity.computed(() => source.value * 2);
