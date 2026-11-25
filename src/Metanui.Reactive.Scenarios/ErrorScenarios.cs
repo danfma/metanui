@@ -17,6 +17,10 @@ public static class ErrorScenarios
             ErroredComputedWithoutDepsRetriesOnTrackedReread
         ),
         new Scenario(
+            "retry that recovers an errored computed updates its other observers",
+            RetryThatRecoversUpdatesOtherObservers
+        ),
+        new Scenario(
             "error raised in a multi-level dirty check reaches the reader and later walks stay correct",
             ErrorInMultiLevelDirtyCheckReachesReader
         ),
@@ -153,6 +157,57 @@ public static class ErrorScenarios
 
         expect.Equal(42, seen, "a tracked re-read after a flush retries");
         expect.Equal(2, runs, "compute runs after the retry");
+    }
+
+    /// <summary>
+    /// Only the effect that also reads <c>trigger</c> re-reads <c>flaky</c> in a later pass and retries
+    /// it; the effect and the computed that read only <c>flaky</c> must still see the recovered value.
+    /// </summary>
+    private static void RetryThatRecoversUpdatesOtherObservers(IExpect expect)
+    {
+        var runs = 0;
+        var retrying = 0;
+        var sibling = 0;
+        var trigger = Reactivity.Signal(0);
+
+        var flaky = Reactivity.Computed(() =>
+        {
+            runs++;
+
+            if (runs == 1)
+            {
+                throw new InvalidOperationException("First run fails.");
+            }
+
+            return 42;
+        });
+
+        var derived = Reactivity.Computed(() => ReadOr(flaky, -1) + 1);
+
+        Reactivity.Effect(
+            () =>
+            {
+                Read(() => trigger.Value);
+
+                return ReadOr(flaky, -1);
+            },
+            (value, previous) => retrying = value
+        );
+
+        Reactivity.Effect(() => ReadOr(flaky, -1), (value, previous) => sibling = value);
+        Reactivity.Effect(() => derived.Value, (value, previous) => { });
+        Reactivity.Flush();
+
+        expect.Equal(-1, sibling, "the sibling effect first sees the error");
+        expect.Equal(0, derived.Value, "the computed first sees the error");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(42, retrying, "the re-reading effect recovered the value");
+        expect.Equal(42, sibling, "the sibling effect sees the recovered value");
+        expect.Equal(43, derived.Value, "the computed sees the recovered value");
+        expect.Equal(2, runs, "the function ran once more");
     }
 
     /// <summary>

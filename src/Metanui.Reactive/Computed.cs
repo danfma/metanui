@@ -238,6 +238,10 @@ public sealed class Computed<T> : OwnerNode
     /// computed at the same position in its previous run) in a later flush pass than the failure
     /// retries the function.
     /// </summary>
+    /// <remarks>
+    /// The retry runs before the observer's link is confirmed, so the propagation it starts skips the
+    /// running observer (alien-signals <c>isValidLink</c>), which takes the result from this read.
+    /// </remarks>
     private T ReadErrored(ReactiveNode? observer)
     {
         if (observer is null)
@@ -245,21 +249,44 @@ public sealed class Computed<T> : OwnerNode
             throw _error!;
         }
 
-        var reread = IsNextDependencyOf(observer);
-
-        DependencyGraph.Link(this, observer, Tracking.Cycle);
-
-        if (reread && _errorPass != Tracking.Pass && !IsDisposed)
+        if (IsNextDependencyOf(observer) && _errorPass != Tracking.Pass && !IsDisposed)
         {
-            Recompute();
+            var cycle = Tracking.Cycle;
+
+            Retry();
+            DependencyGraph.Link(this, observer, cycle);
 
             if ((Flags & ReactiveFlags.Errored) == 0)
             {
                 return _value;
             }
+
+            throw _error!;
         }
 
+        DependencyGraph.Link(this, observer, Tracking.Cycle);
+
         throw _error!;
+    }
+
+    /// <summary>
+    /// Runs the function again after an error. The result (the value that replaces the error, or
+    /// another error) reaches every other subscriber like a signal commit: nothing marked them pending,
+    /// since no dependency changed. A read outside a flush requests one for the effects it queued.
+    /// </summary>
+    private void Retry()
+    {
+        // Always a change: the error is replaced by a value or by another error.
+        Update();
+
+        var subs = Subs;
+
+        if (subs is not null)
+        {
+            DependencyGraph.Propagate(subs);
+            DependencyGraph.ShallowPropagate(subs);
+            FlushLoop.RequestFlush();
+        }
     }
 
     /// <summary>Whether <paramref name="observer" />'s running pass is about to reuse its link to this computed.</summary>
