@@ -32,6 +32,12 @@ internal static class FlushLoop
     private static bool _running;
 
     /// <summary>
+    /// Whether the resume requested after a failed flush is still due. Any flush that runs first
+    /// drains the leftovers and clears it, so the stale resume then does nothing.
+    /// </summary>
+    private static bool _resumePending;
+
+    /// <summary>
     /// Passes run by the current flush, counting the failed flushes it resumes (see
     /// <see cref="Resume" />), so an effect that throws after writing what it reads still reaches the
     /// pass limit across the flushes re-requested for it.
@@ -58,7 +64,7 @@ internal static class FlushLoop
 
         if (HasWork())
         {
-            RequestFlush();
+            Request(_resumePending ? ResumeFlush : RunFlush);
         }
     }
 
@@ -165,8 +171,17 @@ internal static class FlushLoop
     /// </exception>
     public static void Run() => RunWithBudget(0);
 
-    /// <summary>Runs the flush re-requested after a failed one, continuing its pass budget.</summary>
-    private static void Resume() => RunWithBudget(_passes);
+    /// <summary>
+    /// Runs the flush re-requested after a failed one, continuing its pass budget. Does nothing when
+    /// another flush already ran the leftovers: its pass count belongs to that flush.
+    /// </summary>
+    private static void Resume()
+    {
+        if (_resumePending)
+        {
+            RunWithBudget(_passes);
+        }
+    }
 
     private static void RunWithBudget(int passesUsed)
     {
@@ -177,6 +192,7 @@ internal static class FlushLoop
 
         _running = true;
         _scheduled = false;
+        _resumePending = false;
         _passes = passesUsed;
 
         var completed = RunPassesOrRequestResume();
@@ -245,13 +261,16 @@ internal static class FlushLoop
             return;
         }
 
+        _resumePending = true;
+
         try
         {
             Request(ResumeFlush);
         }
         catch
         {
-            // RequestFlush already cleared _scheduled; keep the original error.
+            // Request already cleared _scheduled; keep the original error.
+            _resumePending = false;
         }
     }
 
