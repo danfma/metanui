@@ -46,10 +46,10 @@ export class EffectScenarios {
       computes = (computes + 1) | 0;
 
       return name.value;
-    }, (value: string, previous: string | null) => {
+    }, (value: string, previous: string) => {
       applies = (applies + 1) | 0;
       appliedValue = value;
-      appliedPrevious = previous!;
+      appliedPrevious = previous;
     });
     expect.equal(1, computes, "computes after creation");
     expect.equal(0, applies, "applies after creation");
@@ -64,7 +64,7 @@ export class EffectScenarios {
     let appliedValue = -1;
     let appliedPrevious = null as number | null;
     const count = Reactivity.signal(7);
-    Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => count.value, (value: number, previous: number) => {
       appliedValue = value;
       appliedPrevious = previous;
     });
@@ -77,7 +77,7 @@ export class EffectScenarios {
     let appliedValue = -1;
     let appliedPrevious = null as number | null;
     const count = Reactivity.signal(1);
-    Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => count.value, (value: number, previous: number) => {
       appliedValue = value;
       appliedPrevious = previous;
     });
@@ -95,12 +95,12 @@ export class EffectScenarios {
       log = (log ?? "") + "c1,";
 
       return count.value;
-    }, (value: number, previous: number | null) => log = (log ?? "") + "a1,");
+    }, (value: number, previous: number) => log = (log ?? "") + "a1,");
     Reactivity.effect(() => {
       log = (log ?? "") + "c2,";
 
       return count.value;
-    }, (value: number, previous: number | null) => log = (log ?? "") + "a2,");
+    }, (value: number, previous: number) => log = (log ?? "") + "a2,");
     Reactivity.flush();
     log = "";
     count.value = 1;
@@ -117,7 +117,7 @@ export class EffectScenarios {
       computes = (computes + 1) | 0;
 
       return tracked.value;
-    }, (value: number, previous: number | null) => {
+    }, (value: number, previous: number) => {
       applies = (applies + 1) | 0;
       const untracked = readInApply.value;
     });
@@ -131,7 +131,7 @@ export class EffectScenarios {
   private static applyCleanupRunsBeforeNextApply(expect: IExpect): void {
     let log = "";
     const count = Reactivity.signal(1);
-    Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => count.value, (value: number, previous: number) => {
       log = (log ?? "") + ("apply" + value + ",");
       Reactivity.onCleanup(() => log = (log ?? "") + ("cleanup" + value + ","));
     });
@@ -145,11 +145,11 @@ export class EffectScenarios {
     let computedError = null as Exception | null;
     let effectError = null as Exception | null;
     let rootError = null as Exception | null;
-    Reactivity.effect(() => 0, (value: number, previous: number | null) => {
+    Reactivity.effect(() => 0, (value: number, previous: number) => {
       computedError = ScenarioRunner.catch(() => {
         const computed = Reactivity.computed(() => 1);
       });
-      effectError = ScenarioRunner.catch(() => Reactivity.effect(() => 1, (innerValue: number, innerPrevious: number | null) => {
+      effectError = ScenarioRunner.catch(() => Reactivity.effect(() => 1, (innerValue: number, innerPrevious: number) => {
       }));
       rootError = ScenarioRunner.catch(() => Reactivity.rootActionOfAction((dispose: () => void) => {
       }));
@@ -169,7 +169,7 @@ export class EffectScenarios {
 
       return value;
     });
-    Reactivity.effect(() => count.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => count.value, (value: number, previous: number) => {
       log = (log ?? "") + ("apply" + value + ",");
       const read = nested.value;
     });
@@ -183,15 +183,15 @@ export class EffectScenarios {
     let lastApplied = -1;
     const source = Reactivity.signal(1);
     const relayed = Reactivity.signal(0);
-    Reactivity.effect(() => source.value, (value: number, previous: number | null) => relayed.value = Math.imul(value, 10));
-    Reactivity.effect(() => relayed.value, (value: number, previous: number | null) => lastApplied = value);
+    Reactivity.effect(() => source.value, (value: number, previous: number) => relayed.value = Math.imul(value, 10));
+    Reactivity.effect(() => relayed.value, (value: number, previous: number) => lastApplied = value);
     Reactivity.flush();
     expect.equal(10, lastApplied, "value applied by the reader of the relayed signal");
   }
 
   private static effectWriteLoopThrows(expect: IExpect): void {
     const count = Reactivity.signal(0);
-    Reactivity.effect(() => count.value, (value: number, previous: number | null) => count.value = (value + 1) | 0);
+    Reactivity.effect(() => count.value, (value: number, previous: number) => count.value = (value + 1) | 0);
     const error = ScenarioRunner.catch(Reactivity.flush);
     expect.isTrue(error instanceof InvalidOperationException, "the pass limit throws");
     expect.equal(EffectScenarios.passLimitMessage, error?.message ?? null, "pass limit message");
@@ -206,7 +206,7 @@ export class EffectScenarios {
       computes = (computes + 1) | 0;
 
       return point.value;
-    }, (value: EffectScenarios$Point, previous: EffectScenarios$Point | null) => applies = (applies + 1) | 0);
+    }, (value: EffectScenarios$Point, previous: EffectScenarios$Point) => applies = (applies + 1) | 0);
     Reactivity.flush();
     point.value = new EffectScenarios$Point(1, 2);
     Reactivity.flush();

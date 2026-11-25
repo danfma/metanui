@@ -39,7 +39,7 @@ public static partial class Reactivity
     /// If the scheduler throws while the effect is created, the exception escapes this call but the
     /// effect still exists and stays subscribed; its first apply runs on the next flush.
     /// </remarks>
-    public static void Effect<T>(Func<T> compute, Action<T, T?> apply) =>
+    public static void Effect<T>(Func<T> compute, Action<T, T> apply) =>
         new SplitEffect<T>(compute, apply).Start();
 
     /// <summary>
