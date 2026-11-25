@@ -63,7 +63,7 @@ Done in ec928dc..a24116b. Verified with 0 warnings, 72/72 on .NET, 74/74 on Bun 
 ---
 
 ## Task 2: Give Effect an IDisposable handle (Phase 2)
-Status: Not started
+Status: Blocked (Metano IDisposable support)
 
 Maintainer decision (2026-11-25): an effect still belongs to its owner, as in Solid. `Reactivity.Effect` also returns an `IDisposable` handle for early disposal. Ignoring the return value gives exactly Solid's semantics.
 
@@ -82,7 +82,13 @@ Maintainer decision (2026-11-25): an effect still belongs to its owner, as in So
 - Both suites pass, strict tsc is clean, and the generated `effect-node.ts`/`reactivity.ts` add no allocation to effect creation.
 
 ### Phase Summary
-_(write when phase completes)_
+**Blocked, 2026-11-25.** Metano 3.2.0 has no `System.IDisposable` mapping:
+- the type is emitted as a bare name, so strict tsc fails;
+- no `implements` is emitted;
+- the explicit `IDisposable.Dispose` collides with the internal `OwnerNode.Dispose`, and Metano drops it silently;
+- an interface-typed `null!` loses its annotation.
+
+All four were reported to the Metano session. The MS0063 comment fix landed in 0ce49cb. The working implementation and its five scenarios (77/77 on .NET, 79/79 on Bun, strict tsc failing only on `IDisposable`) are saved on branch `wip/effect-handle` (2d7f3dd). Resume from there once Metano maps `IDisposable`. Note for the resume: `Root(d => Reactivity.Effect(...))` binds to `Root<IDisposable>` once Effect returns a value.
 
 ---
 
