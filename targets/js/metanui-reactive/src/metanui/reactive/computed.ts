@@ -1,17 +1,17 @@
 import { defaultEqualityComparerFor, throwError, toException, type ClassType } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
+import { ComputedNode } from "./computed-node.js";
 import { DependencyGraph } from "./graph/dependency-graph.js";
 import { ReactiveFlags } from "./graph/reactive-flags.js";
 import type { ReactiveNode } from "./graph/reactive-node.js";
-import { OwnerNode } from "./ownership/owner-node.js";
 import { FlushLoop } from "./scheduling/flush-loop.js";
 import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
 
 let Computed$rt: ClassType<Computed<unknown>> | undefined;
 
-export class Computed<T> extends OwnerNode {
+export class Computed<T> extends ComputedNode {
   private _compute: (() => T) | null = null;
   private _comparer: IEqualityComparer<T> | null = null;
   private _value: T = null!;
@@ -31,7 +31,7 @@ export class Computed<T> extends OwnerNode {
       fullName: "Metanui.Reactive.Computed`1",
       namespace: "Metanui.Reactive",
       ctor: Computed,
-      base: () => OwnerNode.$runtimeType,
+      base: () => ComputedNode.$runtimeType,
       interfaces: [],
       typeParameters: ["T"],
       isAbstract: false,
@@ -101,6 +101,17 @@ export class Computed<T> extends OwnerNode {
       this.flags &= ~ReactiveFlags.RecursedCheck;
       this.purgeStaleDeps();
     }
+  }
+
+  /** @internal */
+  override retryAtPassStart(): boolean {
+    if (this.isDisposed) {
+      return false;
+    }
+
+    this.flags |= ReactiveFlags.Dirty;
+
+    return true;
   }
 
   /** @internal */
