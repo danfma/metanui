@@ -41,8 +41,7 @@ internal sealed class RootNode : OwnerNode
         }
         finally
         {
-            Tracking.CurrentOwner = previousOwner;
-            Tracking.ActiveObserver = previousObserver;
+            EndRun(previousOwner, previousObserver);
         }
     }
 
@@ -68,8 +67,24 @@ internal sealed class RootNode : OwnerNode
         }
         finally
         {
-            Tracking.CurrentOwner = previousOwner;
-            Tracking.ActiveObserver = previousObserver;
+            EndRun(previousOwner, previousObserver);
+        }
+    }
+
+    /// <summary>
+    /// Restores the tracking state of the caller. When the body disposed this root (through its
+    /// disposer, or an owner's), what it created or registered after the disposal is disposed now,
+    /// as a computation does at the end of a run that disposed it (<see cref="OwnerNode.PurgeStaleDeps" />):
+    /// a disposed root is never disposed again, so nothing else would.
+    /// </summary>
+    private void EndRun(OwnerNode? previousOwner, ReactiveNode? previousObserver)
+    {
+        Tracking.CurrentOwner = previousOwner;
+        Tracking.ActiveObserver = previousObserver;
+
+        if (IsDisposed)
+        {
+            DisposeOwned();
         }
     }
 

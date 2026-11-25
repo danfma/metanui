@@ -1,6 +1,7 @@
 import { throwError, toException } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
+import type { ReactiveNode } from "../graph/reactive-node.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
 import { OwnerNode } from "./owner-node.js";
@@ -27,8 +28,7 @@ export class RootNode extends OwnerNode {
     try {
       return body(this.disposeFromCaller.bind(this));
     } finally {
-      Tracking.currentOwner = previousOwner;
-      Tracking.activeObserver = previousObserver;
+      this.endRun(previousOwner, previousObserver);
     }
   }
 
@@ -45,8 +45,16 @@ export class RootNode extends OwnerNode {
       const error = e0;
       this.handleError(error);
     } finally {
-      Tracking.currentOwner = previousOwner;
-      Tracking.activeObserver = previousObserver;
+      this.endRun(previousOwner, previousObserver);
+    }
+  }
+
+  private endRun(previousOwner: OwnerNode | null, previousObserver: ReactiveNode | null): void {
+    Tracking.currentOwner = previousOwner;
+    Tracking.activeObserver = previousObserver;
+
+    if (this.isDisposed) {
+      this.disposeOwned();
     }
   }
 
