@@ -72,8 +72,9 @@ internal abstract class EffectNode : OwnerNode
 
     /// <summary>
     /// Apply phase of a flush: runs the cleanups of the previous apply, then the apply, untracked and
-    /// with no owner. A disposed effect's queued apply is skipped. An exception from either goes to
-    /// the nearest error boundary, or escapes.
+    /// with no owner. A disposed effect's queued apply is skipped, and so is the apply of an effect
+    /// that one of those cleanups disposed. An exception from either goes to the nearest error
+    /// boundary, or escapes.
     /// </summary>
     internal void RunApply()
     {
@@ -107,6 +108,12 @@ internal abstract class EffectNode : OwnerNode
         try
         {
             RunApplyCleanups();
+
+            if (IsDisposed)
+            {
+                return;
+            }
+
             Tracking.ActiveApply = this;
             Apply();
         }
@@ -135,7 +142,9 @@ internal abstract class EffectNode : OwnerNode
 
     /// <summary>
     /// After the compute's children and cleanups: runs the last apply's cleanups (last, as Solid runs
-    /// the effect's returned cleanup) and unsubscribes from every dependency.
+    /// the effect's returned cleanup), unsubscribes from every dependency and releases the user
+    /// callbacks and values. A disposed effect may stay in a flush queue until the walk passes it, so
+    /// only the queue links survive.
     /// </summary>
     internal override void OnDisposed()
     {
@@ -146,6 +155,7 @@ internal abstract class EffectNode : OwnerNode
         DepsTail = null;
         Flags = ReactiveFlags.None;
         DependencyGraph.PurgeDeps(this);
+        ReleaseUserState();
     }
 
     /// <summary>Effects are subscribers only, so no dependency walk ever asks them to update.</summary>
@@ -157,6 +167,9 @@ internal abstract class EffectNode : OwnerNode
 
     /// <summary>Runs the user apply with the last computed value and the previously applied one.</summary>
     protected abstract void Apply();
+
+    /// <summary>Drops the user compute, apply and values, so a disposed effect retains none of them.</summary>
+    protected abstract void ReleaseUserState();
 
     /// <summary>
     /// Runs the compute; an exception goes to the nearest error boundary and makes it return false,
@@ -183,11 +196,18 @@ internal abstract class EffectNode : OwnerNode
 
     /// <summary>
     /// Disposes what the previous compute created, then runs the compute as the observer and owner.
-    /// A compute that disposed its own effect keeps no dependency.
+    /// A cleanup that disposed the effect skips the compute; a compute that disposed its own effect
+    /// keeps no dependency.
     /// </summary>
     private void RunCompute()
     {
         DisposeOwned();
+
+        if (IsDisposed)
+        {
+            return;
+        }
+
         DepsTail = null;
         Flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
 

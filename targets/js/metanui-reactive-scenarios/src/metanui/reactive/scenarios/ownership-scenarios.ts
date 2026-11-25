@@ -1,11 +1,35 @@
+import { HashCode, copyRecordWith } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity, type Computed } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
+class OwnershipScenarios$Marker {
+  constructor(readonly name: string) { }
+
+  equals(other: any): boolean {
+    return other != null && Object.getPrototypeOf(other) === Object.getPrototypeOf(this) && this.name === other.name;
+  }
+
+  hashCode(): number {
+    const hc = new HashCode();
+    hc.add(this.name);
+
+    return hc.toHashCode();
+  }
+
+  with(overrides?: Partial<OwnershipScenarios$Marker>): OwnershipScenarios$Marker {
+    return copyRecordWith<OwnershipScenarios$Marker>(this, overrides);
+  }
+
+  toString(): string {
+    return `Marker { Name = ${this.name} }`;
+  }
+}
+
 export class OwnershipScenarios {
-  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed)];
+  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed), new Scenario("disposed queued effect releases its closures", OwnershipScenarios.disposedQueuedEffectReleasesItsClosures), new Scenario("apply cleanup that disposes its effect skips the apply", OwnershipScenarios.applyCleanupThatDisposesItsEffectSkipsTheApply), new Scenario("compute cleanup that disposes its effect skips the compute", OwnershipScenarios.computeCleanupThatDisposesItsEffectSkipsTheCompute), new Scenario("computed disposed by its own cleanup keeps the value of that run", OwnershipScenarios.computedDisposedByItsOwnCleanupKeepsTheValueOfThatRun)];
 
   constructor() { }
 
@@ -152,5 +176,102 @@ export class OwnershipScenarios {
     Reactivity.flush();
     expect.isTrue(error == null, "the write in the nested root does not throw");
     expect.equal(1, target.value, "committed value");
+  }
+
+  private static disposedQueuedEffectReleasesItsClosures(expect: IExpect): void {
+    const marker = new OwnershipScenarios$Marker("captured");
+    let computes = 0;
+    let applies = 0;
+    let cleanups = 0;
+    const source = Reactivity.signal(0);
+    const dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+      Reactivity.effect(() => {
+        computes = (computes + 1) | 0;
+        Reactivity.onCleanup(() => cleanups = (cleanups + 1) | 0);
+
+        return marker.name + source.value;
+      }, (value: string, previous: string) => {
+        applies = (applies + 1) | 0;
+        Reactivity.onCleanup(() => cleanups = (cleanups + 1) | 0);
+      });
+
+      return disposeRoot;
+    });
+    dispose();
+    expect.equal(1, cleanups, "cleanups run by the disposal");
+    Reactivity.flush();
+    expect.equal(0, applies, "applies after the flush that drains the queue");
+    expect.equal(1, cleanups, "cleanups after the flush that drains the queue");
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, computes, "computes after writing the source");
+    expect.equal(0, applies, "applies after writing the source");
+    expect.equal(1, cleanups, "cleanups after writing the source");
+  }
+
+  private static applyCleanupThatDisposesItsEffectSkipsTheApply(expect: IExpect): void {
+    let applies = 0;
+    const source = Reactivity.signal(0);
+    let dispose = () => {
+    };
+    dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+      Reactivity.effect(() => source.value, (value: number, previous: number) => {
+        applies = (applies + 1) | 0;
+        Reactivity.onCleanup(() => dispose());
+      });
+
+      return disposeRoot;
+    });
+    Reactivity.flush();
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, applies, "applies after the cleanup disposed the effect");
+  }
+
+  private static computeCleanupThatDisposesItsEffectSkipsTheCompute(expect: IExpect): void {
+    let computes = 0;
+    const source = Reactivity.signal(0);
+    let dispose = () => {
+    };
+    dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+      Reactivity.effect(() => {
+        computes = (computes + 1) | 0;
+        Reactivity.onCleanup(() => dispose());
+
+        return source.value;
+      }, (value: number, previous: number) => {
+      });
+
+      return disposeRoot;
+    });
+    Reactivity.flush();
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, computes, "computes after the cleanup disposed the effect");
+  }
+
+  private static computedDisposedByItsOwnCleanupKeepsTheValueOfThatRun(expect: IExpect): void {
+    let runs = 0;
+    const source = Reactivity.signal(0);
+    let dispose = () => {
+    };
+    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+      dispose = disposeRoot;
+
+      return Reactivity.computed(() => {
+        runs = (runs + 1) | 0;
+        Reactivity.onCleanup(() => dispose());
+
+        return Math.imul(source.value, 10);
+      });
+    });
+    expect.equal(0, computed.value, "initial value");
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(10, computed.value, "value of the run after the cleanup disposed it");
+    source.value = 2;
+    Reactivity.flush();
+    expect.equal(10, computed.value, "a later read returns the frozen value");
+    expect.equal(2, runs, "runs");
   }
 }

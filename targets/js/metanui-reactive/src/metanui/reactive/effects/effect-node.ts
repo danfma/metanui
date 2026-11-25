@@ -77,6 +77,11 @@ export abstract class EffectNode extends OwnerNode {
     Tracking.currentOwner = null;
     try {
       this.runApplyCleanups();
+
+      if (this.isDisposed) {
+        return;
+      }
+
       Tracking.activeApply = this;
       this.apply();
     } finally {
@@ -105,6 +110,7 @@ export abstract class EffectNode extends OwnerNode {
     this.depsTail = null;
     this.flags = ReactiveFlags.None;
     DependencyGraph.purgeDeps(this);
+    this.releaseUserState();
   }
 
   /** @internal */
@@ -115,6 +121,8 @@ export abstract class EffectNode extends OwnerNode {
   protected abstract compute(): void;
 
   protected abstract apply(): void;
+
+  protected abstract releaseUserState(): void;
 
   private tryRunCompute(): boolean {
     try {
@@ -135,6 +143,11 @@ export abstract class EffectNode extends OwnerNode {
 
   private runCompute(): void {
     this.disposeOwned();
+
+    if (this.isDisposed) {
+      return;
+    }
+
     this.depsTail = null;
     this.flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
     const previousObserver = Tracking.activeObserver;
