@@ -125,7 +125,7 @@ Done in 19a72d5, 372d21a. Verification on 2026-11-25: 1 scenario passes on TUnit
 ---
 
 ## Task 2: Signal writes, flush and scheduler port (Phase 2)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
@@ -141,22 +141,29 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - Internal: `[Flags] enum ReactiveFlags { None = 0, Mutable = 1, Watching = 2, RecursedCheck = 4, Recursed = 8, Dirty = 16, Pending = 32 }` (alien-signals values; bits 64+ reserved, spec 5.4); `sealed class Link` (fields `Version`, `Dep`, `Sub`, `PrevSub`, `NextSub`, `PrevDep`, `NextDep`); `abstract class ReactiveNode` (fields `Deps`, `DepsTail`, `Subs`, `SubsTail`, `Flags`; `abstract bool Update()`, `abstract void Notify()`, `virtual void Unwatched()`).
   - `internal abstract class SignalNode : ReactiveNode { internal SignalNode? NextPending; internal abstract void CommitPending(); }`, which `Signal<T>` extends. `FlushLoop.Enqueue(SignalNode)` chains the signals that have a pending value through `NextPending` (no collection, no interface). The first enqueue in an idle state calls `Reactivity.Scheduler.Schedule(Reactivity.Flush)` once.
 
-- [ ] **Step 1: Write the scenarios** in `SignalScenarios`:
+- [x] **Step 1: Write the scenarios** in `SignalScenarios`:
   - `WriteIsInvisibleUntilFlush`: set `Value = 5` on a `Signal<int>(0)`; `Value` and `Peek()` both still return `0`; after `Reactivity.Flush()`, both return `5`.
   - `LastWriteWins`: writes 1, 2, 3 then flush → 3.
   - `FlushWithoutWritesIsNoOp`: `Flush()` twice with nothing pending does not throw.
   - `CustomComparerIsUsed`: a comparer that treats all strings case-insensitively; writing `"A"` over `"a"` and flushing keeps `"a"`.
-- [ ] **Step 2: Run both suites.** Expected: the new scenarios fail (setter missing).
-- [ ] **Step 3: Implement.** On flush, commit each pending value when `!comparer.Equals(current, pending)` (default `EqualityComparer<T>.Default`), then call `DependencyGraph` propagation. A no-op stub is fine until Phase 3; leave a `// propagated in Phase 3` only if the build needs the call site.
-- [ ] **Step 4: Run both suites.** Expected: all pass.
-- [ ] **Step 5: Inspect the TS** of `Signal`, `FlushLoop`, `ReactiveFlags` and the default comparer. Expected: `get value()` is a field read plus a tracking check, the flags are numbers, and `EqualityComparer<T>.Default` maps to something without a per-call allocation. Otherwise it is a Metano finding.
-- [ ] **Step 6: Commit** `feat: add signal writes deferred to a flush`.
+- [x] **Step 2: Run both suites.** Expected: the new scenarios fail (setter missing).
+- [x] **Step 3: Implement.** On flush, commit each pending value when `!comparer.Equals(current, pending)` (default `EqualityComparer<T>.Default`), then call `DependencyGraph` propagation. A no-op stub is fine until Phase 3; leave a `// propagated in Phase 3` only if the build needs the call site.
+- [x] **Step 4: Run both suites.** Expected: all pass.
+- [x] **Step 5: Inspect the TS** of `Signal`, `FlushLoop`, `ReactiveFlags` and the default comparer. Expected: `get value()` is a field read plus a tracking check, the flags are numbers, and `EqualityComparer<T>.Default` maps to something without a per-call allocation. Otherwise it is a Metano finding.
+- [x] **Step 6: Commit** `feat: add signal writes deferred to a flush`.
 
 ### Verification Plan
 - `dotnet build && dotnet test tests/Metanui.Reactive.Tests && bun test tests/js/reactive` → all Signal scenarios pass on both
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 22546b3. 5/5 scenarios pass on .NET and on Bun. The task review approved it with no findings above Minor.
+- `ReactiveNode`/`SignalNode` are `public abstract` with `internal` members, because of CS0060. Outside code cannot implement them. New node types in Tasks 3–5 follow the same pattern.
+- Internal types need `[Transpile]` (Metano #770; it will become automatic). The scheduler is stored in `FlushLoop.Scheduler` to avoid MS0005. The setter calls a private `Queue()` because of Metano #768. The scenario comparer uses `ToLowerInvariant` because of Metano #769.
+- `FlushLoop.Run` is still a single per-node loop with a commented propagation site. Phase 3 must restructure it into phases (commit all, then propagate).
+- Phase 4 inherits these review notes:
+  - a write during `Run` schedules a redundant flush, since there is no `_running` guard;
+  - a throwing user scheduler leaves `_scheduled`/`_hasPending` stuck at true;
+  - a nested `Flush()` from inside an apply is not guarded.
 
 ---
 
