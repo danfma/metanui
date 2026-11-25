@@ -7,8 +7,26 @@
     },
     "targets/js/metanui-reactive": {
       "name": "metanui-reactive",
+      "version": "1.0.0",
       "peerDependencies": {
         "metano-runtime": "^3.1.0",
+      },
+    },
+    "targets/js/metanui-reactive-scenarios": {
+      "name": "metanui-reactive-scenarios",
+      "dependencies": {
+        "metanui-reactive": "^1.0.0",
+      },
+      "peerDependencies": {
+        "metano-runtime": "^3.1.0",
+      },
+    },
+    "tests/js/reactive": {
+      "name": "metanui-reactive-tests",
+      "dependencies": {
+        "metano-runtime": "^3.1.0",
+        "metanui-reactive": "workspace:*",
+        "metanui-reactive-scenarios": "workspace:*",
       },
     },
   },
@@ -22,5 +40,9 @@
     "metano-runtime": ["metano-runtime@3.1.0", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-i2zoUBjsCdW7H0cOyVkXLmt4kTxUbSsNzKh7f0CdRUa6l8PDcbZEE9bcIFcaPkmdNz/p7iHLYFqQ5ebYnb3asQ=="],
 
     "metanui-reactive": ["metanui-reactive@workspace:targets/js/metanui-reactive"],
+
+    "metanui-reactive-scenarios": ["metanui-reactive-scenarios@workspace:targets/js/metanui-reactive-scenarios"],
+
+    "metanui-reactive-tests": ["metanui-reactive-tests@workspace:tests/js/reactive"],
   }
 }

@@ -1,5 +1,6 @@
 {
   "name": "metanui-reactive",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "imports": {
@@ -13,7 +14,7 @@
   "sideEffects": false,
   "exports": {
     "./metanui/reactive": {
-      "source": "./src/metanui/reactive/index.ts",
+      "bun": "./src/metanui/reactive/index.ts",
       "types": "./dist/metanui/reactive/index.d.ts",
       "import": "./dist/metanui/reactive/index.js"
     }

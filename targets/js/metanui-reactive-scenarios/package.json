@@ -1,0 +1,19 @@
+{
+  "name": "metanui-reactive-scenarios",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/reactive/scenarios": {
+      "bun": "./src/metanui/reactive/scenarios/index.ts",
+      "types": "./dist/metanui/reactive/scenarios/index.d.ts",
+      "import": "./dist/metanui/reactive/scenarios/index.js"
+    }
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0"
+  },
+  "peerDependencies": {
+    "metano-runtime": "^3.1.0"
+  }
+}
