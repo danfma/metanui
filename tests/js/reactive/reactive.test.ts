@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { defaultEquals } from "metano-runtime";
 import {
   type IExpect,
   ReactiveScenarios,
@@ -7,7 +8,9 @@ import {
 
 const bunExpect: IExpect = {
   equal<T>(expected: T, actual: T, label: string): void {
-    expect(actual, label).toEqual(expected);
+    const message = `${label}: expected ${expected}, got ${actual}`;
+
+    expect(defaultEquals(expected, actual), message).toBe(true);
   },
 
   isTrue(condition: boolean, label: string): void {
