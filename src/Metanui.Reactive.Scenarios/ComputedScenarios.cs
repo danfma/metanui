@@ -158,7 +158,7 @@ public static class ComputedScenarios
             return 0;
         });
 
-        // Metano: a discard assignment `_ = expr` is emitted as an assignment to an undeclared `_`
+        // Metano #773: a discard assignment `_ = expr` is emitted as an assignment to an undeclared `_`
         var error = ScenarioRunner.Catch(() =>
         {
             var value = writer.Value;
@@ -168,8 +168,8 @@ public static class ComputedScenarios
     }
 
     // Reading `top` walks top -> middle -> inner (pending) and recomputes the dirty `inner` while that
-    // walk is one frame deep; `inner` reads the pending `outer`, whose own walk descends into `sum`,
-    // which has two dependencies, so the nested walk pushes above the first one.
+    // walk is one frame deep; `inner` reads the pending `outer`, whose own walk descends into `sum`
+    // because `sum` is Mutable|Pending, so the nested walk pushes above the first one.
     private static void NestedDirtyCheck(IExpect expect)
     {
         var source = new Signal<int>(1);

@@ -1,0 +1,139 @@
+using Metano.Annotations;
+
+namespace Metanui.Reactive.Effects;
+
+/// <summary>
+/// Graph node of a split effect (spec 4.3): a tracked compute that runs in the compute phase of a
+/// flush pass, and an untracked apply that runs after every compute of that pass. The value-typed
+/// part lives in <see cref="SplitEffect{T}" />; this class holds what the flush loop drives.
+/// </summary>
+/// <remarks>
+/// Adapted from alien-signals 3.2.1 (stackblitz/alien-signals@8734d386d925025d0e99419bd9161c17b112c5ee,
+/// src/index.ts <c>effect</c>, <c>notify</c> and <c>run</c>): upstream runs one function per effect;
+/// here <c>run</c> recomputes and queues the apply instead. Effects are not linked under a parent
+/// effect (upstream <c>HasChildEffect</c>): ownership is a separate tree (Task 5).
+/// </remarks>
+[Transpile]
+internal abstract class EffectNode : ReactiveNode
+{
+    /// <summary>Next effect in the flush queue of computes to run.</summary>
+    internal EffectNode? NextQueued;
+
+    /// <summary>Next effect in the flush queue of applies to run.</summary>
+    internal EffectNode? NextApply;
+
+    /// <summary>Whether the effect is in the apply queue; a compute that reruns before its apply does not queue it twice.</summary>
+    internal bool HasPendingApply;
+
+    private CleanupEntry? _applyCleanups;
+
+    /// <summary>Runs the compute for the first time and queues the first apply.</summary>
+    internal void Start()
+    {
+        RunCompute();
+        FlushLoop.EnqueueApply(this);
+    }
+
+    /// <summary>
+    /// Compute phase of a flush (upstream <c>run</c>): recomputes when a dependency changed and
+    /// queues the apply; otherwise only re-arms the effect for the next notification.
+    /// </summary>
+    internal void RunIfDirty()
+    {
+        var flags = Flags;
+
+        if (
+            (flags & ReactiveFlags.Dirty) != 0
+            || ((flags & ReactiveFlags.Pending) != 0 && DependencyGraph.CheckDirty(Deps!, this))
+        )
+        {
+            RunCompute();
+            FlushLoop.EnqueueApply(this);
+        }
+        else if (Deps is not null)
+        {
+            Flags = ReactiveFlags.Watching;
+        }
+    }
+
+    /// <summary>Apply phase of a flush: runs the cleanups of the previous apply, then the apply, untracked.</summary>
+    internal void RunApply()
+    {
+        var previousObserver = Tracking.ActiveObserver;
+        var previousApply = Tracking.ActiveApply;
+
+        Tracking.ActiveObserver = null;
+
+        try
+        {
+            RunApplyCleanups();
+            Tracking.ActiveApply = this;
+            Apply();
+        }
+        finally
+        {
+            Tracking.ActiveObserver = previousObserver;
+            Tracking.ActiveApply = previousApply;
+        }
+    }
+
+    /// <summary>Attaches <paramref name="cleanup" /> to the running apply; cleanups run last registered first.</summary>
+    internal void AddApplyCleanup(Action cleanup) =>
+        _applyCleanups = new CleanupEntry(cleanup, _applyCleanups);
+
+    /// <summary>
+    /// Queues the effect for the compute phase (upstream <c>notify</c>). Clearing
+    /// <see cref="ReactiveFlags.Watching" /> makes the second notification of a signal commit
+    /// (propagate, then shallow propagate) a no-op, so the effect is queued once.
+    /// </summary>
+    internal override void Notify()
+    {
+        Flags &= ~ReactiveFlags.Watching;
+        FlushLoop.EnqueueCompute(this);
+    }
+
+    /// <summary>Effects are subscribers only, so no dependency walk ever asks them to update.</summary>
+    internal override bool Update() =>
+        throw new InvalidOperationException("An effect cannot be updated.");
+
+    /// <summary>Runs the user compute and keeps its result for the next apply.</summary>
+    protected abstract void Compute();
+
+    /// <summary>Runs the user apply with the last computed value and the previously applied one.</summary>
+    protected abstract void Apply();
+
+    private void RunCompute()
+    {
+        DepsTail = null;
+        Flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
+
+        var previousObserver = Tracking.ActiveObserver;
+
+        Tracking.ActiveObserver = this;
+
+        try
+        {
+            ++Tracking.Cycle;
+            Compute();
+        }
+        finally
+        {
+            Tracking.ActiveObserver = previousObserver;
+            Flags &= ~ReactiveFlags.RecursedCheck;
+            DependencyGraph.PurgeDeps(this);
+        }
+    }
+
+    private void RunApplyCleanups()
+    {
+        var entry = _applyCleanups;
+
+        _applyCleanups = null;
+
+        while (entry is not null)
+        {
+            entry.Cleanup();
+            entry = entry.Next;
+        }
+    }
+}

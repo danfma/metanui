@@ -56,17 +56,16 @@ export class Signal<T> extends SignalNode {
     }
 
     this._pending = value;
-
-    if (this._hasPending) {
-      return;
-    }
-
-    this._hasPending = true;
     this.queue();
   }
 
   private queue(): void {
-    FlushLoop.enqueue(this);
+    if (!this._hasPending) {
+      this._hasPending = true;
+      FlushLoop.enqueue(this);
+    }
+
+    FlushLoop.requestFlush();
   }
 
   private static rejectWriteInsideComputation(): void {
@@ -92,5 +91,11 @@ export class Signal<T> extends SignalNode {
     this._value = this._pending;
 
     return true;
+  }
+
+  /** @internal */
+  discardPending(): void {
+    this._hasPending = false;
+    this._pending = this._value;
   }
 }

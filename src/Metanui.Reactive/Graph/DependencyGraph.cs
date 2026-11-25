@@ -234,7 +234,7 @@ internal static class DependencyGraph
                 continue;
             }
 
-            // Upstream pops with a labeled `continue top`, which Metano does not transpile.
+            // Metano #772: upstream pops with a labeled `continue top`, which Metano does not transpile.
             var resumed = LinkStack.PopNonNull(stackBase);
 
             if (resumed is null)
@@ -303,7 +303,7 @@ internal static class DependencyGraph
                 }
             }
 
-            // Metano: labeled continue (C# 15) is not transpiled, so the upstream `continue top`
+            // Metano #772: labeled continue (C# 15) is not transpiled, so the upstream `continue top`
             // leaves this loop through `resumed`.
             var resumedAbove = false;
 
@@ -361,7 +361,7 @@ internal static class DependencyGraph
     /// <summary>Turns the pending subscribers of <paramref name="link" />'s list dirty, without going deeper.</summary>
     public static void ShallowPropagate(Link link)
     {
-        // Metano: the `Link?` annotation of a local initialized from a non-null value is dropped,
+        // Metano #774: the `Link?` annotation of a local initialized from a non-null value is dropped,
         // so the TS local is typed `Link` and rejects the null end of the list; walk with a
         // non-null local and stop before stepping onto null.
         var current = link;
