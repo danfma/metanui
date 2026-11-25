@@ -165,7 +165,7 @@ export class Computed<T> extends ComputedNode {
       this.recompute();
     } else {
       if ((flags & ReactiveFlags.Pending) !== 0) {
-        this.recomputeIfDependencyChanged(flags);
+        this.recomputeIfDependencyChanged();
       } else {
         if (flags === ReactiveFlags.None) {
           this.runFirst();
@@ -174,11 +174,17 @@ export class Computed<T> extends ComputedNode {
     }
   }
 
-  private recomputeIfDependencyChanged(flags: ReactiveFlags): void {
+  private recomputeIfDependencyChanged(): void {
     if (this.isAnyDependencyDirty()) {
       this.recompute();
-    } else {
-      this.flags = flags & ~ReactiveFlags.Pending;
+
+      return;
+    }
+
+    this.flags &= ~ReactiveFlags.Pending;
+
+    if ((this.flags & ReactiveFlags.Dirty) !== 0) {
+      this.recompute();
     }
   }
 
