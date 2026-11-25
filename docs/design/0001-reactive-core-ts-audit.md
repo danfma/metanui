@@ -31,7 +31,7 @@ danfma/metano#785 (N10), #786 (N9), #787 (N1–N5, N7, N8), and as an addition t
   - `tsgo --strict` reports one diagnostic, and it is not in generated code: the declarations of `@js-temporal/polyfill`, which metano-runtime 3.1.0 depends on, clash with tsgo's built-in `esnext` Temporal types (N9, #786).
 - On 3.1.0, Metano warnings do not fail the build (N10, #785; fixed in 3.2.0, section 9). Metano has no warnings-as-errors option, and it writes its up-to-date stamp even after a run that emitted warnings. So a gate added at the MSBuild level fails only the first build.
 - The defensive `try/finally` in `DependencyGraph.Propagate`/`CheckDirty` is **kept**. Its cost is within noise on JavaScriptCore (Bun), and the per-call overhead is under 0.05 ns. V8 is not measured yet (Task 8). The scenario that was named after it is renamed, because it never exercised it (section 5).
-- On 3.2.0 the workarounds for #768, #772, #773, #774, #778, #779, #764/#765 and #770 are removed (section 9). On 3.1.0 the workarounds for #768, #772, #773, #774 and #775 were still needed: all five reproduce in minimal probes (section 6). They are fixed on Metano's wave-9 branch, which is not released yet, so the workarounds stay until that release. #776 and #779 were not re-probed.
+- On 3.2.0 the workarounds for #768, #772, #773, #774, #778, #779, #764/#765 and #770 are removed (section 9). On 3.1.0 the workarounds for #768, #772, #773, #774 and #775 were still needed: all five reproduced in minimal probes (section 6), and all five are fixed in 3.2.0. #776 was not re-probed and is still open. A new `var` variant of #774 is open as #796, and the #794 workaround stays (section 9).
 
 ## 2. Strict typecheck
 
@@ -227,7 +227,7 @@ sources), except #776 and #779. The last column is the status on Metano 3.2.0 (s
 | #768 | A type referenced only in a property setter body gets no import | `Signal.cs` private `Queue()` / `RejectWriteInsideComputation()` helpers | Reproduces: `throw new ArgumentOutOfRangeException("value")` with no import, TS2304 | **Fixed.** `Queue()` is inlined into the setter. `RejectWriteInsideComputation()` stays out of line on purpose (cold path) |
 | #772 | Labeled statements are dropped: MS0001 warning plus a `/* TODO: unsupported IR statement LabeledStatement */` body | `DependencyGraph` `PropagateAbove` / `CheckDirtyAbove` rewrites, `LinkStack.PopNonNull` | Reproduces. The loop and the code after it are lost, and the local becomes `const` | **Fixed.** The upstream `top: while (true) … continue top;` form is restored and emits a native TS label |
 | #773 | Discard `_ = expr` is emitted verbatim | `ComputedScenarios`, `OwnershipScenarios`, `ErrorScenarios.Read` | Reproduces: `_ = read();`, TS2304 | **Fixed.** Emitted as an expression statement (`writer.value;`) |
-| #774 | `T? x = nonNull;` loses `\| null` | `DependencyGraph.ShallowPropagate` | Reproduces: `let current = node;`, TS2322 | **Fixed** for an explicit `T?`. A `var` local still loses `\| null` (section 9, M1) |
+| #774 | `T? x = nonNull;` loses `\| null` | `DependencyGraph.ShallowPropagate` | Reproduces: `let current = node;`, TS2322 | **Fixed** for an explicit `T?`. A `var` local still loses `\| null` (#796, section 9) |
 | #775 | `x!.A` does not narrow `x` for later uses | none (the site went away with LinkStack in 4db8b09) | Reproduces: `node!.id; … node.next`, TS18047 | **Fixed.** Later uses are emitted as `node!.next` |
 | #776 | Import of a renamed type lost | none (did not reproduce in Task 5b) | Not re-probed | Still open upstream; not re-probed, no workaround |
 | #778 | Overload dispatcher with identical conditions (dead branch) | `bench/reactivity` called `rootFuncOfActionT` directly | Reproduces. See N6 for the runtime consequence | **Fixed.** One branch, no `Function.length` test; MS0063 reports the shadowed overload (section 9) |
@@ -531,9 +531,9 @@ for (N6): the void overload only wraps the other one, and C# call sites bind to 
 directly. `tests/js/reactive/root-dispatch.test.ts` covers `Reactivity.root(() => 42)` and the
 one-parameter form; with the 3.1.0 dispatcher the first test fails with `No matching overload for root`.
 
-### New findings
+### New findings (filed as #796, #797, #798)
 
-**M1. `var` local loses `| null` when a later assignment is null (extends #774).**
+**M1 (#796). `var` local loses `| null` when a later assignment is null (extends #774).**
 
 ```csharp
 public static int Count(ProbeNode start)
@@ -554,14 +554,14 @@ current = current.next;       // TS2322: 'ProbeNode | null' is not assignable to
 On .NET, a `var` local of a reference type is nullable-annotated (`ProbeNode?`), so the assignment is
 valid and the loop counts the list. Expected: `let current: ProbeNode | null = start;` whenever a later
 assignment can be null. `DependencyGraph.ShallowPropagate` spells out `Link?` for this, with a
-`// Metano:` comment.
+`// Metano #796` comment.
 
-**M2. Deleting a C# source file does not rerun the transpile.** After a build, delete a `.cs` file
+**M2 (#797). Deleting a C# source file does not rerun the transpile.** After a build, delete a `.cs` file
 that declared a transpiled type and build again: the transpile is skipped as up to date, and the
 deleted type's `.ts` file and barrel export stay in the output (seen with a temporary probe file).
 Deleting `.metano-stamp` forces the rerun. Expected: track the input file list, not only timestamps.
 
-**M3. A redundant `!` after a null test (low priority).** In `ErrorScenarios`, `last is not null &&
+**M3 (#798). A redundant `!` after a null test (low priority).** In `ErrorScenarios`, `last is not null &&
 last.Message == …` (an `Exception?` local) and `error is not null && error.Message == …` now emit
 `!(last == null) && last!.message`. The same test on an `Exception?` parameter emits no `!`. The
 behaviour is correct; the `!` is noise, probably from the #775 fix.
