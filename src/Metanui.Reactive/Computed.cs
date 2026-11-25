@@ -12,7 +12,7 @@ public sealed class Computed<T> : OwnerNode
     private readonly IEqualityComparer<T> _comparer;
     private T _value = default!;
 
-    public Computed(Func<T> compute, IEqualityComparer<T>? comparer = null)
+    internal Computed(Func<T> compute, IEqualityComparer<T>? comparer = null)
     {
         _compute = compute;
         _comparer = comparer ?? EqualityComparer<T>.Default;

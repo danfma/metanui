@@ -5,6 +5,7 @@ export class SplitEffect<T> extends EffectNode {
   private readonly _apply: (arg1: T, arg2: T | null) => void;
   private _value: T = null!;
   private _applied: T | null = null;
+  private _hasApplied: boolean = false;
 
   constructor(compute: () => T, apply: (arg1: T, arg2: T | null) => void) {
     super();
@@ -17,8 +18,9 @@ export class SplitEffect<T> extends EffectNode {
   }
 
   protected apply(): void {
-    const previous = this._applied;
+    const previous = this._hasApplied ? this._applied : this._value;
     this._applied = this._value;
+    this._hasApplied = true;
     this._apply(this._value, previous);
   }
 }

@@ -55,7 +55,7 @@ public static class OwnershipScenarios
         var alive = 0;
         var created = 0;
         var log = "";
-        var count = new Signal<int>(1);
+        var count = Reactivity.Signal(1);
 
         Reactivity.Effect(
             () =>
@@ -95,7 +95,7 @@ public static class OwnershipScenarios
     private static void ComputedOwnedByRootIsDisposed(IExpect expect)
     {
         var runs = 0;
-        var source = new Signal<int>(0);
+        var source = Reactivity.Signal(0);
 
         Action dispose = () => { };
 
@@ -104,7 +104,7 @@ public static class OwnershipScenarios
         {
             dispose = disposeRoot;
 
-            return new Computed<int>(() =>
+            return Reactivity.Computed(() =>
             {
                 runs++;
 
@@ -131,8 +131,8 @@ public static class OwnershipScenarios
     private static void UntrackDoesNotSubscribe(IExpect expect)
     {
         var computes = 0;
-        var tracked = new Signal<int>(0);
-        var untracked = new Signal<int>(0);
+        var tracked = Reactivity.Signal(0);
+        var untracked = Reactivity.Signal(0);
 
         Reactivity.Effect(
             () =>
@@ -160,7 +160,7 @@ public static class OwnershipScenarios
     private static void DisposeDuringFlushSkipsQueuedEffects(IExpect expect)
     {
         var appliesOfB = 0;
-        var source = new Signal<int>(0);
+        var source = Reactivity.Signal(0);
         Action disposeInner = () => { };
 
         Reactivity.Effect(
@@ -193,9 +193,9 @@ public static class OwnershipScenarios
 
     private static void WriteInsideUntrackInComputedThrows(IExpect expect)
     {
-        var target = new Signal<int>(0);
+        var target = Reactivity.Signal(0);
 
-        var writer = new Computed<int>(() =>
+        var writer = Reactivity.Computed(() =>
         {
             Reactivity.Untrack(() => target.Value = 1);
 
@@ -215,9 +215,9 @@ public static class OwnershipScenarios
     // happens inside the computation.
     private static void WriteInRootInsideComputedThrows(IExpect expect)
     {
-        var target = new Signal<int>(0);
+        var target = Reactivity.Signal(0);
 
-        var writer = new Computed<int>(() =>
+        var writer = Reactivity.Computed(() =>
         {
             Reactivity.Root(dispose => target.Value = 1);
 
@@ -234,7 +234,7 @@ public static class OwnershipScenarios
 
     private static void WriteInNestedRootIsAllowed(IExpect expect)
     {
-        var target = new Signal<int>(0);
+        var target = Reactivity.Signal(0);
 
         var error = ScenarioRunner.Catch(() =>
             Reactivity.Root(outer => Reactivity.Root(inner => target.Value = 1))

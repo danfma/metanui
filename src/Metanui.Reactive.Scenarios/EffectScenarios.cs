@@ -13,6 +13,10 @@ public static class EffectScenarios
             ComputeRunsOnCreationApplyOnFlush
         ),
         new Scenario("apply receives the previous value", ApplyReceivesPrevious),
+        new Scenario(
+            "first apply previous equals the value for a value type",
+            FirstApplyPreviousEqualsValueForValueType
+        ),
         new Scenario("applies run after all computes", AppliesRunAfterAllComputes),
         new Scenario("apply is untracked", ApplyIsUntracked),
         new Scenario("apply cleanup runs before the next apply", ApplyCleanupRunsBeforeNextApply),
@@ -29,15 +33,13 @@ public static class EffectScenarios
         new Scenario("equal record write does not rerun the effect", EqualRecordWriteDoesNotRerun),
     ];
 
-    // A reference type: the first apply gets `default` as previous, which is null on every
-    // platform, whereas `default(int)` is 0 on .NET and null in TypeScript.
     private static void ComputeRunsOnCreationApplyOnFlush(IExpect expect)
     {
         var computes = 0;
         var applies = 0;
         var appliedValue = "";
-        var previousWasDefault = false;
-        var name = new Signal<string>("first");
+        var appliedPrevious = "";
+        var name = Reactivity.Signal("first");
 
         Reactivity.Effect(
             () =>
@@ -50,7 +52,7 @@ public static class EffectScenarios
             {
                 applies++;
                 appliedValue = value;
-                previousWasDefault = previous is null;
+                appliedPrevious = previous!;
             }
         );
 
@@ -62,7 +64,28 @@ public static class EffectScenarios
         expect.Equal(1, computes, "computes after flush");
         expect.Equal(1, applies, "applies after flush");
         expect.Equal("first", appliedValue, "applied value");
-        expect.IsTrue(previousWasDefault, "applied previous is default");
+        expect.Equal("first", appliedPrevious, "first apply previous is the value");
+    }
+
+    private static void FirstApplyPreviousEqualsValueForValueType(IExpect expect)
+    {
+        var appliedValue = -1;
+        int? appliedPrevious = null;
+        var count = Reactivity.Signal(7);
+
+        Reactivity.Effect(
+            () => count.Value,
+            (value, previous) =>
+            {
+                appliedValue = value;
+                appliedPrevious = previous;
+            }
+        );
+
+        Reactivity.Flush();
+
+        expect.Equal(7, appliedValue, "applied value");
+        expect.Equal<int?>(7, appliedPrevious, "first apply previous is the value");
     }
 
     private static void ApplyReceivesPrevious(IExpect expect)
@@ -70,7 +93,7 @@ public static class EffectScenarios
         var appliedValue = -1;
         // The previous value is typed `T | null` in TypeScript (default(T) is null there).
         int? appliedPrevious = null;
-        var count = new Signal<int>(1);
+        var count = Reactivity.Signal(1);
 
         Reactivity.Effect(
             () => count.Value,
@@ -92,7 +115,7 @@ public static class EffectScenarios
     private static void AppliesRunAfterAllComputes(IExpect expect)
     {
         var log = "";
-        var count = new Signal<int>(0);
+        var count = Reactivity.Signal(0);
 
         Reactivity.Effect(
             () =>
@@ -126,8 +149,8 @@ public static class EffectScenarios
     {
         var computes = 0;
         var applies = 0;
-        var tracked = new Signal<int>(0);
-        var readInApply = new Signal<int>(0);
+        var tracked = Reactivity.Signal(0);
+        var readInApply = Reactivity.Signal(0);
 
         Reactivity.Effect(
             () =>
@@ -155,7 +178,7 @@ public static class EffectScenarios
     private static void ApplyCleanupRunsBeforeNextApply(IExpect expect)
     {
         var log = "";
-        var count = new Signal<int>(1);
+        var count = Reactivity.Signal(1);
 
         Reactivity.Effect(
             () => count.Value,
@@ -187,7 +210,7 @@ public static class EffectScenarios
             {
                 computedError = ScenarioRunner.Catch(() =>
                 {
-                    var computed = new Computed<int>(() => 1);
+                    var computed = Reactivity.Computed(() => 1);
                 });
 
                 effectError = ScenarioRunner.Catch(() =>
@@ -211,9 +234,9 @@ public static class EffectScenarios
     private static void ComputedCleanupInApplyBelongsToComputed(IExpect expect)
     {
         var log = "";
-        var count = new Signal<int>(1);
+        var count = Reactivity.Signal(1);
 
-        var nested = new Computed<int>(() =>
+        var nested = Reactivity.Computed(() =>
         {
             var value = count.Value;
 
@@ -242,8 +265,8 @@ public static class EffectScenarios
     private static void WriteInApplySchedulesAnotherPass(IExpect expect)
     {
         var lastApplied = -1;
-        var source = new Signal<int>(1);
-        var relayed = new Signal<int>(0);
+        var source = Reactivity.Signal(1);
+        var relayed = Reactivity.Signal(0);
 
         Reactivity.Effect(() => source.Value, (value, previous) => relayed.Value = value * 10);
         Reactivity.Effect(() => relayed.Value, (value, previous) => lastApplied = value);
@@ -255,7 +278,7 @@ public static class EffectScenarios
 
     private static void EffectWriteLoopThrows(IExpect expect)
     {
-        var count = new Signal<int>(0);
+        var count = Reactivity.Signal(0);
 
         Reactivity.Effect(() => count.Value, (value, previous) => count.Value = value + 1);
 
@@ -270,7 +293,7 @@ public static class EffectScenarios
     {
         var computes = 0;
         var applies = 0;
-        var point = new Signal<Point>(new Point(1, 2));
+        var point = Reactivity.Signal(new Point(1, 2));
 
         Reactivity.Effect(
             () =>

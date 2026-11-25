@@ -19,7 +19,7 @@ public static class ComputedScenarios
     {
         var runs = 0;
 
-        var computed = new Computed<int>(() =>
+        var computed = Reactivity.Computed(() =>
         {
             runs++;
 
@@ -34,9 +34,9 @@ public static class ComputedScenarios
     private static void IsCached(IExpect expect)
     {
         var runs = 0;
-        var count = new Signal<int>(3);
+        var count = Reactivity.Signal(3);
 
-        var doubled = new Computed<int>(() =>
+        var doubled = Reactivity.Computed(() =>
         {
             runs++;
 
@@ -51,9 +51,9 @@ public static class ComputedScenarios
     private static void RecomputesAfterFlush(IExpect expect)
     {
         var runs = 0;
-        var count = new Signal<int>(1);
+        var count = Reactivity.Signal(1);
 
-        var doubled = new Computed<int>(() =>
+        var doubled = Reactivity.Computed(() =>
         {
             runs++;
 
@@ -72,11 +72,11 @@ public static class ComputedScenarios
     private static void DiamondIsGlitchFree(IExpect expect)
     {
         var seen = new List<int>();
-        var a = new Signal<int>(0);
-        var b = new Computed<int>(() => a.Value + 1);
-        var c = new Computed<int>(() => a.Value * 2);
+        var a = Reactivity.Signal(0);
+        var b = Reactivity.Computed(() => a.Value + 1);
+        var c = Reactivity.Computed(() => a.Value * 2);
 
-        var d = new Computed<int>(() =>
+        var d = Reactivity.Computed(() =>
         {
             var sum = b.Value + c.Value;
 
@@ -99,10 +99,10 @@ public static class ComputedScenarios
     private static void EqualResultStopsPropagation(IExpect expect)
     {
         var downstreamRuns = 0;
-        var count = new Signal<int>(0);
-        var parity = new Computed<int>(() => count.Value % 2);
+        var count = Reactivity.Signal(0);
+        var parity = Reactivity.Computed(() => count.Value % 2);
 
-        var downstream = new Computed<int>(() =>
+        var downstream = Reactivity.Computed(() =>
         {
             downstreamRuns++;
 
@@ -121,11 +121,11 @@ public static class ComputedScenarios
     private static void DynamicDependencyIsDropped(IExpect expect)
     {
         var runs = 0;
-        var flag = new Signal<bool>(true);
-        var a = new Signal<int>(1);
-        var b = new Signal<int>(2);
+        var flag = Reactivity.Signal(true);
+        var a = Reactivity.Signal(1);
+        var b = Reactivity.Signal(2);
 
-        var pick = new Computed<int>(() =>
+        var pick = Reactivity.Computed(() =>
         {
             runs++;
 
@@ -149,9 +149,9 @@ public static class ComputedScenarios
 
     private static void WriteInsideComputeThrows(IExpect expect)
     {
-        var target = new Signal<int>(0);
+        var target = Reactivity.Signal(0);
 
-        var writer = new Computed<int>(() =>
+        var writer = Reactivity.Computed(() =>
         {
             target.Value = 1;
 
@@ -172,14 +172,14 @@ public static class ComputedScenarios
     // because `sum` is Mutable|Pending, so the nested walk pushes above the first one.
     private static void NestedDirtyCheck(IExpect expect)
     {
-        var source = new Signal<int>(1);
-        var plusOne = new Computed<int>(() => source.Value + 1);
-        var twice = new Computed<int>(() => source.Value * 2);
-        var sum = new Computed<int>(() => plusOne.Value + twice.Value);
-        var outer = new Computed<int>(() => sum.Value);
-        var inner = new Computed<int>(() => source.Value + outer.Value);
-        var middle = new Computed<int>(() => inner.Value);
-        var top = new Computed<int>(() => middle.Value + 1);
+        var source = Reactivity.Signal(1);
+        var plusOne = Reactivity.Computed(() => source.Value + 1);
+        var twice = Reactivity.Computed(() => source.Value * 2);
+        var sum = Reactivity.Computed(() => plusOne.Value + twice.Value);
+        var outer = Reactivity.Computed(() => sum.Value);
+        var inner = Reactivity.Computed(() => source.Value + outer.Value);
+        var middle = Reactivity.Computed(() => inner.Value);
+        var top = Reactivity.Computed(() => middle.Value + 1);
 
         expect.Equal(6, top.Value, "initial value");
 

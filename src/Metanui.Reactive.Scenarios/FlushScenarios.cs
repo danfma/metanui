@@ -23,8 +23,8 @@ public static class FlushScenarios
     private static void WriteDuringFlushSchedulesNoExtraFlush(IExpect expect)
     {
         var scheduler = new CountingScheduler(failFirst: false);
-        var source = new Signal<int>(0);
-        var relayed = new Signal<int>(0);
+        var source = Reactivity.Signal(0);
+        var relayed = Reactivity.Signal(0);
 
         Reactivity.Effect(() => source.Value, (value, previous) => relayed.Value = value + 1);
 
@@ -42,8 +42,8 @@ public static class FlushScenarios
     private static void FlushInsideApplyIsNoOp(IExpect expect)
     {
         var log = "";
-        var source = new Signal<int>(0);
-        var relayed = new Signal<int>(0);
+        var source = Reactivity.Signal(0);
+        var relayed = Reactivity.Signal(0);
 
         Reactivity.Effect(
             () => source.Value,
@@ -65,7 +65,7 @@ public static class FlushScenarios
     private static void ThrowingSchedulerDoesNotBlockLaterWrites(IExpect expect)
     {
         var scheduler = new CountingScheduler(failFirst: true);
-        var signal = new Signal<int>(0);
+        var signal = Reactivity.Signal(0);
         Exception? error = null;
 
         WithScheduler(scheduler, () =>
@@ -89,9 +89,9 @@ public static class FlushScenarios
 
     private static void ThrowingComparerStillPropagates(IExpect expect)
     {
-        var plain = new Signal<int>(0);
-        var throwing = new Signal<int>(0, new ThrowingComparer());
-        var doubled = new Computed<int>(() => plain.Value * 2);
+        var plain = Reactivity.Signal(0);
+        var throwing = Reactivity.Signal(0, new ThrowingComparer());
+        var doubled = Reactivity.Computed(() => plain.Value * 2);
 
         expect.Equal(0, doubled.Value, "initial value");
 

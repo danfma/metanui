@@ -1,6 +1,6 @@
 import { List } from "metano-runtime/system/collections";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Computed, Reactivity, Signal } from "metanui-reactive/metanui/reactive";
+import { Reactivity } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -12,7 +12,7 @@ export class ComputedScenarios {
 
   private static isLazy(expect: IExpect): void {
     let runs = 0;
-    const computed = new Computed(() => {
+    const computed = Reactivity.computed(() => {
       runs = (runs + 1) | 0;
 
       return 1;
@@ -24,8 +24,8 @@ export class ComputedScenarios {
 
   private static isCached(expect: IExpect): void {
     let runs = 0;
-    const count = new Signal(3);
-    const doubled = new Computed(() => {
+    const count = Reactivity.signal(3);
+    const doubled = Reactivity.computed(() => {
       runs = (runs + 1) | 0;
 
       return Math.imul(count.value, 2);
@@ -37,8 +37,8 @@ export class ComputedScenarios {
 
   private static recomputesAfterFlush(expect: IExpect): void {
     let runs = 0;
-    const count = new Signal(1);
-    const doubled = new Computed(() => {
+    const count = Reactivity.signal(1);
+    const doubled = Reactivity.computed(() => {
       runs = (runs + 1) | 0;
 
       return Math.imul(count.value, 2);
@@ -52,10 +52,10 @@ export class ComputedScenarios {
 
   private static diamondIsGlitchFree(expect: IExpect): void {
     const seen = new List<number>();
-    const a = new Signal(0);
-    const b = new Computed(() => (a.value + 1) | 0);
-    const c = new Computed(() => Math.imul(a.value, 2));
-    const d = new Computed(() => {
+    const a = Reactivity.signal(0);
+    const b = Reactivity.computed(() => (a.value + 1) | 0);
+    const c = Reactivity.computed(() => Math.imul(a.value, 2));
+    const d = Reactivity.computed(() => {
       const sum = (b.value + c.value) | 0;
       seen.add(sum);
 
@@ -72,9 +72,9 @@ export class ComputedScenarios {
 
   private static equalResultStopsPropagation(expect: IExpect): void {
     let downstreamRuns = 0;
-    const count = new Signal(0);
-    const parity = new Computed(() => count.value % 2);
-    const downstream = new Computed(() => {
+    const count = Reactivity.signal(0);
+    const parity = Reactivity.computed(() => count.value % 2);
+    const downstream = Reactivity.computed(() => {
       downstreamRuns = (downstreamRuns + 1) | 0;
 
       return Math.imul(parity.value, 10);
@@ -88,10 +88,10 @@ export class ComputedScenarios {
 
   private static dynamicDependencyIsDropped(expect: IExpect): void {
     let runs = 0;
-    const flag = new Signal(true);
-    const a = new Signal(1);
-    const b = new Signal(2);
-    const pick = new Computed(() => {
+    const flag = Reactivity.signal(true);
+    const a = Reactivity.signal(1);
+    const b = Reactivity.signal(2);
+    const pick = Reactivity.computed(() => {
       runs = (runs + 1) | 0;
 
       return flag.value ? a.value : b.value;
@@ -108,8 +108,8 @@ export class ComputedScenarios {
   }
 
   private static writeInsideComputeThrows(expect: IExpect): void {
-    const target = new Signal(0);
-    const writer = new Computed(() => {
+    const target = Reactivity.signal(0);
+    const writer = Reactivity.computed(() => {
       target.value = 1;
 
       return 0;
@@ -121,14 +121,14 @@ export class ComputedScenarios {
   }
 
   private static nestedDirtyCheck(expect: IExpect): void {
-    const source = new Signal(1);
-    const plusOne = new Computed(() => (source.value + 1) | 0);
-    const twice = new Computed(() => Math.imul(source.value, 2));
-    const sum = new Computed(() => (plusOne.value + twice.value) | 0);
-    const outer = new Computed(() => sum.value);
-    const inner = new Computed(() => (source.value + outer.value) | 0);
-    const middle = new Computed(() => inner.value);
-    const top = new Computed(() => (middle.value + 1) | 0);
+    const source = Reactivity.signal(1);
+    const plusOne = Reactivity.computed(() => (source.value + 1) | 0);
+    const twice = Reactivity.computed(() => Math.imul(source.value, 2));
+    const sum = Reactivity.computed(() => (plusOne.value + twice.value) | 0);
+    const outer = Reactivity.computed(() => sum.value);
+    const inner = Reactivity.computed(() => (source.value + outer.value) | 0);
+    const middle = Reactivity.computed(() => inner.value);
+    const top = Reactivity.computed(() => (middle.value + 1) | 0);
     expect.equal(6, top.value, "initial value");
     source.value = 2;
     Reactivity.flush();
