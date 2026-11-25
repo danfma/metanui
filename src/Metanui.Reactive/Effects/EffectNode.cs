@@ -211,17 +211,21 @@ internal abstract class EffectNode : OwnerNode
         }
     }
 
-    /// <summary>Runs the previous apply's cleanups as part of the next apply: a throw is the apply's error.</summary>
+    /// <summary>
+    /// Runs the previous apply's cleanups as part of the next apply. A throwing cleanup does not stop
+    /// the others; the first error is then the apply's error, and the apply does not run.
+    /// </summary>
     private void RunApplyCleanups()
     {
         var entry = _applyCleanups;
 
         _applyCleanups = null;
 
-        while (entry is not null)
+        var error = Teardown.RunChain(entry);
+
+        if (error is not null)
         {
-            entry.Cleanup();
-            entry = entry.Next;
+            throw error;
         }
     }
 }

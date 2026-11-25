@@ -20,6 +20,7 @@ export class FlushLoop {
   private static _applyTail: EffectNode | null = null;
   private static _scheduled: boolean = false;
   private static _running: boolean = false;
+  private static _passes: number = 0;
 
   constructor() { }
 
@@ -89,27 +90,36 @@ export class FlushLoop {
       FlushLoop.runPasses();
     } catch (_err) {
       FlushLoop._running = false;
-      FlushLoop.requestFlushForLeftovers();
+
+      if (!FlushLoop.passLimitReached()) {
+        FlushLoop.requestFlushForLeftovers();
+      }
+
       throw _err;
     }
     FlushLoop._running = false;
+    FlushLoop._passes = 0;
     Teardown.rethrowFirstError();
   }
 
   private static runPasses(): void {
-    let passes = 0;
     while (FlushLoop.hasWork()) {
-      if (passes === FlushLoop.maxPasses) {
+      if (FlushLoop._passes === FlushLoop.maxPasses) {
+        FlushLoop._passes = 0;
         FlushLoop.discardPendingWrites();
         throw new InvalidOperationException(FlushLoop.passLimitMessage);
       }
 
-      passes = (passes + 1) | 0;
+      FlushLoop._passes = (FlushLoop._passes + 1) | 0;
       Tracking.pass = (Tracking.pass + 1) | 0;
       FlushLoop.commitAndPropagate();
       FlushLoop.runComputes();
       FlushLoop.runApplies();
     }
+  }
+
+  private static passLimitReached(): boolean {
+    return FlushLoop._passes === 0;
   }
 
   private static requestFlushForLeftovers(): void {

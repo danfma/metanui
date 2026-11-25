@@ -28,6 +28,13 @@ internal static class FlushLoop
     private static bool _scheduled;
     private static bool _running;
 
+    /// <summary>
+    /// Passes run since the last flush that ended normally. A failed flush keeps the count, so an
+    /// effect that throws after writing what it reads still reaches the pass limit across the flushes
+    /// re-requested for it.
+    /// </summary>
+    private static int _passes;
+
     /// <summary>Queues a signal whose pending write the next pass commits.</summary>
     public static void Enqueue(SignalNode node)
     {
@@ -119,11 +126,13 @@ internal static class FlushLoop
     /// <remarks>
     /// An error no boundary handles leaves at once (Solid 2.0.4 ordering). The work still queued is
     /// kept and another flush is requested, so the next flush runs it; unlike Solid, the graph is not
-    /// halted (spec 4.4). After a flush that ends normally, the first cleanup error raised during it
+    /// halted (spec 4.4). The pass limit counts across such failed flushes, and a flush that hits it
+    /// requests no other. After a flush that ends normally, the first cleanup error raised during it
     /// is rethrown.
     /// </remarks>
     /// <exception cref="InvalidOperationException">
-    /// More than <see cref="MaxPasses" /> passes were needed; the pending writes are discarded.
+    /// More than <see cref="MaxPasses" /> passes were needed since the last flush that ended normally;
+    /// the pending writes are discarded.
     /// </exception>
     public static void Run()
     {
@@ -142,35 +151,45 @@ internal static class FlushLoop
         catch
         {
             _running = false;
-            RequestFlushForLeftovers();
+
+            if (!PassLimitReached())
+            {
+                RequestFlushForLeftovers();
+            }
 
             throw;
         }
 
         _running = false;
+        _passes = 0;
         Teardown.RethrowFirstError();
     }
 
     private static void RunPasses()
     {
-        var passes = 0;
-
         while (HasWork())
         {
-            if (passes == MaxPasses)
+            if (_passes == MaxPasses)
             {
+                _passes = 0;
                 DiscardPendingWrites();
 
                 throw new InvalidOperationException(PassLimitMessage);
             }
 
-            passes++;
+            _passes++;
             Tracking.Pass++;
             CommitAndPropagate();
             RunComputes();
             RunApplies();
         }
     }
+
+    /// <summary>
+    /// Whether the flush that just failed stopped at the pass limit: only that path resets the pass
+    /// count before a pass has run.
+    /// </summary>
+    private static bool PassLimitReached() => _passes == 0;
 
     /// <summary>
     /// After a failed flush, asks for another one when work is left. A scheduler that throws here
@@ -335,8 +354,8 @@ internal static class FlushLoop
     }
 
     /// <summary>
-    /// Drops every queued write after the pass limit, so the graph is usable again. A pass that ends
-    /// normally drains the compute and apply queues, so writes are the only work left.
+    /// Drops every queued write after the pass limit, so the graph is usable again. Computes and
+    /// applies a failed flush left queued stay, and run with the next flush.
     /// </summary>
     private static void DiscardPendingWrites()
     {

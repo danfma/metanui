@@ -35,6 +35,18 @@ public static class ErrorScenarios
             WorkLeftByFailedComputeRunsOnNextFlush
         ),
         new Scenario(
+            "throwing effect that writes what it reads stops at the pass limit",
+            ThrowingSelfWritingEffectStopsAtPassLimit
+        ),
+        new Scenario(
+            "throwing apply cleanup still runs the others and reaches the boundary",
+            ThrowingApplyCleanupReachesBoundary
+        ),
+        new Scenario(
+            "unhandled apply cleanup error escapes after the others ran",
+            UnhandledApplyCleanupErrorEscapes
+        ),
+        new Scenario(
             "throwing cleanup does not abort the disposal",
             ThrowingCleanupDoesNotAbortDisposal
         ),
@@ -313,6 +325,144 @@ public static class ErrorScenarios
         expect.Equal("b0,b1,", log, "the next flush runs the queued compute and apply");
     }
 
+    private static void ThrowingSelfWritingEffectStopsAtPassLimit(IExpect expect)
+    {
+        var scheduler = new RecordingScheduler();
+        var log = "";
+        var source = Reactivity.Signal(0);
+        var other = Reactivity.Signal(0);
+
+        Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                if (value >= 1)
+                {
+                    source.Value = value + 1;
+
+                    throw new InvalidOperationException("apply failed");
+                }
+            }
+        );
+
+        Reactivity.Effect(() => other.Value, (value, previous) => log += value + ",");
+
+        Reactivity.Flush();
+
+        var previousScheduler = Reactivity.Scheduler;
+        var flushes = 0;
+        Exception? last = null;
+
+        Reactivity.Scheduler = scheduler;
+
+        try
+        {
+            source.Value = 1;
+
+            var flush = scheduler.Take();
+
+            // Bounded so a regression fails the scenario instead of hanging it.
+            while (flush is not null && flushes < 1000)
+            {
+                flushes++;
+                last = ScenarioRunner.Catch(flush);
+                flush = scheduler.Take();
+            }
+        }
+        finally
+        {
+            Reactivity.Scheduler = previousScheduler;
+        }
+
+        expect.Equal(101, flushes, "flushes until the pass limit");
+
+        expect.IsTrue(
+            last is not null
+                && last.Message
+                    == "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.",
+            "the last flush stops at the pass limit"
+        );
+
+        other.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal("0,1,", log, "the graph is usable afterwards");
+    }
+
+    private static void ThrowingApplyCleanupReachesBoundary(IExpect expect)
+    {
+        var log = "";
+        var caught = "";
+        var source = Reactivity.Signal(0);
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.Effect(
+                    () => source.Value,
+                    (value, previous) =>
+                    {
+                        log += "apply" + value + ",";
+
+                        if (value == 0)
+                        {
+                            RegisterFailingCleanups(() => log += "second,");
+                        }
+                    }
+                ),
+            error => caught = error.Message
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush does not throw");
+        expect.Equal("cleanup failed", caught, "the boundary got the cleanup error");
+        expect.Equal("apply0,second,", log, "the other cleanup ran and the failed apply did not");
+    }
+
+    private static void UnhandledApplyCleanupErrorEscapes(IExpect expect)
+    {
+        var log = "";
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                log += "apply" + value + ",";
+
+                if (value == 0)
+                {
+                    RegisterFailingCleanups(() => log += "second,");
+                }
+            }
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(
+            error is not null && error.Message == "cleanup failed",
+            "the cleanup error escapes the flush"
+        );
+
+        expect.Equal("apply0,second,", log, "the other cleanup ran first");
+    }
+
+    /// <summary>
+    /// Registers <paramref name="other" />, then a cleanup that throws; cleanups run last registered
+    /// first, so the throwing one runs before <paramref name="other" />.
+    /// </summary>
+    private static void RegisterFailingCleanups(Action other)
+    {
+        Reactivity.OnCleanup(other);
+        Reactivity.OnCleanup(() => throw new InvalidOperationException("cleanup failed"));
+    }
+
     private static void ThrowingCleanupDoesNotAbortDisposal(IExpect expect)
     {
         var thrown = new InvalidOperationException("cleanup failed");
@@ -507,6 +657,23 @@ public static class ErrorScenarios
         catch (InvalidOperationException)
         {
             return fallback;
+        }
+    }
+
+    /// <summary>Keeps the last flush requested, so a scenario can run it like an event loop would.</summary>
+    private sealed class RecordingScheduler : IFlushScheduler
+    {
+        private Action? _pending;
+
+        public void Schedule(Action flush) => _pending = flush;
+
+        public Action? Take()
+        {
+            var flush = _pending;
+
+            _pending = null;
+
+            return flush;
         }
     }
 
