@@ -123,8 +123,8 @@ public static class ErrorScenarios
             return 10 / divisor;
         });
 
-        var first = ScenarioRunner.Catch(() => Read(() => quotient.Value));
-        var second = ScenarioRunner.Catch(() => Read(() => quotient.Peek()));
+        var first = ScenarioRunner.Catch(() => _ = quotient.Value);
+        var second = ScenarioRunner.Catch(() => _ = quotient.Peek());
 
         expect.IsTrue(first is InvalidOperationException, "the first read throws");
         expect.IsTrue(first == second, "the second read throws the same instance");
@@ -155,8 +155,8 @@ public static class ErrorScenarios
             return 42;
         });
 
-        var first = ScenarioRunner.Catch(() => Read(() => flaky.Value));
-        var second = ScenarioRunner.Catch(() => Read(() => flaky.Value));
+        var first = ScenarioRunner.Catch(() => _ = flaky.Value);
+        var second = ScenarioRunner.Catch(() => _ = flaky.Value);
 
         expect.IsTrue(first is not null && first == second, "untracked reads rethrow the error");
         expect.Equal(1, runs, "untracked reads do not retry");
@@ -164,7 +164,7 @@ public static class ErrorScenarios
         Reactivity.Effect(
             () =>
             {
-                Read(() => trigger.Value);
+                _ = trigger.Value;
 
                 return ReadOr(flaky, -1);
             },
@@ -211,7 +211,7 @@ public static class ErrorScenarios
         Reactivity.Effect(
             () =>
             {
-                Read(() => trigger.Value);
+                _ = trigger.Value;
 
                 return ReadOr(flaky, -1);
             },
@@ -860,7 +860,7 @@ public static class ErrorScenarios
             return 1;
         });
 
-        var readError = ScenarioRunner.Catch(() => Read(() => computed.Value));
+        var readError = ScenarioRunner.Catch(() => _ = computed.Value);
         var flushError = ScenarioRunner.Catch(Reactivity.Flush);
 
         expect.IsTrue(readError is null, "the computed does not take the cleanup error");
@@ -942,7 +942,7 @@ public static class ErrorScenarios
         other.Value = 1;
         Reactivity.Flush();
 
-        var error = ScenarioRunner.Catch(() => Read(() => outer.Value));
+        var error = ScenarioRunner.Catch(() => _ = outer.Value);
 
         Reactivity.Flush();
 
@@ -1010,12 +1010,6 @@ public static class ErrorScenarios
         expect.IsTrue(error == thrown, "the scenario error is not masked by the cleanup error");
         expect.Equal(1, signal.Peek(), "the leftover write was drained");
         expect.IsTrue(ScenarioRunner.Catch(Reactivity.Flush) is null, "no error is left behind");
-    }
-
-    // Metano #773: a discard assignment `_ = expr` is emitted as an assignment to an undeclared `_`
-    private static void Read<T>(Func<T> read)
-    {
-        var value = read();
     }
 
     private static int FailWhenOne(int value, string message)

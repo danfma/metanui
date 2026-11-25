@@ -67,8 +67,12 @@ export class ErrorScenarios {
 
       return intDiv(10, divisor);
     });
-    const first = ScenarioRunner.catch(() => ErrorScenarios.read(() => quotient.value));
-    const second = ScenarioRunner.catch(() => ErrorScenarios.read(() => quotient.peek()));
+    const first = ScenarioRunner.catch(() => {
+      quotient.value;
+    });
+    const second = ScenarioRunner.catch(() => {
+      quotient.peek();
+    });
     expect.isTrue(first instanceof InvalidOperationException, "the first read throws");
     expect.isTrue(first === second, "the second read throws the same instance");
     expect.equal(1, runs, "compute runs before the fix");
@@ -91,12 +95,16 @@ export class ErrorScenarios {
 
       return 42;
     });
-    const first = ScenarioRunner.catch(() => ErrorScenarios.read(() => flaky.value));
-    const second = ScenarioRunner.catch(() => ErrorScenarios.read(() => flaky.value));
+    const first = ScenarioRunner.catch(() => {
+      flaky.value;
+    });
+    const second = ScenarioRunner.catch(() => {
+      flaky.value;
+    });
     expect.isTrue(!(first == null) && first === second, "untracked reads rethrow the error");
     expect.equal(1, runs, "untracked reads do not retry");
     Reactivity.effect(() => {
-      ErrorScenarios.read(() => trigger.value);
+      trigger.value;
 
       return ErrorScenarios.readOr(flaky, -1);
     }, (value: number, previous: number) => seen = value);
@@ -125,7 +133,7 @@ export class ErrorScenarios {
     });
     const derived = Reactivity.computed(() => (ErrorScenarios.readOr(flaky, -1) + 1) | 0);
     Reactivity.effect(() => {
-      ErrorScenarios.read(() => trigger.value);
+      trigger.value;
 
       return ErrorScenarios.readOr(flaky, -1);
     }, (value: number, previous: number) => retrying = value);
@@ -503,7 +511,9 @@ export class ErrorScenarios {
 
       return 1;
     });
-    const readError = ScenarioRunner.catch(() => ErrorScenarios.read(() => computed.value));
+    const readError = ScenarioRunner.catch(() => {
+      computed.value;
+    });
     const flushError = ScenarioRunner.catch(Reactivity.flush);
     expect.isTrue(readError == null, "the computed does not take the cleanup error");
     expect.equal(1, computed.value, "the computed holds its value");
@@ -558,7 +568,9 @@ export class ErrorScenarios {
     source.value = 1;
     other.value = 1;
     Reactivity.flush();
-    const error = ScenarioRunner.catch(() => ErrorScenarios.read(() => outer.value));
+    const error = ScenarioRunner.catch(() => {
+      outer.value;
+    });
     Reactivity.flush();
     expect.isTrue(error == null, "the write from the cleanup does not throw");
     expect.equal(2, outer.value, "value after the rerun");
@@ -607,10 +619,6 @@ export class ErrorScenarios {
     expect.isTrue(error === thrown, "the scenario error is not masked by the cleanup error");
     expect.equal(1, signal.peek(), "the leftover write was drained");
     expect.isTrue(ScenarioRunner.catch(Reactivity.flush) == null, "no error is left behind");
-  }
-
-  private static read<T>(read: () => T): void {
-    const value = read();
   }
 
   private static failWhenOne(value: number, message: string): number {
