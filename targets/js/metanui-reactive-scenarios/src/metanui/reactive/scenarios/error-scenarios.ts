@@ -179,7 +179,7 @@ export class ErrorScenarios {
     Reactivity.effect(() => source.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
     Reactivity.flush();
     const previousScheduler = Reactivity.scheduler;
-    Reactivity.scheduler = scheduler;
+    Reactivity.useScheduler(scheduler);
     try {
       source.value = 1;
       const error = ScenarioRunner.catch(Reactivity.flush);
@@ -187,7 +187,7 @@ export class ErrorScenarios {
       expect.equal("b0,", log, "the other effect has not run yet");
       expect.equal(2, scheduler.requests, "the failed flush requests another one");
     } finally {
-      Reactivity.scheduler = previousScheduler;
+      Reactivity.useScheduler(previousScheduler);
     }
     Reactivity.flush();
     expect.equal("b0,b1,", log, "the next flush runs the queued compute and apply");
@@ -209,7 +209,7 @@ export class ErrorScenarios {
     const previousScheduler = Reactivity.scheduler;
     let flushes = 0;
     let last = null as Exception | null;
-    Reactivity.scheduler = scheduler;
+    Reactivity.useScheduler(scheduler);
     try {
       source.value = 1;
       let flush = scheduler.take();
@@ -219,7 +219,7 @@ export class ErrorScenarios {
         flush = scheduler.take();
       }
     } finally {
-      Reactivity.scheduler = previousScheduler;
+      Reactivity.useScheduler(previousScheduler);
     }
     expect.equal(101, flushes, "flushes until the pass limit");
     expect.isTrue(!(last == null) && last.message === "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.", "the last flush stops at the pass limit");

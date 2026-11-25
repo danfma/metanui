@@ -19,12 +19,12 @@ afterEach(() => {
     dispose();
   }
 
-  Reactivity.scheduler = new ManualFlushScheduler();
+  Reactivity.useScheduler(new ManualFlushScheduler());
   Reactivity.flush();
 });
 
 test("a write flushes on the next microtask", async () => {
-  Reactivity.scheduler = microtaskScheduler;
+  Reactivity.useScheduler(microtaskScheduler);
 
   const count = Reactivity.signal(0);
   const applied: number[] = [];

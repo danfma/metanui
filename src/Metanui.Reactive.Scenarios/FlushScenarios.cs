@@ -18,6 +18,15 @@ public static class FlushScenarios
             "throwing comparer still propagates committed signals",
             ThrowingComparerStillPropagates
         ),
+        new Scenario(
+            "write before the scheduler is configured is flushed by the new scheduler",
+            WriteBeforeSchedulerIsConfiguredIsFlushedByNewScheduler
+        ),
+        new Scenario("using a null scheduler throws", UsingNullSchedulerThrows),
+        new Scenario(
+            "nested scenario runner restores the outer scheduler",
+            NestedRunnerRestoresOuterScheduler
+        ),
     ];
 
     private static void WriteDuringFlushSchedulesNoExtraFlush(IExpect expect)
@@ -28,9 +37,11 @@ public static class FlushScenarios
 
         Reactivity.Effect(() => source.Value, (value, previous) => relayed.Value = value + 1);
 
+        // Flushed before the swap: the new scheduler is asked at once for work already queued.
+        Reactivity.Flush();
+
         WithScheduler(scheduler, () =>
         {
-            Reactivity.Flush();
             source.Value = 1;
             Reactivity.Flush();
         });
@@ -108,11 +119,61 @@ public static class FlushScenarios
         expect.IsTrue(ScenarioRunner.Catch(Reactivity.Flush) is null, "the next flush is clean");
     }
 
+    /// <summary>
+    /// A host that writes before it configures its scheduler: the manual scheduler marked a flush as
+    /// requested that never runs, and the new scheduler must still be asked for one.
+    /// </summary>
+    private static void WriteBeforeSchedulerIsConfiguredIsFlushedByNewScheduler(IExpect expect)
+    {
+        var scheduler = new CountingScheduler(failFirst: false);
+        var applied = 0;
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Effect(() => source.Value, (value, previous) => applied = value);
+        Reactivity.Flush();
+        source.Value = 1;
+
+        WithScheduler(scheduler, () =>
+            expect.Equal(1, scheduler.Requests, "the new scheduler is asked for the flush")
+        );
+
+        Reactivity.Flush();
+
+        expect.Equal(1, applied, "the write made before the swap is applied");
+    }
+
+    private static void UsingNullSchedulerThrows(IExpect expect)
+    {
+        var error = ScenarioRunner.Catch(() => Reactivity.UseScheduler(Missing<IFlushScheduler>()));
+
+        expect.IsTrue(error is ArgumentNullException, "a null scheduler is rejected");
+    }
+
+    private static void NestedRunnerRestoresOuterScheduler(IExpect expect)
+    {
+        var scheduler = new CountingScheduler(failFirst: false);
+        var inner = new Scenario("inner", _ => { });
+        var restored = false;
+
+        WithScheduler(scheduler, () =>
+        {
+            ScenarioRunner.Run(inner, expect);
+            restored = Reactivity.Scheduler == scheduler;
+        });
+
+        expect.IsTrue(restored, "the outer scheduler is in use after the nested run");
+    }
+
+    // Metano: `null!`/`default!` of a non-generic reference type loses its `!` (emitted as `null`,
+    // which strict tsc rejects); for a type parameter it is kept (`null!`).
+    private static T Missing<T>()
+        where T : class => default!;
+
     private static void WithScheduler(IFlushScheduler scheduler, Action action)
     {
         var previous = Reactivity.Scheduler;
 
-        Reactivity.Scheduler = scheduler;
+        Reactivity.UseScheduler(scheduler);
 
         try
         {
@@ -120,7 +181,7 @@ public static class FlushScenarios
         }
         finally
         {
-            Reactivity.Scheduler = previous;
+            Reactivity.UseScheduler(previous);
         }
     }
 

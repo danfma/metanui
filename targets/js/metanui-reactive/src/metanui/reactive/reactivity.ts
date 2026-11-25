@@ -15,8 +15,8 @@ export class Reactivity {
     return FlushLoop.scheduler;
   }
 
-  static set scheduler(value: IFlushScheduler) {
-    FlushLoop.scheduler = value;
+  static useScheduler(scheduler: IFlushScheduler): void {
+    FlushLoop.replaceScheduler(scheduler);
   }
 
   static flush(): void {
