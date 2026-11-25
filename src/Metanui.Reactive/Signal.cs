@@ -46,26 +46,21 @@ public sealed class Signal<T> : SignalNode
             }
 
             _pending = value;
-            Queue();
+
+            if (!_hasPending)
+            {
+                _hasPending = true;
+                FlushLoop.Enqueue(this);
+            }
+
+            // Requested on every write, not only the first: if the scheduler threw, the write
+            // stayed queued with no flush scheduled, and a later write must schedule it.
+            FlushLoop.RequestFlush();
         }
     }
 
-    // Metano #768: the import of a type referenced only inside a property setter body is not emitted
-    private void Queue()
-    {
-        if (!_hasPending)
-        {
-            _hasPending = true;
-            FlushLoop.Enqueue(this);
-        }
-
-        // Requested on every write, not only the first: if the scheduler threw, the write stayed
-        // queued with no flush scheduled, and a later write must schedule it.
-        FlushLoop.RequestFlush();
-    }
-
-    // Metano #768: same missing import, for RootNode, Teardown and InvalidOperationException. It
-    // also keeps the cold throw path out of the setter: keep it a separate method when #768 is fixed.
+    // Kept out of line on purpose: the cold rejection path (RootNode, Teardown and the throw)
+    // stays out of the setter, which every write runs.
     /// <summary>
     /// Solid 2.0.4 rejects a write while the current owner is a computation, tracked or not (inside
     /// <see cref="Reactivity.Untrack{T}" /> too), or a root created under one. A root outside every
