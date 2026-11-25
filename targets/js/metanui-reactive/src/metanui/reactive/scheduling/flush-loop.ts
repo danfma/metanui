@@ -10,7 +10,7 @@ import { Tracking } from "../tracking.js";
 
 export class FlushLoop {
   private static readonly maxPasses: number = 100;
-  private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
+  private static readonly passLimitMessage: string = `Reactive flush exceeded ${FlushLoop.maxPasses} passes; an effect is probably writing a signal it depends on.`;
   private static readonly runFlush: () => void = FlushLoop.run;
   private static readonly resumeFlush: () => void = FlushLoop.resume;
   private static _scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;

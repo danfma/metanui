@@ -2,6 +2,7 @@ import { HashCode, copyRecordWith } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
+import { ExpectedMessages } from "./expected-messages.js";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -31,7 +32,6 @@ class EffectScenarios$Point {
 }
 
 export class EffectScenarios {
-  private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
   static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun)];
 
   constructor() { }
@@ -194,7 +194,7 @@ export class EffectScenarios {
     Reactivity.effect(() => count.value, (value: number, previous: number) => count.value = (value + 1) | 0);
     const error = ScenarioRunner.catch(Reactivity.flush);
     expect.isTrue(error instanceof InvalidOperationException, "the pass limit throws");
-    expect.equal(EffectScenarios.passLimitMessage, error?.message ?? null, "pass limit message");
+    expect.equal(ExpectedMessages.passLimit, error?.message ?? null, "pass limit message");
     expect.isTrue(ScenarioRunner.catch(Reactivity.flush) == null, "the next flush is clean");
   }
 

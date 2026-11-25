@@ -470,9 +470,7 @@ public static class ErrorScenarios
         expect.Equal(101, flushes, "flushes until the pass limit");
 
         expect.IsTrue(
-            last is not null
-                && last.Message
-                    == "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.",
+            last is not null && last.Message == ExpectedMessages.PassLimit,
             "the last flush stops at the pass limit"
         );
 
@@ -1093,13 +1091,5 @@ public static class ErrorScenarios
 
             public RequestedFlush? Next { get; set; }
         }
-    }
-
-    /// <summary>Counts flush requests without running them.</summary>
-    private sealed class CountingScheduler : IFlushScheduler
-    {
-        public int Requests { get; private set; }
-
-        public void Schedule(Action flush) => Requests++;
     }
 }

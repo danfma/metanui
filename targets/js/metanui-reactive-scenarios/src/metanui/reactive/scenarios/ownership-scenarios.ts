@@ -53,12 +53,12 @@ export class OwnershipScenarios {
 
   private static rootDisposeRunsCleanupsInReverse(expect: IExpect): void {
     let log = "";
-    const dispose = Reactivity.rootFuncOfActionT<() => void>((dispose$1: () => void) => {
+    const dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => log = (log ?? "") + "1,");
       Reactivity.onCleanup(() => log = (log ?? "") + "2,");
       Reactivity.onCleanup(() => log = (log ?? "") + "3,");
 
-      return dispose$1;
+      return disposeRoot;
     });
     expect.equal("", log, "no cleanup before dispose");
     dispose();

@@ -3,9 +3,6 @@ namespace Metanui.Reactive.Scenarios;
 /// <summary>Scenarios for split effects (<see cref="Reactivity.Effect{T}" />) and the flush passes.</summary>
 public static class EffectScenarios
 {
-    private const string PassLimitMessage =
-        "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
-
     public static Scenario[] All { get; } =
     [
         new Scenario(
@@ -284,7 +281,7 @@ public static class EffectScenarios
         var error = ScenarioRunner.Catch(Reactivity.Flush);
 
         expect.IsTrue(error is InvalidOperationException, "the pass limit throws");
-        expect.Equal(PassLimitMessage, error?.Message, "pass limit message");
+        expect.Equal(ExpectedMessages.PassLimit, error?.Message, "pass limit message");
         expect.IsTrue(ScenarioRunner.Catch(Reactivity.Flush) is null, "the next flush is clean");
     }
 

@@ -3,26 +3,10 @@ import { ArgumentNullException } from "metano-runtime/system/exceptions/argument
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity, type IFlushScheduler } from "metanui-reactive/metanui/reactive";
+import { CountingScheduler } from "./counting-scheduler.js";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
-
-class FlushScenarios$CountingScheduler implements IFlushScheduler {
-  requests: number = 0;
-  private readonly _failFirst: boolean;
-
-  constructor(failFirst: boolean) {
-    this._failFirst = failFirst;
-  }
-
-  schedule(flush: () => void): void {
-    this.requests = (this.requests + 1) | 0;
-
-    if (this._failFirst && this.requests === 1) {
-      throw new InvalidOperationException("Scheduler failed.");
-    }
-  }
-}
 
 class FlushScenarios$ThrowingComparer {
   constructor() { }
@@ -42,7 +26,7 @@ export class FlushScenarios {
   constructor() { }
 
   private static writeDuringFlushSchedulesNoExtraFlush(expect: IExpect): void {
-    const scheduler = new FlushScenarios$CountingScheduler(false);
+    const scheduler = new CountingScheduler();
     const source = Reactivity.signal(0);
     const relayed = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number) => relayed.value = (value + 1) | 0);
@@ -70,7 +54,7 @@ export class FlushScenarios {
   }
 
   private static throwingSchedulerDoesNotBlockLaterWrites(expect: IExpect): void {
-    const scheduler = new FlushScenarios$CountingScheduler(true);
+    const scheduler = new CountingScheduler(true);
     const signal = Reactivity.signal(0);
     let error = null as Exception | null;
     FlushScenarios.withScheduler(scheduler, () => {
@@ -98,7 +82,7 @@ export class FlushScenarios {
   }
 
   private static writeBeforeSchedulerIsConfiguredIsFlushedByNewScheduler(expect: IExpect): void {
-    const scheduler = new FlushScenarios$CountingScheduler(false);
+    const scheduler = new CountingScheduler();
     let applied = 0;
     const source = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number) => applied = value);
@@ -115,7 +99,7 @@ export class FlushScenarios {
   }
 
   private static nestedRunnerRestoresOuterScheduler(expect: IExpect): void {
-    const scheduler = new FlushScenarios$CountingScheduler(false);
+    const scheduler = new CountingScheduler();
     const inner = new Scenario("inner", (_: IExpect) => {
     });
     let restored = false;
