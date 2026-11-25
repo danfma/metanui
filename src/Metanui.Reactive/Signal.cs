@@ -64,7 +64,8 @@ public sealed class Signal<T> : SignalNode
         FlushLoop.RequestFlush();
     }
 
-    // Metano #768: same missing import, for RootNode, Teardown and InvalidOperationException
+    // Metano #768: same missing import, for RootNode, Teardown and InvalidOperationException. It
+    // also keeps the cold throw path out of the setter: keep it a separate method when #768 is fixed.
     /// <summary>
     /// Solid 2.0.4 rejects a write while the current owner is a computation, tracked or not (inside
     /// <see cref="Reactivity.Untrack{T}" /> too), or a root created under one. A root outside every

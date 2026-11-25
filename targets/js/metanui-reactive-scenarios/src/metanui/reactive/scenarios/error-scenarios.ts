@@ -2,6 +2,8 @@ import { intDiv, throwError, toException } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity, type Computed, type IFlushScheduler, type Signal } from "metanui-reactive/metanui/reactive";
+import { CountingScheduler } from "./counting-scheduler.js";
+import { ExpectedMessages } from "./expected-messages.js";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -45,16 +47,6 @@ class ErrorScenarios$RecordingScheduler$RequestedFlush {
   next: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
 
   constructor(readonly flush: () => void) { }
-}
-
-class ErrorScenarios$CountingScheduler implements IFlushScheduler {
-  requests: number = 0;
-
-  constructor() { }
-
-  schedule(flush: () => void): void {
-    this.requests = (this.requests + 1) | 0;
-  }
 }
 
 export class ErrorScenarios {
@@ -229,7 +221,7 @@ export class ErrorScenarios {
   }
 
   private static workLeftByFailedComputeRunsOnNextFlush(expect: IExpect): void {
-    const scheduler = new ErrorScenarios$CountingScheduler();
+    const scheduler = new CountingScheduler();
     let log = "";
     const source = Reactivity.signal(0);
     Reactivity.effect(() => ErrorScenarios.failWhenOne(source.value, "compute failed"), (value: number, previous: number) => {
@@ -280,7 +272,7 @@ export class ErrorScenarios {
       Reactivity.useScheduler(previousScheduler);
     }
     expect.equal(101, flushes, "flushes until the pass limit");
-    expect.isTrue(!(last == null) && last.message === "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.", "the last flush stops at the pass limit");
+    expect.isTrue(!(last == null) && last.message === ExpectedMessages.passLimit, "the last flush stops at the pass limit");
     other.value = 1;
     Reactivity.flush();
     expect.equal("0,1,", log, "the graph is usable afterwards");

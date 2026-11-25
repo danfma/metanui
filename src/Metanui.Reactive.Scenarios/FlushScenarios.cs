@@ -31,7 +31,7 @@ public static class FlushScenarios
 
     private static void WriteDuringFlushSchedulesNoExtraFlush(IExpect expect)
     {
-        var scheduler = new CountingScheduler(failFirst: false);
+        var scheduler = new CountingScheduler();
         var source = Reactivity.Signal(0);
         var relayed = Reactivity.Signal(0);
 
@@ -127,7 +127,7 @@ public static class FlushScenarios
     /// </summary>
     private static void WriteBeforeSchedulerIsConfiguredIsFlushedByNewScheduler(IExpect expect)
     {
-        var scheduler = new CountingScheduler(failFirst: false);
+        var scheduler = new CountingScheduler();
         var applied = 0;
         var source = Reactivity.Signal(0);
 
@@ -153,7 +153,7 @@ public static class FlushScenarios
 
     private static void NestedRunnerRestoresOuterScheduler(IExpect expect)
     {
-        var scheduler = new CountingScheduler(failFirst: false);
+        var scheduler = new CountingScheduler();
         var inner = new Scenario("inner", _ => { });
         var restored = false;
 
@@ -184,22 +184,6 @@ public static class FlushScenarios
         finally
         {
             Reactivity.UseScheduler(previous);
-        }
-    }
-
-    /// <summary>Counts flush requests without running them; optionally throws on the first one.</summary>
-    private sealed class CountingScheduler(bool failFirst) : IFlushScheduler
-    {
-        public int Requests { get; private set; }
-
-        public void Schedule(Action flush)
-        {
-            Requests++;
-
-            if (failFirst && Requests == 1)
-            {
-                throw new InvalidOperationException("Scheduler failed.");
-            }
         }
     }
 

@@ -1,6 +1,8 @@
 export { ComputedScenarios } from "./computed-scenarios.js";
+export { CountingScheduler } from "./counting-scheduler.js";
 export { EffectScenarios } from "./effect-scenarios.js";
 export { ErrorScenarios } from "./error-scenarios.js";
+export { ExpectedMessages } from "./expected-messages.js";
 export { FlushScenarios } from "./flush-scenarios.js";
 export { IExpect$runtimeType } from "./i-expect.js";
 export type { IExpect } from "./i-expect.js";

@@ -11,8 +11,8 @@ internal static class FlushLoop
 {
     private const int MaxPasses = 100;
 
-    private const string PassLimitMessage =
-        "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
+    private static readonly string PassLimitMessage =
+        $"Reactive flush exceeded {MaxPasses} passes; an effect is probably writing a signal it depends on.";
 
     /// <summary>Cached so that scheduling a flush does not allocate a delegate each time.</summary>
     private static readonly Action RunFlush = Run;

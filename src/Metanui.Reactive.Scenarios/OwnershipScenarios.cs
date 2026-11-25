@@ -58,13 +58,13 @@ public static class OwnershipScenarios
     {
         var log = "";
 
-        var dispose = Reactivity.Root(dispose =>
+        var dispose = Reactivity.Root(disposeRoot =>
         {
             Reactivity.OnCleanup(() => log += "1,");
             Reactivity.OnCleanup(() => log += "2,");
             Reactivity.OnCleanup(() => log += "3,");
 
-            return dispose;
+            return disposeRoot;
         });
 
         expect.Equal("", log, "no cleanup before dispose");
