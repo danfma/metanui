@@ -11,7 +11,8 @@ Audit of the TypeScript that Metano emits for `src/Metanui.Reactive` (Phase 7 of
 | tsc | 5.9.3 |
 | tsgo (`@typescript/native-preview`) | 7.0.0-dev.20260707.2 |
 
-Section 7 collects every new Metano finding in one batch, ready to send upstream.
+Section 7 collects every new Metano finding of this audit. They are filed upstream as
+danfma/metano#785 (N10), #786 (N9), #787 (N1–N5, N7, N8), and as an addition to #778 (N6).
 
 ## 1. Summary
 
@@ -20,13 +21,13 @@ Section 7 collects every new Metano finding in one batch, ready to send upstream
   - the graph has no `List`, and `new Link` is its only allocation;
   - flags are numbers combined with bitwise ops;
   - all global state lives in static fields.
-- No deviation costs anything measurable on Bun (section 4). The ones found are emission noise, plus a runtime hazard in the overload dispatcher that hand-written TS can hit (N6).
+- No deviation shows a cost above noise on JavaScriptCore (Bun) (section 4; V8 not measured). The ones found are emission noise (#787), plus a runtime hazard in the overload dispatcher that hand-written TS can hit (N6, #778).
 - Strict typecheck:
   - `tsc --strict` is clean on both generated packages.
-  - `tsgo --strict` reports one diagnostic, and it is not in generated code: the declarations of `@js-temporal/polyfill`, which metano-runtime 3.1.0 depends on, clash with tsgo's built-in `esnext` Temporal types (N9).
-- Metano warnings do not fail the build (N10). Metano has no warnings-as-errors option, and it writes its up-to-date stamp even after a run that emitted warnings. So a gate added at the MSBuild level fails only the first build.
-- The defensive `try/finally` in `DependencyGraph.Propagate`/`CheckDirty` is **kept**: it costs nothing measurable (section 4). The scenario that was named after it is renamed, because it never exercised it (section 5).
-- All the workarounds already in the code are still needed on Metano 3.1.0: #768, #772, #773, #774 and #775 reproduce in minimal probes (section 6).
+  - `tsgo --strict` reports one diagnostic, and it is not in generated code: the declarations of `@js-temporal/polyfill`, which metano-runtime 3.1.0 depends on, clash with tsgo's built-in `esnext` Temporal types (N9, #786).
+- Metano warnings do not fail the build (N10, #785). Metano has no warnings-as-errors option, and it writes its up-to-date stamp even after a run that emitted warnings. So a gate added at the MSBuild level fails only the first build.
+- The defensive `try/finally` in `DependencyGraph.Propagate`/`CheckDirty` is **kept**. Its cost is within noise on JavaScriptCore (Bun), and the per-call overhead is under 0.05 ns. V8 is not measured yet (Task 8). The scenario that was named after it is renamed, because it never exercised it (section 5).
+- The workarounds for #768, #772, #773, #774 and #775 are still needed on Metano 3.1.0: all five reproduce in minimal probes (section 6). They are fixed on Metano's wave-9 branch, which is not released yet, so the workarounds stay until that release. #776 and #779 were not re-probed.
 
 ## 2. Strict typecheck
 
@@ -69,7 +70,7 @@ It comes from the polyfill's declarations, which metano-runtime 3.1.0 imports in
 `dist/system/{time-span,date-time-offset,temporal-helpers,argument-guards,time-span-format}.d.ts`.
 These conflict with the Temporal types in TypeScript 7's `esnext` lib. The diagnostic goes away with
 `--lib es2024` or `--skipLibCheck`, so the generated reactive code itself is clean under both
-compilers. Upstream as N9.
+compilers. Filed upstream as N9 (danfma/metano#786).
 
 Strict mode also confirms that #773, #774, #775 and #768 still reproduce on 3.1.0, in the probes of
 section 6: TS2304 `_`, TS2322, TS18047, and TS2304 `ArgumentOutOfRangeException`. In the reactive
@@ -104,18 +105,18 @@ packages they are worked around, which is why those packages are clean.
 ### Deviations
 
 Each row gives the C# line, the emitted TS, the expected TS, and the issue. "N" numbers point to the
-batch in section 7.
+repros in section 7.
 
 | # | C# | Emitted TS | Expected TS | Issue |
 |---|---|---|---|---|
-| N1 | `LinkStack.cs:40` `var link = _items[Top];`, `:78` `grown[index] = _items[index];` | `link-stack.ts:22` `const link = LinkStack._items[LinkStack.top] ?? null;`, `:49` `grown[index] = LinkStack._items[index] ?? null;` | `const link = LinkStack._items[LinkStack.top];` | batch N1 |
-| N2 | `OwnershipScenarios.cs:35-41` `var log = ""; … log += "1,";` | `ownership-scenarios.ts:15` `log = (log ?? "") + "1,"` | `log += "1,"` | batch N2 |
-| N3 | `FlushLoop.cs:228-231` `catch { // RequestFlush already cleared _scheduled; keep the original error. }` | `flush-loop.ts:149` `} catch (_err) {\n    }` | `} catch {\n      // RequestFlush already cleared _scheduled; keep the original error.\n    }` | batch N3 |
-| N4 | `internal static class Tracking { … }` (and `FlushLoop`, `DependencyGraph`, `LinkStack`, `Teardown`, `Reactivity`) | `export class Tracking { … constructor() { } }` | No constructor, or `private constructor() {}` so the class cannot be instantiated, as in C# | batch N4 |
-| N5 | `Computed.cs:101` `catch (Exception error) { CacheError(error); return true; }` (and 6 more sites) | `catch (e$) { const e0 = toException(e$); const error = e0; this.cacheError(error); …` | `catch (e$) { const error = toException(e$); …` | batch N5 |
-| N6 | `Reactivity.cs` `Root<T>(Func<Action, T>)` + `Root(Action<Action>)` | `reactivity.ts:52-64`: a rest-args dispatcher whose two branches test the same `args[0].length === 1`, plus a final `throw` | A single branch that forwards to `rootFuncOfActionT` (both overloads behave the same in JS) | #778 (dead branch) + batch N6 (zero-arity runtime throw) |
-| N7 | `OwnerNode.cs:16-18` `private const string CreationInsideApplyMessage = "…so " + "nothing…";` | `owner-node.ts:12` `= "…so " + "nothing…";` | `= "…so nothing…";` (a constant folded by Roslyn) | batch N7 |
-| N8 | `if (a) … else if (b) … else if (c)` chains; `x is not null` | nested `else { if … }`; `!(x == null)` | `else if`; `x !== null` (or `x != null`) | batch N8 (low priority) |
+| N1 | `LinkStack.cs:40` `var link = _items[Top];`, `:78` `grown[index] = _items[index];` | `link-stack.ts:22` `const link = LinkStack._items[LinkStack.top] ?? null;`, `:49` `grown[index] = LinkStack._items[index] ?? null;` | `const link = LinkStack._items[LinkStack.top];` | #787 |
+| N2 | `OwnershipScenarios.cs:35-41` `var log = ""; … log += "1,";` | `ownership-scenarios.ts:15` `log = (log ?? "") + "1,"` | `log += "1,"` | #787 |
+| N3 | `FlushLoop.cs:228-231` `catch { // RequestFlush already cleared _scheduled; keep the original error. }` | `flush-loop.ts:149` `} catch (_err) {\n    }` | `} catch {\n      // RequestFlush already cleared _scheduled; keep the original error.\n    }` | #787 |
+| N4 | `internal static class Tracking { … }` (and `FlushLoop`, `DependencyGraph`, `LinkStack`, `Teardown`, `Reactivity`) | `export class Tracking { … constructor() { } }` | No constructor, or `private constructor() {}` so the class cannot be instantiated, as in C# | #787 |
+| N5 | `Computed.cs:101` `catch (Exception error) { CacheError(error); return true; }` (and 6 more sites) | `catch (e$) { const e0 = toException(e$); const error = e0; this.cacheError(error); …` | `catch (e$) { const error = toException(e$); …` | #787 |
+| N6 | `Reactivity.cs` `Root<T>(Func<Action, T>)` + `Root(Action<Action>)` | `reactivity.ts:52-64`: a rest-args dispatcher whose two branches test the same `args[0].length === 1`, plus a final `throw` | A single branch that forwards to `rootFuncOfActionT` (both overloads behave the same in JS) | #778 (dead branch, and the zero-arity runtime throw added to it) |
+| N7 | `OwnerNode.cs:16-18` `private const string CreationInsideApplyMessage = "…so " + "nothing…";` | `owner-node.ts:12` `= "…so " + "nothing…";` | `= "…so nothing…";` (a constant folded by Roslyn) | #787 |
+| N8 | `if (a) … else if (b) … else if (c)` chains; `x is not null` | nested `else { if … }`; `!(x == null)` | `else if`; `x !== null` (or `x != null`) | #787 (low priority) |
 
 No deviation needs a workaround in the code: none affects correctness or measurable speed in code
 transpiled from C#. N6 can break hand-written TS callers, but the only TS caller today is test code,
@@ -123,10 +124,11 @@ and it passes a one-parameter callback.
 
 ## 4. Micro-benchmark: defensive `try/finally`, LinkStack wrapper, flags, `?? null`
 
-Everything ran in a scratch copy of the generated `metanui-reactive/src`, never in the repository.
-Each variant runs in its own Bun process.
+The harness is in `bench/micro/` (README there has the exact commands). `prepare.ts` copies the
+generated `metanui-reactive/src` into `bench/micro/.work/<variant>/` and applies the variant to the
+copy, so the generated sources are never edited. Each variant runs in its own Bun process.
 
-Variants of `graph/dependency-graph.ts`:
+Variants (defined in `bench/micro/variants.ts`):
 
 - **A (shipped):** `propagate`/`checkDirty` save `LinkStack.top`, call `propagateAbove`/`checkDirtyAbove` inside `try`, and call `LinkStack.truncate(base)` in `finally`.
 - **B:** same wrapper and `truncate` call, without `try/finally`.
@@ -134,54 +136,73 @@ Variants of `graph/dependency-graph.ts`:
 - **D:** A with every `ReactiveFlags.X` replaced by its literal, across the package.
 - **E:** A without `?? null` in `link-stack.ts`.
 
-Workloads. One op is a write followed by `Reactivity.flush()`, with N = 1000:
+Workloads (`bench/micro/ops.ts`). One op is a write followed by `Reactivity.flush()`, with N = 1000:
 
 - **deep:** a chain of 1000 computeds and one effect. One `propagate`, then a `checkDirty` that descends 1000 levels and pushes and pops 1000 LinkStack frames.
 - **wide:** one signal, 1000 computeds and 1000 effects. One `propagate` across 1000 subscribers, then 1000 short `checkDirty` calls.
 - **many:** 1000 independent signal → computed → effect chains, all written. 1000 `propagate` calls and 1000 `checkDirty` calls.
 
-Each process warms up with 2000 ops, then takes 15 samples of 500 ops. The table reports the median
-of three process runs of the per-op median, in µs per op.
+Each process warms up with 2000 ops, then takes 15 samples of 500 ops. Each table cell is the median
+of three process runs of the per-op median, in µs per op, with the three runs in brackets.
+
+### Wrapper and `try/finally` (equivalent to `run.ts 3 A,B,C`)
 
 | Workload | A (shipped) | B (no try/finally) | C (inlined) |
 |---|---|---|---|
-| deep | 26.21 | 26.47 | 26.43 |
-| wide | 55.17 | 55.24 | 56.18 |
-| many | 54.63 | 59.21 | 60.60 |
+| deep | 26.21 (47.59, 25.87, 26.21) | 26.47 (26.48, 26.40, 26.47) | 26.43 (26.30, 26.43, 26.74) |
+| wide | 55.17 (55.17, 55.07, 55.28) | 55.24 (54.74, 56.01, 55.24) | 56.18 (55.83, 56.18, 56.19) |
+| many | 54.63 (49.94, 59.19, 54.63) | 59.21 (59.21, 59.64, 58.86) | 60.60 (60.83, 60.60, 51.80) |
 
-The spread between runs is about ±5% (`many` swung from 49.9 to 59.2 µs within variant A). No variant
-is consistently faster.
+**This table cannot resolve an overhead below roughly 5–15%.** Runs of the same variant swing by
+that much: `many` moves about 17% within A (49.94 to 59.19) and 15% within C, and one `deep` run of A
+was an 82% outlier. No variant is consistently faster, which is all the table shows.
 
-A per-call loop isolates the call overhead. It calls `DependencyGraph.checkDirty`/`propagate`
-directly, 10^7 times, on a two-node graph where the walk stops at once (median of 7):
+The per-call loop (`bench/micro/per-call.ts`) is the measurement that bounds the overhead. It calls
+`DependencyGraph.checkDirty`/`propagate` directly, 10^7 times per sample, on a two-node graph where the
+walk stops at once (median of 7 samples; the range covers two process runs):
 
 | | A | B | C |
 |---|---|---|---|
 | `checkDirty` | 1.76–1.81 ns | 1.77–1.78 ns | 1.77–1.80 ns |
 | `propagate` | 1.61 ns | 1.60 ns | 1.60–1.61 ns |
 
-JavaScriptCore inlines the wrapper and optimizes the `try/finally`. On Bun, the extra call plus the
-`try/finally` per `Propagate`/`CheckDirty` that Task 3 introduced costs **nothing measurable**
-(under 0.05 ns per call). V8 was not measured. Task 8's benchmark should repeat the per-call loop on
-Node before Phase 2 renderers rely on it.
+**Result: within noise on JavaScriptCore (Bun); per-call overhead under 0.05 ns; V8 not measured
+(Task 8).** This covers the extra call plus the `try/finally` per `Propagate`/`CheckDirty` that Task 3
+introduced. Task 8's benchmark should repeat the per-call loop on Node before Phase 2 renderers rely on
+it.
 
-Flags and nullish reads (µs per op, median of three runs):
+These numbers come from the scratch version of the harness, with the same workloads, sampling and variant patches as the committed one, run on a quiet machine. A rerun of the committed harness while two other test
+suites loaded the machine (load average about 32) swung by up to 2× between runs of the same variant,
+and per-call values went from 1.8 ns to 50 ns. Rerun the harness on an idle machine. A later run of
+the committed harness from a clean clone (load average about 18) reproduced the per-call result:
+`checkDirty` 1.89–1.92 ns and `propagate` 1.63–1.66 ns across A, B and C.
 
-| Workload | A | D (literal flags) | E (no `?? null`) |
-|---|---|---|---|
-| deep | 26.2 / 25.4 | 26.09 | 25.65 |
-| wide | 54.29 / 53.6 | 54.74 | 53.78 |
-| many | 58.8 | 51.74 (bimodal: 51.5, 51.74, 59.58) | — |
+### Literal flags (equivalent to `run.ts 3 A,D`)
 
-(The two A values come from the two separate runs, D and E.) Both are within noise. N1 is emission noise, not overhead.
+| Workload | A (shipped) | D (literal flags) |
+|---|---|---|
+| deep | 26.20 (26.05, 26.20, 26.34) | 26.09 (26.10, 25.90, 26.09) |
+| wide | 54.29 (54.06, 54.29, 54.55) | 54.74 (54.74, 54.65, 55.54) |
+| many | 58.80 (58.80, 57.84, 59.48) | 51.74 (51.50, 51.74, 59.58) |
 
-**Decision: keep the `try/finally`.** It costs nothing measurable. It is also not dead code. No user
-code reaches it, because Computed caches every error and cleanups collect theirs. But an engine or host
-error raised in an inner walk can reach it: a broken invariant, or a JS `RangeError` from a deep stack,
-which `toException` turns into an `Exception` that the enclosing Computed catches. Without the
-`finally`, such an error would leave the inner walk's frames on the shared LinkStack, and the outer walk
-would later pop them and resume from stale links. The reason is now written down in a `<remarks>` on
-`DependencyGraph.Propagate`.
+### No `?? null` on LinkStack reads (equivalent to `run.ts 3 A,E`, deep and wide only)
+
+| Workload | A (shipped) | E (no `?? null`) |
+|---|---|---|
+| deep | 25.40 (25.59, 25.40, 25.39) | 25.65 (25.54, 25.72, 25.65) |
+| wide | 53.60 (53.85, 53.60, 53.27) | 53.78 (53.22, 53.86, 53.78) |
+
+Both are within noise, at the same 5–15% resolution limit (the `many` cell of D is bimodal). N1 is
+emission noise, not measured overhead.
+
+**Decision: keep the `try/finally`.** Its cost is within noise on Bun, as above. No user code reaches
+it, because Computed caches every error and cleanups collect theirs. An engine or host error raised in
+an inner walk *may* reach it: a broken invariant, or a JS `RangeError` from a deep stack, which
+`toException` turns into an `Exception` that the enclosing Computed would catch. In that case, without
+the `finally`, the inner walk's frames would stay on the shared LinkStack, and the outer walk would
+later pop them and resume from stale links. **This path is untested:** no scenario raises such an error
+inside a nested walk, and none can through the public API. The reason is written down in a `<remarks>`
+on `DependencyGraph.Propagate`.
 
 ## 5. Scenario rename
 
@@ -194,8 +215,10 @@ XML doc now says so. No public API can reach that `finally`, so it stays uncover
 
 ## 6. Existing Metano issues and workarounds
 
-All of these were re-probed on Metano 3.1.0 with minimal C# in a scratch copy (the batch below gives
-the probe sources).
+These were re-probed on Metano 3.1.0 with minimal C# in a scratch copy (section 7 gives the probe
+sources), except #776 and #779. #768, #772, #773, #774 and #775 are fixed on Metano's wave-9 branch,
+which is not released yet, so their workarounds stay until that release ships. Then each
+`// Metano #<issue>` comment marks a workaround to remove.
 
 | Issue | What | Workaround in code | 3.1.0 |
 |---|---|---|---|
@@ -209,14 +232,15 @@ the probe sources).
 | #779 | Tuple deconstruction unsupported (MS0001) | `OwnershipScenarios.cs:102` | Not re-probed |
 | FR (filed after #780) | `@internal` for C# internal members | — | Partly visible in 3.1.0: internal *members* carry `/** @internal */`. Internal *types* (`Tracking`, `FlushLoop`, `DependencyGraph`, `LinkStack`, `Link`, `Teardown`) are still exported, unmarked, from the barrels and from `package.json` `exports`, so hand-written TS can mutate `Tracking.activeObserver` |
 
-## 7. Batch for upstream (danfma/metano)
+## 7. New Metano findings (filed)
 
-These are the new findings from this audit, written so they can be sent as they are. Toolchain: Metano
+These are the new findings from this audit, filed as danfma/metano#785 (N10), #786 (N9), #787 (N1–N5,
+N7, N8) and added to #778 (N6). Toolchain: Metano
 3.1.0 (compiler, Build.TypeScript and runtime), target ES modules, checked with `tsc` 5.9.3 and `tsgo`
 7.0.0-dev.20260707.2 in `--strict` mode. Every repro is a member of a `[Transpile] public static class
 Probes` unless stated otherwise.
 
-### N1. Indexed read of a nullable-element array emits `?? null`
+### N1 (danfma/metano#787). Indexed read of a nullable-element array emits `?? null`
 
 ```csharp
 private static ProbeNode?[] _items = new ProbeNode?[4];
@@ -239,7 +263,7 @@ match .NET, and silent `null` does not.
 In the reactive core this sits in `LinkStack.Pop` (a hot path). It measured no slower on Bun, so it is
 noise rather than overhead, but it is still a semantic difference.
 
-### N2. `string +=` on a non-nullable local emits `(x ?? "") + …`
+### N2 (danfma/metano#787). `string +=` on a non-nullable local emits `(x ?? "") + …`
 
 ```csharp
 public static string Append(int n)
@@ -261,7 +285,7 @@ On .NET, `log` is a non-nullable `string` (NRT), and `string.Concat` treats a nu
 `?? ""` guard is only needed when the left side's flow state is maybe-null. Expected: `log += "x";`.
 The same happens inside lambdas (`() => log += "1,"` becomes `() => log = (log ?? "") + "1,"`).
 
-### N3. Comment inside an empty `catch` is dropped, and the unused binding is kept
+### N3 (danfma/metano#787). Comment inside an empty `catch` is dropped, and the unused binding is kept
 
 ```csharp
 public static void Swallow(Action action)
@@ -285,7 +309,7 @@ On .NET, the empty handler swallows the exception, and the comment is the only e
 generated TS looks like an accidental swallow. Expected: keep the comment, and use the ES2019 optional
 binding `catch { … }` when the C# `catch` has no variable.
 
-### N4. Static classes emit a public empty constructor
+### N4 (danfma/metano#787). Static classes emit a public empty constructor
 
 ```csharp
 [Transpile]
@@ -308,7 +332,7 @@ Expected: `private constructor() {}`, or no constructor at all. Classes with no 
 (`ManualFlushScheduler`, the abstract `ReactiveNode`) also get an explicit `constructor() { }` that
 could be omitted.
 
-### N5. `catch (Exception e)` is lowered through a redundant alias
+### N5 (danfma/metano#787). `catch (Exception e)` is lowered through a redundant alias
 
 ```csharp
 public static string? MessageOf(Action action)
@@ -330,7 +354,7 @@ public static string? MessageOf(Action action)
 The behaviour is correct. Expected: `const error = toException(e$);`. There are 7 sites in the
 reactive core: `computed.ts` ×2, `teardown.ts`, `root-node.ts` ×2, `effect-node.ts` ×2.
 
-### N6. Overload dispatcher by arity throws for a zero-parameter callback (extends #778)
+### N6 (danfma/metano#778). Overload dispatcher by arity throws for a zero-parameter callback (extends #778)
 
 ```csharp
 public static T Run<T>(Func<int, T> body) => body(1);
@@ -363,7 +387,7 @@ implementation that forwards to the value-returning overload, and do not dispatc
 generally, `Function.length` is not a reliable discriminator (default and rest parameters, and callbacks
 that ignore their arguments, all break it).
 
-### N7. Constant string concatenation is not folded
+### N7 (danfma/metano#787). Constant string concatenation is not folded
 
 ```csharp
 private const string Joined = "a" + "b";
@@ -378,7 +402,7 @@ On .NET, Roslyn folds the constant to `"ab"` at compile time. The emitted code c
 load. That is cheap, but it means `const` values are not emitted from `IFieldSymbol.ConstantValue`.
 Expected: `private static readonly joined: string = "ab";`. The same holds for interpolated constants.
 
-### N8. `else if` chains are nested, and `is not null` becomes `!(x == null)` (low priority)
+### N8 (danfma/metano#787). `else if` chains are nested, and `is not null` becomes `!(x == null)` (low priority)
 
 ```csharp
 if ((flags & Dirty) != 0) { A(); }
@@ -408,7 +432,7 @@ The behaviour is identical. The output is harder to read and to diff against han
 `propagate` port of alien-signals nests four levels). Expected: `else if`, and `observer != null` (or
 `!== null` when the type excludes `undefined`).
 
-### N9. metano-runtime 3.1.0 fails `tsgo --strict` without `skipLibCheck`
+### N9 (danfma/metano#786). metano-runtime 3.1.0 fails `tsgo --strict` without `skipLibCheck`
 
 Repro: any generated package that imports `metano-runtime`, checked with
 `tsgo --strict --target esnext --module esnext --moduleResolution bundler` and without `skipLibCheck`.
@@ -426,7 +450,7 @@ the built-in Temporal types of TypeScript 7's `esnext` lib. `tsc` 5.9.3 is clean
 fixes: use the native `Temporal` types when the lib provides them, or keep the polyfill types out of
 the public `.d.ts` surface.
 
-### N10. Metano warnings never fail the build, and an MSBuild-level escalation does not stick
+### N10 (danfma/metano#785). Metano warnings never fail the build, and an MSBuild-level escalation does not stick
 
 Repro: a `[Transpile]` class with a labeled statement (#772) in a project with
 `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.

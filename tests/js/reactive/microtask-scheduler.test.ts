@@ -48,6 +48,8 @@ test("a write flushes on the next microtask", async () => {
 
   expect(applied.length).toBe(0);
 
+  // Microtasks run in FIFO order and the flush runs to completion, so the flush the write queued
+  // has run every compute and apply before this await resumes: one turn is enough.
   await Promise.resolve();
 
   expect(applied).toEqual([1]);
