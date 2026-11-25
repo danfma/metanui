@@ -1,3 +1,5 @@
+import { median } from "../../statistics.ts";
+
 // Shared timing for the probes: warm-up rounds are part of the samples, the minimum and median are printed.
 export interface Sampled {
   readonly min: number;
@@ -16,9 +18,7 @@ export function sampleMs(rounds: number, body: () => void): Sampled {
     samples.push(performance.now() - start);
   }
 
-  samples.sort((left, right) => left - right);
-
-  return { min: samples[0], median: samples[Math.floor(samples.length / 2)] };
+  return { min: Math.min(...samples), median: median(samples) };
 }
 
 export function formatSampled(label: string, sampled: Sampled): string {

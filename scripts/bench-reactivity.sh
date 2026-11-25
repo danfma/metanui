@@ -50,6 +50,11 @@ prepare_harness() {
 
   # Only these three frameworks are installed: their packages come from bench/reactivity
   # (Bun installs per package, not hoisted), so the harness resolves them through this link.
+  if [[ ! -d "$adapters/node_modules" ]]; then
+    echo "bench/reactivity/node_modules is missing: run \`bun install\` at the repository root" >&2
+    exit 1
+  fi
+
   ln -sfn "$adapters/node_modules" "$harness/node_modules"
 
   cat >"$core/frameworksList.ts" <<'EOF'

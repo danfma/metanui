@@ -37,9 +37,3 @@ export async function loadReactivity(variant: string): Promise<ReactivityApi> {
 
   return core.Reactivity;
 }
-
-export function median(samples: readonly number[]): number {
-  const sorted = [...samples].sort((left, right) => left - right);
-
-  return sorted[Math.floor(sorted.length / 2)];
-}

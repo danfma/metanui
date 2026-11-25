@@ -1,4 +1,5 @@
-import { loadReactivity, median, variantModulePath } from "./core.ts";
+import { median } from "../statistics.ts";
+import { loadReactivity, variantModulePath } from "./core.ts";
 
 // Usage: bun per-call.ts <variant>
 // Calls DependencyGraph.checkDirty and propagate directly on a two-node graph where the walk stops
