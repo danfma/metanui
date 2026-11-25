@@ -39,6 +39,14 @@ public static class ErrorScenarios
             ThrowingSelfWritingEffectStopsAtPassLimit
         ),
         new Scenario(
+            "effect that throws on every change never hits the pass limit",
+            EffectThrowingOnEveryChangeNeverHitsPassLimit
+        ),
+        new Scenario(
+            "apply after a skipped apply receives the last applied value",
+            ApplyAfterSkippedApplyReceivesLastApplied
+        ),
+        new Scenario(
             "throwing apply cleanup still runs the others and reaches the boundary",
             ThrowingApplyCleanupReachesBoundary
         ),
@@ -387,6 +395,84 @@ public static class ErrorScenarios
         Reactivity.Flush();
 
         expect.Equal("0,1,", log, "the graph is usable afterwards");
+    }
+
+    private static void EffectThrowingOnEveryChangeNeverHitsPassLimit(IExpect expect)
+    {
+        var failures = 0;
+        var passLimitErrors = 0;
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                if (value != 0)
+                {
+                    throw new InvalidOperationException("apply failed");
+                }
+            }
+        );
+
+        Reactivity.Flush();
+
+        for (var write = 1; write <= 150; write++)
+        {
+            source.Value = write;
+
+            var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+            if (error is not null && error.Message == "apply failed")
+            {
+                failures++;
+            }
+            else if (error is not null)
+            {
+                passLimitErrors++;
+            }
+        }
+
+        expect.Equal(150, failures, "every flush failed with the effect's own error");
+        expect.Equal(0, passLimitErrors, "no flush stopped at the pass limit");
+        expect.Equal(150, source.Value, "every write was applied");
+    }
+
+    private static void ApplyAfterSkippedApplyReceivesLastApplied(IExpect expect)
+    {
+        var log = "";
+        var caught = 0;
+        var source = Reactivity.Signal(0);
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.Effect(
+                    () => source.Value,
+                    (value, previous) =>
+                    {
+                        log += value + ":" + previous + ",";
+
+                        if (value == 0)
+                        {
+                            Reactivity.OnCleanup(() =>
+                                throw new InvalidOperationException("cleanup failed")
+                            );
+                        }
+                    }
+                ),
+            error => caught++
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal("0:0,", log, "the apply for 1 was skipped by its cleanup error");
+        expect.Equal(1, caught, "the boundary got the cleanup error");
+
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal("0:0,2:0,", log, "the next apply receives the last applied value");
     }
 
     private static void ThrowingApplyCleanupReachesBoundary(IExpect expect)

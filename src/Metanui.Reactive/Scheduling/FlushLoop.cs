@@ -17,6 +17,9 @@ internal static class FlushLoop
     /// <summary>Cached so that scheduling a flush does not allocate a delegate each time.</summary>
     private static readonly Action RunFlush = Run;
 
+    /// <summary>The flush re-requested after a failed one: it continues that flush's pass budget.</summary>
+    private static readonly Action ResumeFlush = Resume;
+
     public static IFlushScheduler Scheduler = new ManualFlushScheduler();
 
     private static SignalNode? _head;
@@ -29,9 +32,9 @@ internal static class FlushLoop
     private static bool _running;
 
     /// <summary>
-    /// Passes run since the last flush that ended normally. A failed flush keeps the count, so an
-    /// effect that throws after writing what it reads still reaches the pass limit across the flushes
-    /// re-requested for it.
+    /// Passes run by the current flush, counting the failed flushes it resumes (see
+    /// <see cref="Resume" />), so an effect that throws after writing what it reads still reaches the
+    /// pass limit across the flushes re-requested for it.
     /// </summary>
     private static int _passes;
 
@@ -93,7 +96,9 @@ internal static class FlushLoop
     /// drains new work in its next pass). A scheduler that throws leaves no flush marked as scheduled,
     /// so the next request asks again.
     /// </summary>
-    public static void RequestFlush()
+    public static void RequestFlush() => Request(RunFlush);
+
+    private static void Request(Action flush)
     {
         if (_scheduled || _running)
         {
@@ -104,7 +109,7 @@ internal static class FlushLoop
 
         try
         {
-            Scheduler.Schedule(RunFlush);
+            Scheduler.Schedule(flush);
         }
         catch
         {
@@ -126,15 +131,20 @@ internal static class FlushLoop
     /// <remarks>
     /// An error no boundary handles leaves at once (Solid 2.0.4 ordering). The work still queued is
     /// kept and another flush is requested, so the next flush runs it; unlike Solid, the graph is not
-    /// halted (spec 4.4). The pass limit counts across such failed flushes, and a flush that hits it
-    /// requests no other. After a flush that ends normally, the first cleanup error raised during it
-    /// is rethrown.
+    /// halted (spec 4.4). That re-requested flush continues the failed flush's pass budget, and a
+    /// flush that stops at the pass limit requests no other. Any other flush (a direct call, or one
+    /// requested by a write) starts with a fresh budget. After a flush that ends normally, the first
+    /// cleanup error raised during it is rethrown.
     /// </remarks>
     /// <exception cref="InvalidOperationException">
-    /// More than <see cref="MaxPasses" /> passes were needed since the last flush that ended normally;
-    /// the pending writes are discarded.
+    /// More than <see cref="MaxPasses" /> passes were needed; the pending writes are discarded.
     /// </exception>
-    public static void Run()
+    public static void Run() => RunWithBudget(0);
+
+    /// <summary>Runs the flush re-requested after a failed one, continuing its pass budget.</summary>
+    private static void Resume() => RunWithBudget(_passes);
+
+    private static void RunWithBudget(int passesUsed)
     {
         if (_running)
         {
@@ -143,38 +153,51 @@ internal static class FlushLoop
 
         _running = true;
         _scheduled = false;
+        _passes = passesUsed;
 
+        var completed = RunPassesOrRequestResume();
+
+        if (!completed)
+        {
+            DiscardPendingWrites();
+
+            throw new InvalidOperationException(PassLimitMessage);
+        }
+
+        Teardown.RethrowFirstError();
+    }
+
+    /// <summary>
+    /// Runs the passes and clears the running state. When a pass throws, requests a resuming flush
+    /// for the work left before the exception leaves. Returns false when the pass limit stopped it.
+    /// </summary>
+    private static bool RunPassesOrRequestResume()
+    {
         try
         {
-            RunPasses();
+            var completed = RunPasses();
+
+            _running = false;
+
+            return completed;
         }
         catch
         {
             _running = false;
-
-            if (!PassLimitReached())
-            {
-                RequestFlushForLeftovers();
-            }
+            RequestResumeForLeftovers();
 
             throw;
         }
-
-        _running = false;
-        _passes = 0;
-        Teardown.RethrowFirstError();
     }
 
-    private static void RunPasses()
+    /// <summary>Runs passes until no work is left (true) or the pass budget is spent (false).</summary>
+    private static bool RunPasses()
     {
         while (HasWork())
         {
             if (_passes == MaxPasses)
             {
-                _passes = 0;
-                DiscardPendingWrites();
-
-                throw new InvalidOperationException(PassLimitMessage);
+                return false;
             }
 
             _passes++;
@@ -183,19 +206,15 @@ internal static class FlushLoop
             RunComputes();
             RunApplies();
         }
+
+        return true;
     }
 
     /// <summary>
-    /// Whether the flush that just failed stopped at the pass limit: only that path resets the pass
-    /// count before a pass has run.
-    /// </summary>
-    private static bool PassLimitReached() => _passes == 0;
-
-    /// <summary>
-    /// After a failed flush, asks for another one when work is left. A scheduler that throws here
+    /// After a failed flush, asks for a resuming flush when work is left. A scheduler that throws here
     /// is ignored, so the error that failed the flush is the one that leaves; the next write asks again.
     /// </summary>
-    private static void RequestFlushForLeftovers()
+    private static void RequestResumeForLeftovers()
     {
         if (!HasWork())
         {
@@ -204,7 +223,7 @@ internal static class FlushLoop
 
         try
         {
-            RequestFlush();
+            Request(ResumeFlush);
         }
         catch
         {
