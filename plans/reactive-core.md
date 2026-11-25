@@ -227,7 +227,7 @@ Done in dc11212 and 4db8b09. 13/13 scenarios pass on .NET and Bun, and `tsc --st
 ---
 
 ## Task 4: Split effects and the flush loop (Phase 4)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
@@ -241,7 +241,7 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - `FlushLoop` passes, per spec 4.7: commit writes → propagate → run queued effect computes in queue order → run collected applies → repeat while new writes exist. `const int MaxPasses = 100`; exceeding it throws `InvalidOperationException("Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.")`.
 - Note: until Phase 5, effects live under no owner. Phase 5 attaches them.
 
-- [ ] **Step 1: Write the scenarios** in `EffectScenarios` (all drive the graph with `Reactivity.Flush()`):
+- [x] **Step 1: Write the scenarios** in `EffectScenarios` (all drive the graph with `Reactivity.Flush()`):
   - `ComputeRunsOnCreationApplyOnFlush`: after `Effect` the compute count is 1 and the apply count is 0; after `Flush()` the apply runs once with `(value, default)`.
   - `ApplyReceivesPrevious`: the apply after a write gets `(new, old)`.
   - `AppliesRunAfterAllComputes`: two effects log `"c1","c2","a1","a2"` in that order for one write both read.
@@ -250,16 +250,27 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - `WriteInApplySchedulesAnotherPass`: apply of effect A writes `s`; effect B reads `s`; one `Flush()` call runs B's apply.
   - `EffectWriteLoopThrows` (Review Focus 1): an apply that increments the signal its compute reads makes `Flush()` throw the pass-limit exception.
   - `EqualRecordWriteDoesNotRerun` (Review Focus 4): writing `new Point(1, 2)` over an equal `Point` does not re-run compute or apply.
-- [ ] **Step 2: Run both suites.** Expected: the new scenarios fail.
-- [ ] **Step 3: Implement** `EffectNode` (`Notify` enqueues it on the effect queue, chained through a `NextQueued` field) and the pass loop.
-- [ ] **Step 4: Run both suites.** Expected: all pass.
-- [ ] **Step 5: Commit** `feat: add split effects and the flush loop`.
+- [x] **Step 2: Run both suites.** Expected: the new scenarios fail.
+- [x] **Step 3: Implement** `EffectNode` (`Notify` enqueues it on the effect queue, chained through a `NextQueued` field) and the pass loop.
+- [x] **Step 4: Run both suites.** Expected: all pass.
+- [x] **Step 5: Commit** `feat: add split effects and the flush loop`.
 
 ### Verification Plan
 - Both suites green, Effect scenarios included (pass-limit scenario throws, does not hang)
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 9782894 and e221a20. 26/26 scenarios pass on .NET and Bun, and strict tsc is clean on both packages. The review needed one fix round: `OnCleanup` from a computation nested inside an apply was attaching to the outer apply. That is fixed, and the re-review approved it.
+- **Effect node shape:** `EffectNode` is internal abstract and non-generic, which the flush queues need. `SplitEffect<T>` is internal sealed and holds the typed compute/apply. `Notify` clears `Watching`.
+- **Flush guards:**
+  - `_running`: a write during a flush is drained by the running loop, with no extra schedule;
+  - `Reactivity.Flush()` during a flush is a documented no-op;
+  - a throwing scheduler resets `_scheduled` and rethrows; the write stays queued, and the next write requests a flush again;
+  - the commit runs propagation in a `finally`, and the remaining pending signals are unchained.
+- **Pass limit:** `MaxPasses = 100` throws the exact message and **discards pending writes**, which differs from Solid. This keeps the global graph usable.
+- **`OnCleanup`:** for now it attaches to the running apply only when `ActiveObserver is null`. Phase 5 must replace this with owner-based attachment and must not add `Untrack` before that (Untrack nulls the observer and would reopen the leak).
+- **The `RunFlush` delegate is cached**, so scheduling allocates nothing on .NET.
+- **Open maintainer decision:** for a value type, the first apply's `previous` is `default(T)`: 0 on .NET, null in TS. It is documented in the XML doc, and the scenario uses `string`.
+- Metano: no new defects. The `string +=` emission noise is deferred to the Phase 7 batch.
 
 ---
 
