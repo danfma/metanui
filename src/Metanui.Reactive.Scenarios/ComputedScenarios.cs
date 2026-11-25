@@ -12,6 +12,7 @@ public static class ComputedScenarios
         new Scenario("equal result stops propagation", EqualResultStopsPropagation),
         new Scenario("dynamic dependency is dropped", DynamicDependencyIsDropped),
         new Scenario("write inside compute throws", WriteInsideComputeThrows),
+        new Scenario("nested dirty check walks branching dependencies", NestedDirtyCheck),
     ];
 
     private static void IsLazy(IExpect expect)
@@ -164,5 +165,28 @@ public static class ComputedScenarios
         });
 
         expect.IsTrue(error is InvalidOperationException, "reading a writing computed throws");
+    }
+
+    // Reading `top` walks top -> middle -> inner (pending) and recomputes the dirty `inner` while that
+    // walk is one frame deep; `inner` reads the pending `outer`, whose own walk descends into `sum`,
+    // which has two dependencies, so the nested walk pushes above the first one.
+    private static void NestedDirtyCheck(IExpect expect)
+    {
+        var source = new Signal<int>(1);
+        var plusOne = new Computed<int>(() => source.Value + 1);
+        var twice = new Computed<int>(() => source.Value * 2);
+        var sum = new Computed<int>(() => plusOne.Value + twice.Value);
+        var outer = new Computed<int>(() => sum.Value);
+        var inner = new Computed<int>(() => source.Value + outer.Value);
+        var middle = new Computed<int>(() => inner.Value);
+        var top = new Computed<int>(() => middle.Value + 1);
+
+        expect.Equal(6, top.Value, "initial value");
+
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal(10, top.Value, "value after flush");
+        expect.Equal(7, outer.Value, "outer after flush");
     }
 }

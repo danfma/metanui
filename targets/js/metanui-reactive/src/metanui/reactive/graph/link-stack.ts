@@ -1,11 +1,53 @@
+import { arrayLength } from "metano-runtime";
 import type { Link } from "./link.js";
 
 export class LinkStack {
-  readonly value: Link | null;
-  readonly prev: LinkStack | null;
+  private static readonly initialCapacity: number = 16;
+  private static _items = /* @__PURE__ */ new Array(LinkStack.initialCapacity).fill(null) as (Link | null)[];
+  static top: number = 0;
 
-  constructor(value: Link | null, prev: LinkStack | null) {
-    this.value = value;
-    this.prev = prev;
+  constructor() { }
+
+  static push(link: Link | null): void {
+    if (LinkStack.top === LinkStack._items.length) {
+      LinkStack.grow();
+    }
+
+    LinkStack._items[LinkStack.top] = link;
+    LinkStack.top = (LinkStack.top + 1) | 0;
+  }
+
+  static pop(): Link | null {
+    LinkStack.top = (LinkStack.top - 1) | 0;
+    const link = LinkStack._items[LinkStack.top] ?? null;
+    LinkStack._items[LinkStack.top] = null;
+
+    return link;
+  }
+
+  static popNonNull(stackBase: number): Link | null {
+    while (LinkStack.top > stackBase) {
+      const link = LinkStack.pop();
+
+      if (!(link == null)) {
+        return link;
+      }
+    }
+
+    return null;
+  }
+
+  static truncate(stackBase: number): void {
+    while (LinkStack.top > stackBase) {
+      LinkStack.pop();
+    }
+  }
+
+  private static grow(): void {
+    const grown = new Array(arrayLength(Math.imul(LinkStack._items.length, 2))).fill(null);
+    for (let index = 0; index < LinkStack._items.length; index++) {
+      grown[index] = LinkStack._items[index] ?? null;
+    }
+    LinkStack._items = grown;
   }
 }
