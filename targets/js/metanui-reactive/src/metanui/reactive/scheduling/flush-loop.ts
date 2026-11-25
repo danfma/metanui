@@ -26,6 +26,7 @@ export class FlushLoop {
   private static _scheduled: boolean = false;
   private static _running: boolean = false;
   private static _resumePending: boolean = false;
+  private static _resumeContinuesBudget: boolean = false;
   private static _passes: number = 0;
 
   constructor() { }
@@ -108,6 +109,7 @@ export class FlushLoop {
   }
 
   static requestFlush(): void {
+    FlushLoop._resumeContinuesBudget = false;
     FlushLoop.request(FlushLoop.runFlush);
   }
 
@@ -131,7 +133,7 @@ export class FlushLoop {
 
   private static resume(): void {
     if (FlushLoop._resumePending) {
-      FlushLoop.runWithBudget(FlushLoop._passes);
+      FlushLoop.runWithBudget(FlushLoop._resumeContinuesBudget ? FlushLoop._passes : 0);
     }
   }
 
@@ -143,6 +145,7 @@ export class FlushLoop {
     FlushLoop._running = true;
     FlushLoop._scheduled = false;
     FlushLoop._resumePending = false;
+    FlushLoop._resumeContinuesBudget = false;
     FlushLoop._passes = passesUsed;
     const completed = FlushLoop.runPassesOrRequestResume();
 
@@ -190,10 +193,12 @@ export class FlushLoop {
     }
 
     FlushLoop._resumePending = true;
+    FlushLoop._resumeContinuesBudget = true;
     try {
       FlushLoop.request(FlushLoop.resumeFlush);
     } catch (_err) {
       FlushLoop._resumePending = false;
+      FlushLoop._resumeContinuesBudget = false;
     }
   }
 
