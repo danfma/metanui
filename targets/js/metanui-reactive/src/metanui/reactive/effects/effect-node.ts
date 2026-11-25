@@ -153,11 +153,12 @@ export abstract class EffectNode extends OwnerNode {
   }
 
   private runApplyCleanups(): void {
-    let entry = this._applyCleanups;
+    const entry = this._applyCleanups;
     this._applyCleanups = null;
-    while (!(entry == null)) {
-      entry.cleanup();
-      entry = entry.next;
+    const error = Teardown.runChain(entry);
+
+    if (!(error == null)) {
+      throw error;
     }
   }
 }

@@ -22,13 +22,31 @@ internal static class Teardown
     {
         Depth++;
 
+        var error = RunChain(entry);
+
+        Depth--;
+        _firstError ??= error;
+    }
+
+    /// <summary>
+    /// Runs every cleanup of the chain, in chain order, even after one throws, and returns the first
+    /// error thrown, or null. Used directly for the cleanups an apply runs before the next apply, whose
+    /// error is the apply's own.
+    /// </summary>
+    public static Exception? RunChain(CleanupEntry? entry)
+    {
+        Exception? firstError = null;
+
         while (entry is not null)
         {
-            RunOne(entry.Cleanup);
+            // Not `firstError ??= RunOne(...)`: that would skip the cleanups after the first error.
+            var error = RunOne(entry.Cleanup);
+
+            firstError ??= error;
             entry = entry.Next;
         }
 
-        Depth--;
+        return firstError;
     }
 
     /// <summary>Throws the error kept since the last call, if any, and forgets it.</summary>
@@ -46,15 +64,17 @@ internal static class Teardown
         throw error;
     }
 
-    private static void RunOne(Action cleanup)
+    private static Exception? RunOne(Action cleanup)
     {
         try
         {
             cleanup();
+
+            return null;
         }
         catch (Exception error)
         {
-            _firstError ??= error;
+            return error;
         }
     }
 }

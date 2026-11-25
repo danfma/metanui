@@ -10,11 +10,20 @@ export class Teardown {
 
   static run(entry: CleanupEntry | null): void {
     Teardown.depth = (Teardown.depth + 1) | 0;
+    const error = Teardown.runChain(entry);
+    Teardown.depth = (Teardown.depth - 1) | 0;
+    Teardown._firstError ??= error;
+  }
+
+  static runChain(entry: CleanupEntry | null): Exception | null {
+    let firstError = null as Exception | null;
     while (!(entry == null)) {
-      Teardown.runOne(entry.cleanup);
+      const error = Teardown.runOne(entry.cleanup);
+      firstError ??= error;
       entry = entry.next;
     }
-    Teardown.depth = (Teardown.depth - 1) | 0;
+
+    return firstError;
   }
 
   static rethrowFirstError(): void {
@@ -28,13 +37,16 @@ export class Teardown {
     throw error;
   }
 
-  private static runOne(cleanup: () => void): void {
+  private static runOne(cleanup: () => void): Exception | null {
     try {
       cleanup();
+
+      return null;
     } catch (e$) {
       const e0 = toException(e$);
       const error = e0;
-      Teardown._firstError ??= error;
+
+      return error;
     }
   }
 }
