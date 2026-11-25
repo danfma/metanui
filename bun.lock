@@ -11,6 +11,15 @@
         "metano-runtime": "^3.1.0",
       },
     },
+    "bench/reactivity": {
+      "name": "metanui-bench-reactivity",
+      "dependencies": {
+        "@solidjs/signals": "2.0.4",
+        "alien-signals": "3.2.1",
+        "metano-runtime": "^3.1.0",
+        "metanui-reactive": "workspace:*",
+      },
+    },
     "targets/js/metanui-reactive": {
       "name": "metanui-reactive",
       "version": "1.0.0",
@@ -39,6 +48,10 @@
   "packages": {
     "@js-temporal/polyfill": ["@js-temporal/polyfill@0.5.1", "", { "dependencies": { "jsbi": "^4.3.0" } }, "sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ=="],
 
+    "@solidjs/signals": ["@solidjs/signals@2.0.4", "", {}, "sha512-U/Z0DOsoJO18Wsw/5piSrJhtj85nMOOD/ldn8ZP+CCA5RVcu4GDheNTOECOZwxCS+l7BVIzIakToJC91Q6lMXQ=="],
+
+    "alien-signals": ["alien-signals@3.2.1", "", {}, "sha512-I8FjmltrfnDFoZedi5CG8DghVYNhzb/Ijluz7tCSJH0xpd0484Kowhbb1XDYOxfJpU1p5wnM2X54dA+IfGyD1g=="],
+
     "decimal.js": ["decimal.js@10.6.0", "", {}, "sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg=="],
 
     "jsbi": ["jsbi@4.3.2", "", {}, "sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew=="],
@@ -46,6 +59,8 @@
     "metano-runtime": ["metano-runtime@3.1.0", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-i2zoUBjsCdW7H0cOyVkXLmt4kTxUbSsNzKh7f0CdRUa6l8PDcbZEE9bcIFcaPkmdNz/p7iHLYFqQ5ebYnb3asQ=="],
 
     "metanui-bench-micro": ["metanui-bench-micro@workspace:bench/micro"],
+
+    "metanui-bench-reactivity": ["metanui-bench-reactivity@workspace:bench/reactivity"],
 
     "metanui-reactive": ["metanui-reactive@workspace:targets/js/metanui-reactive"],
 
