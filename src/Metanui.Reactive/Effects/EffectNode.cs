@@ -53,7 +53,7 @@ internal abstract class EffectNode : OwnerNode
 
         if (
             (flags & ReactiveFlags.Dirty) != 0
-            || ((flags & ReactiveFlags.Pending) != 0 && DependencyGraph.CheckDirty(Deps!, this))
+            || ((flags & ReactiveFlags.Pending) != 0 && IsAnyDependencyDirty())
         )
         {
             if (TryRunCompute())
@@ -154,7 +154,7 @@ internal abstract class EffectNode : OwnerNode
         Teardown.Run(applyCleanups);
         DepsTail = null;
         Flags = ReactiveFlags.None;
-        DependencyGraph.PurgeDeps(this);
+        UnlinkDependenciesOnDisposal();
         ReleaseUserState();
     }
 

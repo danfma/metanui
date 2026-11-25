@@ -67,6 +67,15 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override update(): boolean {
+    Tracking.updatesInDirtyCheck = (Tracking.updatesInDirtyCheck + 1) | 0;
+    try {
+      return this.rerun();
+    } finally {
+      Tracking.updatesInDirtyCheck = (Tracking.updatesInDirtyCheck - 1) | 0;
+    }
+  }
+
+  private rerun(): boolean {
     if (this.isDisposed) {
       return false;
     }
@@ -113,7 +122,7 @@ export class Computed<T> extends ComputedNode {
       return false;
     }
 
-    this.update();
+    this.rerun();
 
     return (this.flags & ReactiveFlags.Errored) === 0;
   }
@@ -138,7 +147,7 @@ export class Computed<T> extends ComputedNode {
   override onDisposed(): void {
     this.depsTail = null;
     this.flags = ReactiveFlags.Mutable | this.flags & ReactiveFlags.Errored;
-    DependencyGraph.purgeDeps(this);
+    this.unlinkDependenciesOnDisposal();
     this._compute = null;
     this._comparer = null;
   }
@@ -160,7 +169,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   private recomputeIfDependencyChanged(flags: ReactiveFlags): void {
-    if (DependencyGraph.checkDirty(this.deps!, this)) {
+    if (this.isAnyDependencyDirty()) {
       this.recompute();
     } else {
       this.flags = flags & ~ReactiveFlags.Pending;
@@ -168,7 +177,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   private recompute(): void {
-    if (!this.update()) {
+    if (!this.rerun()) {
       return;
     }
 

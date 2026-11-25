@@ -60,6 +60,18 @@ public static class OwnershipScenarios
             "pending computed disposed during an observer's dirty check keeps its last value",
             PendingComputedDisposedDuringAnObserversCheckKeepsItsLastValue
         ),
+        new Scenario(
+            "effect disposed during its dirty check stops at the dependency that disposed it",
+            EffectDisposedDuringItsCheckStopsAtTheDisposingDependency
+        ),
+        new Scenario(
+            "effect disposed during a multi-level dirty check leaves no computed linked",
+            EffectDisposedDuringMultiLevelCheckLeavesNoComputedLinked
+        ),
+        new Scenario(
+            "observer sharing a computed with an effect disposed during its check sees the change",
+            ObserverSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange
+        ),
     ];
 
     private static void RootDisposeRunsCleanupsInReverse(IExpect expect)
@@ -549,6 +561,132 @@ public static class OwnershipScenarios
         expect.Equal(1, applied, "the effect keeps the last value");
         expect.Equal(1, reader.Peek(), "the reader keeps its last value");
         expect.Equal(1, runs, "its released function never runs");
+    }
+
+    /// <summary>
+    /// An effect reads <c>first</c>, then <c>second</c>, which only it reads. The update of
+    /// <c>first</c> (equal result) disposes the effect, so the dirty check must not go on to
+    /// <c>second</c> through a link the disposal removed, and <c>second</c> ends unlinked.
+    /// </summary>
+    private static void EffectDisposedDuringItsCheckStopsAtTheDisposingDependency(IExpect expect)
+    {
+        var secondRuns = 0;
+        var applies = 0;
+        var source = Reactivity.Signal(0);
+        var dispose = () => { };
+
+        var first = Reactivity.Computed(() =>
+        {
+            var value = source.Value;
+
+            Reactivity.OnCleanup(() =>
+            {
+                if (value == 0)
+                {
+                    dispose();
+                }
+            });
+
+            return 0;
+        });
+
+        var second = Reactivity.Computed(() =>
+        {
+            secondRuns++;
+
+            return source.Value;
+        });
+
+        Reactivity.Root(disposeRoot =>
+        {
+            dispose = disposeRoot;
+            Reactivity.Effect(() => first.Value + second.Value, (value, previous) => applies++);
+        });
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+        var runsAfterCheck = secondRuns;
+
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.IsTrue(error is null, "the flush does not fail");
+        expect.Equal(1, applies, "the disposed effect never applies again");
+        expect.Equal(runsAfterCheck, secondRuns, "the computed only the effect read is unlinked");
+    }
+
+    /// <summary>
+    /// An effect is the only observer of <c>middle</c>, which reads <c>inner</c>. The update of
+    /// <c>inner</c> disposes the effect two levels up, so on the way back the walk must not update
+    /// <c>middle</c> as if it were still observed, and <c>middle</c> ends unlinked.
+    /// </summary>
+    private static void EffectDisposedDuringMultiLevelCheckLeavesNoComputedLinked(IExpect expect)
+    {
+        var middleRuns = 0;
+        var applies = 0;
+        var source = Reactivity.Signal(0);
+        var graph = new DisposingGraph(source);
+        var inner = graph.CreateInner();
+
+        var middle = Reactivity.Computed(() =>
+        {
+            middleRuns++;
+
+            return inner.Value * 10;
+        });
+
+        Reactivity.Root(disposeRoot =>
+        {
+            graph.Dispose = disposeRoot;
+            Reactivity.Effect(() => middle.Value, (value, previous) => applies++);
+        });
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+        var runsAfterCheck = middleRuns;
+
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.IsTrue(error is null, "the flush does not fail");
+        expect.Equal(1, applies, "the disposed effect never applies again");
+        expect.Equal(runsAfterCheck, middleRuns, "the computed only the effect read is unlinked");
+    }
+
+    /// <summary>
+    /// Two effects read <c>middle</c>; the first one created runs its dirty check first, and the
+    /// update of <c>inner</c> disposes it. <c>middle</c> changes on the way back, and the other
+    /// effect must still be told, although the check that updated <c>middle</c> belonged to an
+    /// effect that is gone.
+    /// </summary>
+    private static void ObserverSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange(
+        IExpect expect
+    )
+    {
+        var seen = 0;
+        var source = Reactivity.Signal(0);
+        var graph = new DisposingGraph(source);
+        var inner = graph.CreateInner();
+        var middle = Reactivity.Computed(() => inner.Value * 10);
+
+        Reactivity.Root(disposeRoot =>
+        {
+            graph.Dispose = disposeRoot;
+            Reactivity.Effect(() => middle.Value, (value, previous) => { });
+        });
+
+        Reactivity.Effect(() => middle.Value, (value, previous) => seen = value);
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush does not fail");
+        expect.Equal(10, seen, "the other effect applies the new value");
     }
 
     private static void ExpectLateChildrenGone(IExpect expect, LateChildren late)
