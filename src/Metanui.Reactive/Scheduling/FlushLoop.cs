@@ -1,12 +1,9 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Scheduling;
 
 /// <summary>
 /// Queues of pending work (signal writes, effect computes, effect applies), drained by
 /// <see cref="Run" /> in passes.
 /// </summary>
-[Transpile]
 internal static class FlushLoop
 {
     private const int MaxPasses = 100;

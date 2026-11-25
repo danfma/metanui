@@ -15,16 +15,6 @@
       "types": "./dist/metanui/reactive/graph/index.d.ts",
       "import": "./dist/metanui/reactive/graph/index.js"
     },
-    "./metanui/reactive/scheduling": {
-      "bun": "./src/metanui/reactive/scheduling/index.ts",
-      "types": "./dist/metanui/reactive/scheduling/index.d.ts",
-      "import": "./dist/metanui/reactive/scheduling/index.js"
-    },
-    "./metanui/reactive/effects": {
-      "bun": "./src/metanui/reactive/effects/index.ts",
-      "types": "./dist/metanui/reactive/effects/index.d.ts",
-      "import": "./dist/metanui/reactive/effects/index.js"
-    },
     "./metanui/reactive/ownership": {
       "bun": "./src/metanui/reactive/ownership/index.ts",
       "types": "./dist/metanui/reactive/ownership/index.d.ts",

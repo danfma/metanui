@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Effects;
 
 /// <summary>
@@ -18,7 +16,6 @@ namespace Metanui.Reactive.Effects;
 /// An exception from the compute or the apply goes to the nearest error boundary among the owners;
 /// with none it escapes (spec 4.4). A failed compute queues no apply.
 /// </remarks>
-[Transpile]
 internal abstract class EffectNode : OwnerNode
 {
     /// <summary>Next effect in the flush queue of computes to run.</summary>

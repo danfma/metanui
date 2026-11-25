@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Graph;
 
 /// <summary>
@@ -7,7 +5,6 @@ namespace Metanui.Reactive.Graph;
 /// dependencies (<see cref="PrevDep" />/<see cref="NextDep" />) and the dependency's
 /// subscribers (<see cref="PrevSub" />/<see cref="NextSub" />).
 /// </summary>
-[Transpile]
 internal sealed class Link(
     int version,
     ReactiveNode dep,

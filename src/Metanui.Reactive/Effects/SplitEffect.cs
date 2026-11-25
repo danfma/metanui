@@ -1,12 +1,9 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Effects;
 
 /// <summary>
 /// Effect whose compute produces a <typeparamref name="T" /> handed to its apply. Disposal releases
 /// both callbacks and both values; a disposed effect never runs either again.
 /// </summary>
-[Transpile]
 internal sealed class SplitEffect<T>(Func<T> compute, Action<T, T> apply) : EffectNode
 {
     private Func<T>? _compute = compute;

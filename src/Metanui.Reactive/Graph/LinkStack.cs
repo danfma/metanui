@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Graph;
 
 /// <summary>
@@ -12,7 +10,6 @@ namespace Metanui.Reactive.Graph;
 /// another computed), so each walk takes <see cref="Top" /> as its base on entry, pushes and pops only
 /// above it, and calls <see cref="Truncate" /> with that base on exit.
 /// </remarks>
-[Transpile]
 internal static class LinkStack
 {
     private const int InitialCapacity = 16;

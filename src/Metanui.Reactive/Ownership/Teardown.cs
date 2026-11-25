@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Ownership;
 
 /// <summary>
@@ -9,7 +7,6 @@ namespace Metanui.Reactive.Ownership;
 /// and rethrown once, by the root disposer outside a flush or at the end of the flush. Cleanup errors
 /// never go to an error boundary.
 /// </summary>
-[Transpile]
 internal static class Teardown
 {
     /// <summary>Nesting depth of running cleanup chains. Signal writes are allowed while it is above 0.</summary>
