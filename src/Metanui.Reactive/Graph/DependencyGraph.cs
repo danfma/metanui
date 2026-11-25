@@ -169,6 +169,7 @@ internal static class DependencyGraph
     {
         var next = link.NextSub;
 
+        top:
         while (true)
         {
             var sub = link.Sub;
@@ -242,16 +243,20 @@ internal static class DependencyGraph
                 continue;
             }
 
-            // Metano #772: upstream pops with a labeled `continue top`, which Metano does not transpile.
-            var resumed = LinkStack.PopNonNull(stackBase);
-
-            if (resumed is null)
+            while (LinkStack.Top > stackBase)
             {
-                break;
+                var popped = LinkStack.Pop();
+
+                if (popped is not null)
+                {
+                    link = popped;
+                    next = link.NextSub;
+
+                    continue top;
+                }
             }
 
-            link = resumed;
-            next = link.NextSub;
+            break;
         }
     }
 
@@ -260,6 +265,7 @@ internal static class DependencyGraph
         var checkDepth = 0;
         var dirty = false;
 
+        top:
         while (true)
         {
             var dep = link.Dep;
@@ -311,10 +317,6 @@ internal static class DependencyGraph
                 }
             }
 
-            // Metano #772: labeled continue (C# 15) is not transpiled, so the upstream `continue top`
-            // leaves this loop through `resumed`.
-            var resumedAbove = false;
-
             while (checkDepth > 0)
             {
                 // Upstream `while (checkDepth--)`.
@@ -351,15 +353,9 @@ internal static class DependencyGraph
                 if (nextDep is not null)
                 {
                     link = nextDep;
-                    resumedAbove = true;
 
-                    break;
+                    continue top;
                 }
-            }
-
-            if (resumedAbove)
-            {
-                continue;
             }
 
             return dirty && sub.Flags != ReactiveFlags.None;

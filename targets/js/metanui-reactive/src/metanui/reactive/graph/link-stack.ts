@@ -25,18 +25,6 @@ export class LinkStack {
     return link;
   }
 
-  static popNonNull(stackBase: number): Link | null {
-    while (LinkStack.top > stackBase) {
-      const link = LinkStack.pop();
-
-      if (!(link == null)) {
-        return link;
-      }
-    }
-
-    return null;
-  }
-
   static truncate(stackBase: number): void {
     while (LinkStack.top > stackBase) {
       LinkStack.pop();
