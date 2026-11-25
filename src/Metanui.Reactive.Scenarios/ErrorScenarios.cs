@@ -37,6 +37,22 @@ public static class ErrorScenarios
             RetryThatFailsAgainDoesNotRetryOnEveryPass
         ),
         new Scenario(
+            "retry never shows an observer a mix of the recovered and the old value",
+            RetryNeverShowsAMixOfRecoveredAndOldValue
+        ),
+        new Scenario(
+            "retry that fails again gives an already pending sibling the new error",
+            RetryThatFailsAgainReachesAPendingSibling
+        ),
+        new Scenario(
+            "errored computed re-read by several observers is retried once",
+            ErroredComputedReReadBySeveralObserversIsRetriedOnce
+        ),
+        new Scenario(
+            "computed disposed while its retry is pending is not retried",
+            ComputedDisposedWhileItsRetryIsPendingIsNotRetried
+        ),
+        new Scenario(
             "error raised in a multi-level dirty check reaches the reader and later walks stay correct",
             ErrorInMultiLevelDirtyCheckReachesReader
         ),
@@ -200,8 +216,9 @@ public static class ErrorScenarios
     }
 
     /// <summary>
-    /// Only the effect that also reads <c>trigger</c> re-reads <c>flaky</c> in a later pass and retries
-    /// it; the effect and the computed that read only <c>flaky</c> must still see the recovered value.
+    /// Only the effect that also reads <c>trigger</c> re-reads <c>flaky</c> in a later pass and asks
+    /// for the retry; the effect and the computed that read only <c>flaky</c> must still see the
+    /// recovered value.
     /// </summary>
     private static void RetryThatRecoversUpdatesOtherObservers(IExpect expect)
     {
@@ -252,8 +269,9 @@ public static class ErrorScenarios
 
     /// <summary>
     /// The effect reads <c>flaky</c> before <c>C</c>, so a trigger change leaves it pending through
-    /// <c>C</c>. Its dirty check recomputes <c>C</c>, whose tracked re-read retries <c>flaky</c>; the
-    /// recovery turns the effect dirty in the middle of the check, which itself finds no change.
+    /// <c>C</c>. Its dirty check recomputes <c>C</c>, whose tracked re-read asks for a retry of
+    /// <c>flaky</c> after the effect's check already passed it. A retry that ran there turned the
+    /// effect dirty in the middle of the check, which then re-armed it and dropped the change.
     /// </summary>
     private static void RetryRecoveryUpdatesAPendingSibling(IExpect expect)
     {
@@ -331,8 +349,9 @@ public static class ErrorScenarios
     }
 
     /// <summary>
-    /// <see cref="RetryRecoveryUpdatesAPendingSiblingComputed" /> observed by an effect: the
-    /// recovery turns <c>D</c> dirty inside the effect's dirty check, one level below the effect.
+    /// <see cref="RetryRecoveryUpdatesAPendingSiblingComputed" /> observed by an effect: the retry is
+    /// requested inside the effect's dirty check, one level below the effect. A retry that ran there
+    /// left <c>D</c> dirty with its subscriber never notified.
     /// </summary>
     private static void RetryRecoveryReachesAnEffectThroughAPendingComputed(IExpect expect)
     {
@@ -368,8 +387,9 @@ public static class ErrorScenarios
     }
 
     /// <summary>
-    /// A computed that always fails, re-read by an effect after a flush: the retry fails again, and
-    /// that second error must not rerun the reading effect into another retry on every pass.
+    /// A computed that always fails, re-read by an effect after a flush: the retry fails again in the
+    /// next pass, and that error, cached in the pass that reruns the effect, must not make the effect
+    /// request another retry on every pass.
     /// </summary>
     private static void RetryThatFailsAgainDoesNotRetryOnEveryPass(IExpect expect)
     {
@@ -402,6 +422,184 @@ public static class ErrorScenarios
         expect.IsTrue(error is null, "the flush completes");
         expect.Equal(-1, seen, "the effect sees the error");
         expect.Equal(2, runs, "the function ran once more");
+    }
+
+    /// <summary>
+    /// The effect reads <c>flaky</c> directly and through <c>x</c>. Every apply must pair values from
+    /// the same state: both from the error, or both from the recovered value. A retry that ran during
+    /// the read gave the effect the recovered <c>flaky</c> next to the old <c>x</c>.
+    /// </summary>
+    private static void RetryNeverShowsAMixOfRecoveredAndOldValue(IExpect expect)
+    {
+        var log = "";
+        var trigger = Reactivity.Signal(0);
+        var flaky = FailingOnFirstRun(42);
+        var x = Reactivity.Computed(() => ReadOr(flaky, -1) + 1);
+
+        Reactivity.Effect(
+            () =>
+            {
+                _ = trigger.Value;
+
+                var f = ReadOr(flaky, -1);
+
+                return $"{f},{x.Value}";
+            },
+            (value, previous) => log = log + "|" + value
+        );
+
+        Reactivity.Flush();
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        // The trigger pass re-reads the cached error everywhere; the retry pass that follows sees the
+        // recovered value everywhere.
+        expect.Equal("|-1,0|-1,0|42,43", log, "applies");
+    }
+
+    /// <summary>
+    /// The shape of <see cref="RetryRecoveryUpdatesAPendingSibling" /> with a computed that fails on
+    /// every run: the effect must end on the retry's new error, not keep the first one.
+    /// </summary>
+    private static void RetryThatFailsAgainReachesAPendingSibling(IExpect expect)
+    {
+        var runs = 0;
+        var seen = "";
+        var trigger = Reactivity.Signal(0);
+
+        var flaky = Reactivity.Computed<int>(() =>
+        {
+            runs++;
+
+            throw new InvalidOperationException($"e{runs}");
+        });
+
+        var c = Reactivity.Computed(() =>
+        {
+            _ = trigger.Value;
+            ReadOr(flaky, -1);
+
+            return 0;
+        });
+
+        Reactivity.Effect(
+            () =>
+            {
+                var message = ScenarioRunner.Catch(() => _ = flaky.Value)?.Message ?? "";
+                _ = c.Value;
+
+                return message;
+            },
+            (value, previous) => seen = value
+        );
+
+        Reactivity.Flush();
+
+        expect.Equal("e1", seen, "the effect first sees the first error");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal("e2", seen, "the effect sees the retry's error");
+        expect.Equal(2, runs, "the function ran once more");
+    }
+
+    /// <summary>
+    /// Two effects re-read two errored computeds in one pass, so each computed is queued for a retry
+    /// twice: the second request must neither queue it again nor run it twice.
+    /// </summary>
+    private static void ErroredComputedReReadBySeveralObserversIsRetriedOnce(IExpect expect)
+    {
+        var firstRuns = 0;
+        var secondRuns = 0;
+        var seen = "";
+        var trigger = Reactivity.Signal(0);
+
+        var first = Reactivity.Computed(() =>
+        {
+            firstRuns++;
+
+            return firstRuns == 1 ? throw new InvalidOperationException("First run fails.") : 1;
+        });
+
+        var second = Reactivity.Computed(() =>
+        {
+            secondRuns++;
+
+            return secondRuns == 1 ? throw new InvalidOperationException("First run fails.") : 2;
+        });
+
+        Reactivity.Effect(
+            () =>
+            {
+                _ = trigger.Value;
+
+                return ReadOr(first, -1) + ReadOr(second, -1);
+            },
+            (value, previous) => { }
+        );
+
+        Reactivity.Effect(
+            () =>
+            {
+                _ = trigger.Value;
+
+                return $"{ReadOr(second, -1)},{ReadOr(first, -1)}";
+            },
+            (value, previous) => seen = value
+        );
+
+        Reactivity.Flush();
+        trigger.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush completes");
+        expect.Equal("2,1", seen, "the second effect sees both recovered values");
+        expect.Equal(2, firstRuns, "the first computed ran once more");
+        expect.Equal(2, secondRuns, "the second computed ran once more");
+    }
+
+    /// <summary>
+    /// A retry is queued outside a flush, then the computed is disposed before the flush: the flush
+    /// skips it, and the computed keeps its frozen error instead of running a released function.
+    /// </summary>
+    private static void ComputedDisposedWhileItsRetryIsPendingIsNotRetried(IExpect expect)
+    {
+        var trigger = Reactivity.Signal(0);
+
+        var graph = Reactivity.Root(dispose =>
+        {
+            var flaky = FailingOnFirstRun(42);
+
+            var reader = Reactivity.Computed(() =>
+            {
+                _ = trigger.Value;
+
+                return ReadOr(flaky, -1);
+            });
+
+            return new OwnedRetryGraph(flaky, reader, dispose);
+        });
+
+        expect.Equal(-1, graph.Reader.Peek(), "the reader first sees the error");
+
+        // The commit leaves the reader pending in a later pass than the failure; refreshing it
+        // re-reads flaky and queues the retry.
+        trigger.Value = 1;
+        Reactivity.Flush();
+        _ = graph.Reader.Peek();
+        graph.Dispose();
+
+        var flushError = ScenarioRunner.Catch(Reactivity.Flush);
+        var readError = ScenarioRunner.Catch(() => _ = graph.Flaky.Peek());
+
+        // A retried run would return 42, or fail on the function the disposal released.
+        expect.IsTrue(flushError is null, "the flush completes");
+        expect.IsTrue(
+            readError is InvalidOperationException { Message: "First run fails." },
+            "the disposed computed keeps its error"
+        );
     }
 
     /// <summary>
@@ -1209,6 +1407,13 @@ public static class ErrorScenarios
             return value;
         });
     }
+
+    /// <summary>An errored computed, a computed that reads it, and the disposer of the root that owns both.</summary>
+    private sealed record OwnedRetryGraph(
+        Computed<int> Flaky,
+        Computed<int> Reader,
+        Action Dispose
+    );
 
     private static T ReadOr<T>(Computed<T> computed, T fallback)
     {

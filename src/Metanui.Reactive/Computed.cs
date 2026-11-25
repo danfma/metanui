@@ -12,7 +12,8 @@ namespace Metanui.Reactive;
 /// An exception thrown by the function is cached with <see cref="ReactiveFlags.Errored" /> and
 /// rethrown, the same instance, by every read until a dependency changes. As in Solid 2.0.4, a
 /// tracked re-read in a later flush pass than the failure also retries it, so a computed that failed
-/// before reading any dependency is not stuck for good.
+/// before reading any dependency is not stuck for good; here the retry runs in the next flush pass
+/// (spec 4.2).
 /// </remarks>
 public sealed class Computed<T> : OwnerNode
 {
@@ -241,8 +242,10 @@ public sealed class Computed<T> : OwnerNode
     /// retries the function.
     /// </summary>
     /// <remarks>
-    /// The observer takes the retry's result from this read; <see cref="Retry" /> says when the other
-    /// subscribers get it.
+    /// Unlike Solid, the retry does not run here: it is queued as an invalidation that the next flush
+    /// pass applies (<see cref="FlushLoop.EnqueueRetry" />), so every observer of this pass, this one
+    /// included, sees the same cached error, and no dirty check in progress sees the graph change
+    /// under it. The checks run before the link, which moves the observer's dependency tail.
     /// </remarks>
     private T ReadErrored(ReactiveNode? observer)
     {
@@ -253,55 +256,12 @@ public sealed class Computed<T> : OwnerNode
 
         if (IsNextDependencyOf(observer) && _errorPass != Tracking.Pass && !IsDisposed)
         {
-            var cycle = Tracking.Cycle;
-
-            Retry();
-            DependencyGraph.Link(this, observer, cycle);
-
-            if ((Flags & ReactiveFlags.Errored) == 0)
-            {
-                return _value;
-            }
-
-            throw _error!;
+            FlushLoop.EnqueueRetry(this);
         }
 
         DependencyGraph.Link(this, observer, Tracking.Cycle);
 
         throw _error!;
-    }
-
-    /// <summary>
-    /// Runs the function again after an error. Nothing marked the other subscribers pending, since no
-    /// dependency changed, so the result is propagated like a signal commit:
-    /// <list type="bullet">
-    /// <item>A recovered value reaches them in the next flush pass, like a signal write. Propagating it
-    /// here would run in the middle of a dirty check, whose walk takes the dependencies it already
-    /// visited as settled, and would leave a sibling on the walk path stale.</item>
-    /// <item>Another error reaches them at once, before the observer's link is confirmed, so the
-    /// running observer is skipped (alien-signals <c>isValidLink</c>). Deferring it would rerun that
-    /// observer in the next pass, which would retry again, on every pass.</item>
-    /// </list>
-    /// </summary>
-    private void Retry()
-    {
-        Update();
-
-        if ((Flags & ReactiveFlags.Errored) == 0)
-        {
-            FlushLoop.EnqueueRecovered(this);
-
-            return;
-        }
-
-        var subs = Subs;
-
-        if (subs is not null)
-        {
-            DependencyGraph.Propagate(subs);
-            DependencyGraph.ShallowPropagate(subs);
-            FlushLoop.RequestFlush();
-        }
     }
 
     /// <summary>Whether <paramref name="observer" />'s running pass is about to reuse its link to this computed.</summary>

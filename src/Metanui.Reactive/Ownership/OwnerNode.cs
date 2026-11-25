@@ -25,11 +25,11 @@ public abstract class OwnerNode : ReactiveNode
     internal bool IsDisposed;
 
     /// <summary>
-    /// Next computed in the flush queue of retried computeds (see <see cref="FlushLoop.EnqueueRecovered" />).
+    /// Next computed in the flush queue of pending retries (see <see cref="FlushLoop.EnqueueRetry" />).
     /// Only computeds use it; it lives here because <see cref="Computed{T}" /> is generic and the flush
     /// queue is not.
     /// </summary>
-    internal OwnerNode? NextRecovered;
+    internal OwnerNode? NextRetry;
 
     /// <summary>
     /// Creates the node as the newest child of the current owner, if any. Creating it directly in an

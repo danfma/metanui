@@ -196,37 +196,11 @@ export class Computed<T> extends OwnerNode {
     }
 
     if (this.isNextDependencyOf(observer) && this._errorPass !== Tracking.pass && !this.isDisposed) {
-      const cycle = Tracking.cycle;
-      this.retry();
-      DependencyGraph.link(this, observer, cycle);
-
-      if ((this.flags & ReactiveFlags.Errored) === 0) {
-        return this._value;
-      }
-
-      throw this._error!;
+      FlushLoop.enqueueRetry(this);
     }
 
     DependencyGraph.link(this, observer, Tracking.cycle);
     throw this._error!;
-  }
-
-  private retry(): void {
-    this.update();
-
-    if ((this.flags & ReactiveFlags.Errored) === 0) {
-      FlushLoop.enqueueRecovered(this);
-
-      return;
-    }
-
-    const subs = this.subs;
-
-    if (!(subs == null)) {
-      DependencyGraph.propagate(subs);
-      DependencyGraph.shallowPropagate(subs);
-      FlushLoop.requestFlush();
-    }
   }
 
   private isNextDependencyOf(observer: ReactiveNode): boolean {
