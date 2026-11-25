@@ -67,6 +67,10 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override update(): boolean {
+    if (this.isDisposed) {
+      return false;
+    }
+
     const compute = this._compute!;
     const comparer = this._comparer!;
     this.disposeOwned();
