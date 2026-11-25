@@ -72,7 +72,7 @@ scripts/bench-reactivity.sh
 
 ---
 
-## Phase 1: Scenario pipeline on both platforms
+## Task 1: Scenario pipeline on both platforms (Phase 1)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -116,7 +116,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 2: Signal writes, flush and scheduler port
+## Task 2: Signal writes, flush and scheduler port (Phase 2)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -152,7 +152,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 3: Dependency graph and Computed
+## Task 3: Dependency graph and Computed (Phase 3)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -190,7 +190,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 4: Split effects and the flush loop
+## Task 4: Split effects and the flush loop (Phase 4)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -227,7 +227,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 5: Ownership, cleanup and untrack
+## Task 5: Ownership, cleanup and untrack (Phase 5)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -262,7 +262,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 6: Errors
+## Task 6: Errors (Phase 6)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -292,7 +292,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 7: Real schedulers and the TS output audit
+## Task 7: Real schedulers and the TS output audit (Phase 7)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -315,7 +315,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 8: Reactivity benchmark
+## Task 8: Reactivity benchmark (Phase 8)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 
@@ -345,7 +345,7 @@ _(write when phase completes)_
 
 ---
 
-## Phase 9: Review gate and docs
+## Task 9: Review gate and docs (Phase 9)
 Status: Not started   <!-- Not started | In progress | Complete -->
 
 

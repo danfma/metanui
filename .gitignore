@@ -11,3 +11,4 @@ TestResults/
 .metano-cache.json
 .metano-stamp
 .cache/
+.superpowers/
