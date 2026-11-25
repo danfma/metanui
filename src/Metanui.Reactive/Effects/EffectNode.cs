@@ -172,8 +172,9 @@ internal abstract class EffectNode : OwnerNode
     protected abstract void ReleaseUserState();
 
     /// <summary>
-    /// Runs the compute; an exception goes to the nearest error boundary and makes it return false,
-    /// or escapes when there is none.
+    /// Runs the compute and reports whether its apply should be queued: false when the compute
+    /// disposed the effect or was skipped because a cleanup did. An exception goes to the nearest
+    /// error boundary and makes it return false, or escapes when there is none.
     /// </summary>
     private bool TryRunCompute()
     {
@@ -181,7 +182,7 @@ internal abstract class EffectNode : OwnerNode
         {
             RunCompute();
 
-            return true;
+            return !IsDisposed;
         }
         catch (Exception error)
         {

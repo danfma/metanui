@@ -128,7 +128,7 @@ export abstract class EffectNode extends OwnerNode {
     try {
       this.runCompute();
 
-      return true;
+      return !this.isDisposed;
     } catch (e$) {
       const e0 = toException(e$);
       const error = e0;
