@@ -173,9 +173,14 @@ public sealed class Computed<T> : OwnerNode
         }
     }
 
+    /// <summary>
+    /// Recomputes when the check finds a changed dependency, or when a dependency's retry
+    /// (<see cref="Retry" />) during the check turned this computed dirty while the check itself
+    /// found no change; otherwise only clears <see cref="ReactiveFlags.Pending" />.
+    /// </summary>
     private void RecomputeIfDependencyChanged(ReactiveFlags flags)
     {
-        if (DependencyGraph.CheckDirty(Deps!, this))
+        if (DependencyGraph.CheckDirty(Deps!, this) || (Flags & ReactiveFlags.Dirty) != 0)
         {
             Recompute();
         }
