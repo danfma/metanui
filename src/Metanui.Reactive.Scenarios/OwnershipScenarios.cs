@@ -53,6 +53,14 @@ public static class OwnershipScenarios
             EffectDisposedDuringItsComputeDisposesWhatTheComputeCreated
         ),
         new Scenario(
+            "root disposed by its own body disposes what the body created next",
+            RootDisposedByItsBodyDisposesWhatTheBodyCreated
+        ),
+        new Scenario(
+            "error boundary disposed by its own body disposes what the body created next",
+            BoundaryDisposedByItsBodyDisposesWhatTheBodyCreated
+        ),
+        new Scenario(
             "pending computed disposed during its own dirty check keeps its last value",
             PendingComputedDisposedDuringItsCheckKeepsItsLastValue
         ),
@@ -481,6 +489,47 @@ public static class OwnershipScenarios
         Reactivity.Flush();
         source.Value = 1;
         Reactivity.Flush();
+
+        ExpectLateChildrenGone(expect, late);
+    }
+
+    private static void RootDisposedByItsBodyDisposesWhatTheBodyCreated(IExpect expect)
+    {
+        var late = new LateChildren();
+
+        Reactivity.Root(disposeRoot =>
+        {
+            disposeRoot();
+            late.Create();
+        });
+
+        ExpectLateChildrenGone(expect, late);
+    }
+
+    /// <summary>
+    /// The boundary body disposes the root that owns the boundary, creates an effect and a cleanup,
+    /// then throws: the handler still receives the error, and nothing the body created after the
+    /// disposal outlives it.
+    /// </summary>
+    private static void BoundaryDisposedByItsBodyDisposesWhatTheBodyCreated(IExpect expect)
+    {
+        var caught = 0;
+        var late = new LateChildren();
+
+        Reactivity.Root(disposeRoot =>
+            Reactivity.ErrorBoundary(
+                () =>
+                {
+                    disposeRoot();
+                    late.Create();
+
+                    throw new InvalidOperationException("body failed");
+                },
+                error => caught++
+            )
+        );
+
+        expect.Equal(1, caught, "the handler received the body error");
 
         ExpectLateChildrenGone(expect, late);
     }
