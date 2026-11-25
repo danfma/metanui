@@ -5,6 +5,7 @@ import { DependencyGraph } from "./graph/dependency-graph.js";
 import { ReactiveFlags } from "./graph/reactive-flags.js";
 import type { ReactiveNode } from "./graph/reactive-node.js";
 import { OwnerNode } from "./ownership/owner-node.js";
+import { FlushLoop } from "./scheduling/flush-loop.js";
 import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
 
@@ -194,18 +195,31 @@ export class Computed<T> extends OwnerNode {
       throw this._error!;
     }
 
-    const reread = this.isNextDependencyOf(observer);
-    DependencyGraph.link(this, observer, Tracking.cycle);
-
-    if (reread && this._errorPass !== Tracking.pass && !this.isDisposed) {
-      this.recompute();
+    if (this.isNextDependencyOf(observer) && this._errorPass !== Tracking.pass && !this.isDisposed) {
+      const cycle = Tracking.cycle;
+      this.retry();
+      DependencyGraph.link(this, observer, cycle);
 
       if ((this.flags & ReactiveFlags.Errored) === 0) {
         return this._value;
       }
+
+      throw this._error!;
     }
 
+    DependencyGraph.link(this, observer, Tracking.cycle);
     throw this._error!;
+  }
+
+  private retry(): void {
+    this.update();
+    const subs = this.subs;
+
+    if (!(subs == null)) {
+      DependencyGraph.propagate(subs);
+      DependencyGraph.shallowPropagate(subs);
+      FlushLoop.requestFlush();
+    }
   }
 
   private isNextDependencyOf(observer: ReactiveNode): boolean {
