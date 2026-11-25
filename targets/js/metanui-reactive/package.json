@@ -32,6 +32,11 @@
       "bun": "./src/metanui/reactive/effects/index.ts",
       "types": "./dist/metanui/reactive/effects/index.d.ts",
       "import": "./dist/metanui/reactive/effects/index.js"
+    },
+    "./metanui/reactive/ownership": {
+      "bun": "./src/metanui/reactive/ownership/index.ts",
+      "types": "./dist/metanui/reactive/ownership/index.d.ts",
+      "import": "./dist/metanui/reactive/ownership/index.js"
     }
   },
   "peerDependencies": {

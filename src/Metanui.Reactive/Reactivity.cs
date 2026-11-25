@@ -28,7 +28,7 @@ public static partial class Reactivity
     /// <remarks>
     /// Solid's apply returns its cleanup; here an apply registers cleanups with
     /// <see cref="OnCleanup" /> instead. They run, last registered first, before the next apply of
-    /// the same effect and when the effect is disposed (disposal arrives with ownership).
+    /// the same effect and when the effect is disposed with its owner.
     /// If the scheduler throws while the effect is created, the exception escapes this call but the
     /// effect still exists and stays subscribed; its first apply runs on the next flush.
     /// </remarks>
@@ -36,20 +36,60 @@ public static partial class Reactivity
         new SplitEffect<T>(compute, apply).Start();
 
     /// <summary>
-    /// Registers <paramref name="cleanup" />. Directly inside an effect's apply, it runs before that
-    /// effect's next apply and on its disposal. Anywhere else (outside an apply, or in a computation
-    /// running inside one) the cleanup is dropped until ownership lands.
+    /// Runs <paramref name="body" /> under a new owner, untracked, and hands it the disposer, which
+    /// disposes everything created and registered under that owner. As in Solid 2.0.4, a root
+    /// created under an owner is owned by it and disposed with it; calling the disposer earlier
+    /// detaches it. Writing a signal directly in the body is allowed (Solid rejects it).
+    /// </summary>
+    public static T Root<T>(Func<Action, T> body) => new RootNode().Run(body);
+
+    /// <inheritdoc cref="Root{T}" />
+    public static void Root(Action<Action> body) =>
+        Root(dispose =>
+        {
+            body(dispose);
+
+            return true;
+        });
+
+    /// <summary>
+    /// Registers <paramref name="cleanup" /> on the current owner; cleanups of one owner run last
+    /// registered first. In a computation it runs before the next run and on disposal; in an
+    /// effect's apply (which has no owner), before the next apply of that effect and on its disposal;
+    /// in a root body, on the root's disposal. Anywhere else it does nothing (Solid warns in dev).
     /// </summary>
     public static void OnCleanup(Action cleanup)
     {
-        var apply = Tracking.ActiveApply;
+        var owner = Tracking.CurrentOwner;
 
-        // An apply runs with no observer and every computation with one, so a non-null observer means
-        // a computation nested in the apply, which must not attach to the apply. Ownership (Task 5)
-        // attaches cleanups outside an apply to the current owner.
-        if (apply is not null && Tracking.ActiveObserver is null)
+        if (owner is not null)
         {
-            apply.AddApplyCleanup(cleanup);
+            owner.AddCleanup(cleanup);
+        }
+        else
+        {
+            Tracking.ActiveApply?.AddApplyCleanup(cleanup);
+        }
+    }
+
+    /// <summary>
+    /// Runs <paramref name="body" /> with no observer, so its reads subscribe nothing. The current
+    /// owner is kept: computations created inside are still owned, and a signal write inside a
+    /// computation still throws.
+    /// </summary>
+    public static T Untrack<T>(Func<T> body)
+    {
+        var previousObserver = Tracking.ActiveObserver;
+
+        Tracking.ActiveObserver = null;
+
+        try
+        {
+            return body();
+        }
+        finally
+        {
+            Tracking.ActiveObserver = previousObserver;
         }
     }
 }

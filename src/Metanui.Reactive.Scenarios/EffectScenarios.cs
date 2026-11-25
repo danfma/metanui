@@ -17,8 +17,12 @@ public static class EffectScenarios
         new Scenario("apply is untracked", ApplyIsUntracked),
         new Scenario("apply cleanup runs before the next apply", ApplyCleanupRunsBeforeNextApply),
         new Scenario(
-            "cleanup in a computation nested in an apply stays out of the apply",
-            NestedCleanupStaysOutOfApply
+            "creating a computation inside an apply throws",
+            CreatingComputationInsideApplyThrows
+        ),
+        new Scenario(
+            "cleanup of a computed recomputed in an apply belongs to the computed",
+            ComputedCleanupInApplyBelongsToComputed
         ),
         new Scenario("write in apply schedules another pass", WriteInApplySchedulesAnotherPass),
         new Scenario("effect write loop throws", EffectWriteLoopThrows),
@@ -169,10 +173,54 @@ public static class EffectScenarios
         expect.Equal("apply1,cleanup1,apply2,", log, "cleanup order");
     }
 
-    private static void NestedCleanupStaysOutOfApply(IExpect expect)
+    // Solid 2.0.4 PRIMITIVE_IN_EFFECT_CALLBACK: an apply has no owner, so nothing created there
+    // would ever be disposed.
+    private static void CreatingComputationInsideApplyThrows(IExpect expect)
+    {
+        Exception? computedError = null;
+        Exception? effectError = null;
+        Exception? rootError = null;
+
+        Reactivity.Effect(
+            () => 0,
+            (value, previous) =>
+            {
+                computedError = ScenarioRunner.Catch(() =>
+                {
+                    var computed = new Computed<int>(() => 1);
+                });
+
+                effectError = ScenarioRunner.Catch(() =>
+                    Reactivity.Effect(() => 1, (innerValue, innerPrevious) => { })
+                );
+
+                rootError = ScenarioRunner.Catch(() => Reactivity.Root(dispose => { }));
+            }
+        );
+
+        Reactivity.Flush();
+
+        expect.IsTrue(computedError is InvalidOperationException, "computed in an apply throws");
+        expect.IsTrue(effectError is InvalidOperationException, "effect in an apply throws");
+        expect.IsTrue(rootError is InvalidOperationException, "root in an apply throws");
+    }
+
+    // The computed is created outside the apply and (re)computed while the apply reads it: the
+    // cleanup it registers belongs to the computed, so it runs when the computed recomputes during
+    // the second apply, never as a cleanup of the first apply.
+    private static void ComputedCleanupInApplyBelongsToComputed(IExpect expect)
     {
         var log = "";
         var count = new Signal<int>(1);
+
+        var nested = new Computed<int>(() =>
+        {
+            var value = count.Value;
+
+            Reactivity.OnCleanup(() => log += "computed-cleanup" + value + ",");
+
+            return value;
+        });
 
         Reactivity.Effect(
             () => count.Value,
@@ -180,24 +228,7 @@ public static class EffectScenarios
             {
                 log += "apply" + value + ",";
 
-                var nested = new Computed<int>(() =>
-                {
-                    Reactivity.OnCleanup(() => log += "computed-cleanup,");
-
-                    return value;
-                });
-
                 var read = nested.Value;
-
-                Reactivity.Effect(
-                    () =>
-                    {
-                        Reactivity.OnCleanup(() => log += "effect-cleanup,");
-
-                        return read;
-                    },
-                    (innerValue, innerPrevious) => { }
-                );
             }
         );
 
@@ -205,7 +236,7 @@ public static class EffectScenarios
         count.Value = 2;
         Reactivity.Flush();
 
-        expect.Equal("apply1,apply2,", log, "no nested cleanup ran with the outer apply");
+        expect.Equal("apply1,apply2,computed-cleanup1,", log, "the cleanup ran with its computed");
     }
 
     private static void WriteInApplySchedulesAnotherPass(IExpect expect)

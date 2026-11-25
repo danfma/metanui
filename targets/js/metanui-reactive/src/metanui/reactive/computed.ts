@@ -2,13 +2,13 @@ import { defaultEqualityComparerFor, throwError, type ClassType } from "metano-r
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { DependencyGraph } from "./graph/dependency-graph.js";
 import { ReactiveFlags } from "./graph/reactive-flags.js";
-import { ReactiveNode } from "./graph/reactive-node.js";
+import { OwnerNode } from "./ownership/owner-node.js";
 import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
 
 let Computed$rt: ClassType<Computed<unknown>> | undefined;
 
-export class Computed<T> extends ReactiveNode {
+export class Computed<T> extends OwnerNode {
   private readonly _compute: () => T;
   private readonly _comparer: IEqualityComparer<T>;
   private _value: T = null!;
@@ -26,7 +26,7 @@ export class Computed<T> extends ReactiveNode {
       fullName: "Metanui.Reactive.Computed`1",
       namespace: "Metanui.Reactive",
       ctor: Computed,
-      base: () => ReactiveNode.$runtimeType,
+      base: () => OwnerNode.$runtimeType,
       interfaces: [],
       typeParameters: ["T"],
       isAbstract: false,
@@ -54,10 +54,13 @@ export class Computed<T> extends ReactiveNode {
 
   /** @internal */
   update(): boolean {
+    this.disposeOwned();
     this.depsTail = null;
     this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
     const previousObserver = Tracking.activeObserver;
+    const previousOwner = Tracking.currentOwner;
     Tracking.activeObserver = this;
+    Tracking.currentOwner = this;
     try {
       Tracking.cycle = (Tracking.cycle + 1) | 0;
       const next = this._compute();
@@ -71,6 +74,7 @@ export class Computed<T> extends ReactiveNode {
       return true;
     } finally {
       Tracking.activeObserver = previousObserver;
+      Tracking.currentOwner = previousOwner;
       this.flags &= ~ReactiveFlags.RecursedCheck;
       DependencyGraph.purgeDeps(this);
     }
@@ -89,6 +93,14 @@ export class Computed<T> extends ReactiveNode {
 
     this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
     DependencyGraph.disposeAllDepsInReverse(this);
+    this.disposeOwned();
+  }
+
+  /** @internal */
+  onDisposed(): void {
+    this.depsTail = null;
+    this.flags = ReactiveFlags.Mutable;
+    DependencyGraph.purgeDeps(this);
   }
 
   private refresh(): void {
@@ -130,11 +142,14 @@ export class Computed<T> extends ReactiveNode {
   private runFirst(): void {
     this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
     const previousObserver = Tracking.activeObserver;
+    const previousOwner = Tracking.currentOwner;
     Tracking.activeObserver = this;
+    Tracking.currentOwner = this;
     try {
       this._value = this._compute();
     } finally {
       Tracking.activeObserver = previousObserver;
+      Tracking.currentOwner = previousOwner;
       this.flags &= ~ReactiveFlags.RecursedCheck;
     }
   }

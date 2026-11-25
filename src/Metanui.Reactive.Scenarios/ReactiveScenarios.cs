@@ -9,5 +9,6 @@ public static class ReactiveScenarios
         .. ComputedScenarios.All,
         .. EffectScenarios.All,
         .. FlushScenarios.All,
+        .. OwnershipScenarios.All,
     ];
 }
