@@ -1,8 +1,8 @@
 import { EffectNode } from "./effect-node.js";
 
 export class SplitEffect<T> extends EffectNode {
-  private readonly _compute: () => T;
-  private readonly _apply: (arg1: T, arg2: T) => void;
+  private _compute: (() => T) | null;
+  private _apply: ((arg1: T, arg2: T) => void) | null;
   private _value: T = null!;
   private _applied: T = null!;
   private _hasApplied: boolean = false;
@@ -14,13 +14,24 @@ export class SplitEffect<T> extends EffectNode {
   }
 
   protected compute(): void {
-    this._value = this._compute();
+    const value = this._compute!();
+
+    if (!this.isDisposed) {
+      this._value = value;
+    }
   }
 
   protected apply(): void {
     const previous = this._hasApplied ? this._applied : this._value;
     this._applied = this._value;
     this._hasApplied = true;
-    this._apply(this._value, previous);
+    this._apply!(this._value, previous);
+  }
+
+  protected releaseUserState(): void {
+    this._compute = null;
+    this._apply = null;
+    this._value = null!;
+    this._applied = null!;
   }
 }

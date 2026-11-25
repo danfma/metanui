@@ -14,8 +14,8 @@ namespace Metanui.Reactive;
 /// </remarks>
 public sealed class Computed<T> : OwnerNode
 {
-    private readonly Func<T> _compute;
-    private readonly IEqualityComparer<T> _comparer;
+    private Func<T>? _compute;
+    private IEqualityComparer<T>? _comparer;
     private T _value = default!;
     private Exception? _error;
     private int _errorPass;
@@ -65,10 +65,15 @@ public sealed class Computed<T> : OwnerNode
     /// <summary>
     /// Disposes what the previous run created, runs the function again and reports whether the
     /// result differs from the cached one. A run that throws caches the error and reports a change, and
-    /// so does the first good run after an error.
+    /// so does the first good run after an error. The function and the comparer are read first: a
+    /// cleanup or a run that disposes this computed releases them, and the run still completes, so a
+    /// later read returns its result.
     /// </summary>
     internal override bool Update()
     {
+        var compute = _compute!;
+        var comparer = _comparer!;
+
         DisposeOwned();
 
         var wasErrored = (Flags & ReactiveFlags.Errored) != 0;
@@ -87,9 +92,9 @@ public sealed class Computed<T> : OwnerNode
         {
             ++Tracking.Cycle;
 
-            var next = _compute();
+            var next = compute();
 
-            if (!wasErrored && _comparer.Equals(_value, next))
+            if (!wasErrored && comparer.Equals(_value, next))
             {
                 return false;
             }
@@ -136,13 +141,16 @@ public sealed class Computed<T> : OwnerNode
     /// <summary>
     /// Unsubscribes from every dependency and freezes the cached value or error: a later read returns
     /// or rethrows it without recomputing (Solid: "a post-disposal read freezes at the last committed
-    /// value").
+    /// value"). The function and the comparer are released, since nothing runs them again; the cached
+    /// value and error stay, as the frozen read returns them.
     /// </summary>
     internal override void OnDisposed()
     {
         DepsTail = null;
         Flags = ReactiveFlags.Mutable | (Flags & ReactiveFlags.Errored);
         DependencyGraph.PurgeDeps(this);
+        _compute = null;
+        _comparer = null;
     }
 
     private void Refresh()
@@ -202,7 +210,7 @@ public sealed class Computed<T> : OwnerNode
 
         try
         {
-            _value = _compute();
+            _value = _compute!();
         }
         catch (Exception error)
         {

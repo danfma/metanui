@@ -28,6 +28,22 @@ public static class OwnershipScenarios
             WriteInRootInsideComputedThrows
         ),
         new Scenario("write in a root nested in a root is allowed", WriteInNestedRootIsAllowed),
+        new Scenario(
+            "disposed queued effect releases its closures",
+            DisposedQueuedEffectReleasesItsClosures
+        ),
+        new Scenario(
+            "apply cleanup that disposes its effect skips the apply",
+            ApplyCleanupThatDisposesItsEffectSkipsTheApply
+        ),
+        new Scenario(
+            "compute cleanup that disposes its effect skips the compute",
+            ComputeCleanupThatDisposesItsEffectSkipsTheCompute
+        ),
+        new Scenario(
+            "computed disposed by its own cleanup keeps the value of that run",
+            ComputedDisposedByItsOwnCleanupKeepsTheValueOfThatRun
+        ),
     ];
 
     private static void RootDisposeRunsCleanupsInReverse(IExpect expect)
@@ -245,4 +261,146 @@ public static class OwnershipScenarios
         expect.IsTrue(error is null, "the write in the nested root does not throw");
         expect.Equal(1, target.Value, "committed value");
     }
+
+    // No flush runs between the creation and the disposal, so the first apply is still queued when
+    // the root is disposed. That the closures are released is checked by bench/reactivity/probes/retain.ts.
+    private static void DisposedQueuedEffectReleasesItsClosures(IExpect expect)
+    {
+        var marker = new Marker("captured");
+        var computes = 0;
+        var applies = 0;
+        var cleanups = 0;
+        var source = Reactivity.Signal(0);
+
+        var dispose = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.Effect(
+                () =>
+                {
+                    computes++;
+                    Reactivity.OnCleanup(() => cleanups++);
+
+                    return marker.Name + source.Value;
+                },
+                (value, previous) =>
+                {
+                    applies++;
+                    Reactivity.OnCleanup(() => cleanups++);
+                }
+            );
+
+            return disposeRoot;
+        });
+
+        dispose();
+
+        expect.Equal(1, cleanups, "cleanups run by the disposal");
+
+        Reactivity.Flush();
+
+        expect.Equal(0, applies, "applies after the flush that drains the queue");
+        expect.Equal(1, cleanups, "cleanups after the flush that drains the queue");
+
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, computes, "computes after writing the source");
+        expect.Equal(0, applies, "applies after writing the source");
+        expect.Equal(1, cleanups, "cleanups after writing the source");
+    }
+
+    // The cleanup registered by the first apply runs before the second one and disposes the effect.
+    private static void ApplyCleanupThatDisposesItsEffectSkipsTheApply(IExpect expect)
+    {
+        var applies = 0;
+        var source = Reactivity.Signal(0);
+        Action dispose = () => { };
+
+        dispose = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.Effect(
+                () => source.Value,
+                (value, previous) =>
+                {
+                    applies++;
+                    Reactivity.OnCleanup(() => dispose());
+                }
+            );
+
+            return disposeRoot;
+        });
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, applies, "applies after the cleanup disposed the effect");
+    }
+
+    // The cleanup registered by the first compute runs before the second one and disposes the effect.
+    private static void ComputeCleanupThatDisposesItsEffectSkipsTheCompute(IExpect expect)
+    {
+        var computes = 0;
+        var source = Reactivity.Signal(0);
+        Action dispose = () => { };
+
+        dispose = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.Effect(
+                () =>
+                {
+                    computes++;
+                    Reactivity.OnCleanup(() => dispose());
+
+                    return source.Value;
+                },
+                (value, previous) => { }
+            );
+
+            return disposeRoot;
+        });
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, computes, "computes after the cleanup disposed the effect");
+    }
+
+    // The cleanup registered by the first run disposes the computed before the second run, which
+    // still runs, and a later read returns the value of that run.
+    private static void ComputedDisposedByItsOwnCleanupKeepsTheValueOfThatRun(IExpect expect)
+    {
+        var runs = 0;
+        var source = Reactivity.Signal(0);
+        Action dispose = () => { };
+
+        var computed = Reactivity.Root(disposeRoot =>
+        {
+            dispose = disposeRoot;
+
+            return Reactivity.Computed(() =>
+            {
+                runs++;
+                Reactivity.OnCleanup(() => dispose());
+
+                return source.Value * 10;
+            });
+        });
+
+        expect.Equal(0, computed.Value, "initial value");
+
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(10, computed.Value, "value of the run after the cleanup disposed it");
+
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal(10, computed.Value, "a later read returns the frozen value");
+        expect.Equal(2, runs, "runs");
+    }
+
+    private sealed record Marker(string Name);
 }

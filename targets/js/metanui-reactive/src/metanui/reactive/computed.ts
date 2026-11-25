@@ -11,8 +11,8 @@ import type { IEqualityComparer } from "metano-runtime/system/collections";
 let Computed$rt: ClassType<Computed<unknown>> | undefined;
 
 export class Computed<T> extends OwnerNode {
-  private readonly _compute: () => T;
-  private readonly _comparer: IEqualityComparer<T>;
+  private _compute: (() => T) | null = null;
+  private _comparer: IEqualityComparer<T> | null = null;
   private _value: T = null!;
   private _error: Exception | null = null;
   private _errorPass: number = 0;
@@ -66,6 +66,8 @@ export class Computed<T> extends OwnerNode {
 
   /** @internal */
   update(): boolean {
+    const compute = this._compute!;
+    const comparer = this._comparer!;
     this.disposeOwned();
     const wasErrored = (this.flags & ReactiveFlags.Errored) !== 0;
     this._error = null;
@@ -77,9 +79,9 @@ export class Computed<T> extends OwnerNode {
     Tracking.currentOwner = this;
     try {
       Tracking.cycle = (Tracking.cycle + 1) | 0;
-      const next = this._compute();
+      const next = compute();
 
-      if (!wasErrored && this._comparer.equals(this._value, next)) {
+      if (!wasErrored && comparer.equals(this._value, next)) {
         return false;
       }
 
@@ -121,6 +123,8 @@ export class Computed<T> extends OwnerNode {
     this.depsTail = null;
     this.flags = ReactiveFlags.Mutable | this.flags & ReactiveFlags.Errored;
     DependencyGraph.purgeDeps(this);
+    this._compute = null;
+    this._comparer = null;
   }
 
   private refresh(): void {
@@ -166,7 +170,7 @@ export class Computed<T> extends OwnerNode {
     Tracking.activeObserver = this;
     Tracking.currentOwner = this;
     try {
-      this._value = this._compute();
+      this._value = this._compute!();
     } catch (e$) {
       const e0 = toException(e$);
       const error = e0;
