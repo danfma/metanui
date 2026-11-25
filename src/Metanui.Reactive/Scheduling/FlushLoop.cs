@@ -83,7 +83,7 @@ internal static class FlushLoop
     }
 
     /// <summary>
-    /// Queues an errored computed for a retry (spec 4.2), once until the next pass invalidates it, and
+    /// Queues an errored computed for a retry (spec 4.2), once until the next pass runs it, and
     /// requests a flush for it.
     /// </summary>
     public static void EnqueueRetry(ComputedNode computed)
@@ -176,10 +176,10 @@ internal static class FlushLoop
     public static bool IsRunning => _running;
 
     /// <summary>
-    /// Runs the flush (spec 4.7) in passes until no work is left: invalidate the computeds queued
-    /// for a retry, commit every pending write, propagate from the signals that changed, run the
-    /// queued effect computes in queue order, then the applies they produced. Writes made by the
-    /// applies, and retries queued by the computes, start another pass. Called while a flush is
+    /// Runs the flush (spec 4.7) in passes until no work is left: retry the computeds queued for a
+    /// retry and propagate from the ones that recovered, commit every pending write, propagate from
+    /// the signals that changed, run the queued effect computes in queue order, then the applies they
+    /// produced. Writes made by the applies, and retries queued by the computes, start another pass. Called while a flush is
     /// running, it returns at once and lets the running flush drain.
     /// </summary>
     /// <remarks>

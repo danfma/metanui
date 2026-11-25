@@ -105,13 +105,13 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override retryAtPassStart(): boolean {
-    if (this.isDisposed) {
+    if (this.isDisposed || (this.flags & ReactiveFlags.Errored) === 0) {
       return false;
     }
 
-    this.flags |= ReactiveFlags.Dirty;
+    this.update();
 
-    return true;
+    return (this.flags & ReactiveFlags.Errored) === 0;
   }
 
   /** @internal */

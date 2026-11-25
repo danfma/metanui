@@ -41,8 +41,16 @@ public static class ErrorScenarios
             RetryNeverShowsAMixOfRecoveredAndOldValue
         ),
         new Scenario(
-            "retry that fails again gives an already pending sibling the new error",
-            RetryThatFailsAgainReachesAPendingSibling
+            "retry that fails again leaves an already pending sibling on the first error",
+            RetryThatFailsAgainKeepsThePendingSiblingOnTheFirstError
+        ),
+        new Scenario(
+            "always failing computed runs its observer and its boundary once per change",
+            AlwaysFailingComputedRunsObserverAndBoundaryOncePerChange
+        ),
+        new Scenario(
+            "retry of a computed whose error an unwatch cleared does not run",
+            RetryOfComputedClearedByUnwatchDoesNotRun
         ),
         new Scenario(
             "errored computed re-read by several observers is retried once",
@@ -459,9 +467,11 @@ public static class ErrorScenarios
 
     /// <summary>
     /// The shape of <see cref="RetryRecoveryUpdatesAPendingSibling" /> with a computed that fails on
-    /// every run: the effect must end on the retry's new error, not keep the first one.
+    /// every run. The retry runs at the start of the next pass and fails again; its observers already
+    /// saw an error for this change, so it notifies none of them. The effect keeps the first error
+    /// instance until it runs again for another reason: the accepted trade-off of spec 4.2.
     /// </summary>
-    private static void RetryThatFailsAgainReachesAPendingSibling(IExpect expect)
+    private static void RetryThatFailsAgainKeepsThePendingSiblingOnTheFirstError(IExpect expect)
     {
         var runs = 0;
         var seen = "";
@@ -500,8 +510,125 @@ public static class ErrorScenarios
         trigger.Value = 1;
         Reactivity.Flush();
 
-        expect.Equal("e2", seen, "the effect sees the retry's error");
-        expect.Equal(2, runs, "the function ran once more");
+        expect.Equal("e1", seen, "the effect keeps the first error");
+        expect.Equal(2, runs, "the retry ran the function once more");
+    }
+
+    /// <summary>
+    /// A computed that fails on every run, read by an effect under a boundary that also reads a
+    /// trigger: each trigger change reruns the effect once and reaches the boundary once. The retry
+    /// that change asks for fails again in the next pass and notifies nobody.
+    /// </summary>
+    private static void AlwaysFailingComputedRunsObserverAndBoundaryOncePerChange(IExpect expect)
+    {
+        var runs = 0;
+        var computes = 0;
+        var handled = 0;
+        var trigger = Reactivity.Signal(0);
+
+        var broken = Reactivity.Computed<int>(() =>
+        {
+            runs++;
+
+            throw new InvalidOperationException($"e{runs}");
+        });
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.Effect(
+                    () =>
+                    {
+                        computes++;
+                        _ = trigger.Value;
+
+                        return broken.Value;
+                    },
+                    (value, previous) => { }
+                ),
+            error => handled++
+        );
+
+        Reactivity.Flush();
+
+        expect.Equal(1, computes, "computes after the first run");
+        expect.Equal(1, handled, "boundary calls after the first run");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(2, computes, "one compute for the first change");
+        expect.Equal(2, handled, "one boundary call for the first change");
+        expect.Equal(2, runs, "the retry ran the function once");
+
+        trigger.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal(3, computes, "one compute for the second change");
+        expect.Equal(3, handled, "one boundary call for the second change");
+        expect.Equal(3, runs, "the second retry ran the function once");
+    }
+
+    /// <summary>
+    /// A retry is queued outside a flush, then the reader that asked for it is disposed: the computed
+    /// loses its last subscriber, which clears its error, and an effect reads it again before the
+    /// flush. The computed is no longer errored, so the flush skips the retry instead of running the
+    /// function and the effect again.
+    /// </summary>
+    private static void RetryOfComputedClearedByUnwatchDoesNotRun(IExpect expect)
+    {
+        var runs = 0;
+        var computes = 0;
+        var applies = "";
+        var source = Reactivity.Signal(0);
+        var trigger = Reactivity.Signal(0);
+
+        var flaky = Reactivity.Computed(() =>
+        {
+            runs++;
+
+            var value = source.Value;
+
+            return runs == 1 ? throw new InvalidOperationException("First run fails.") : value;
+        });
+
+        var graph = Reactivity.Root(dispose =>
+        {
+            var reader = Reactivity.Computed(() =>
+            {
+                _ = trigger.Value;
+
+                return ReadOr(flaky, -1);
+            });
+
+            return new OwnedRetryGraph(flaky, reader, dispose);
+        });
+
+        expect.Equal(-1, graph.Reader.Peek(), "the reader first sees the error");
+
+        // The commit leaves the reader pending in a later pass than the failure; refreshing it
+        // re-reads flaky and queues the retry. Disposing the reader unwatches flaky.
+        trigger.Value = 1;
+        Reactivity.Flush();
+        _ = graph.Reader.Peek();
+        graph.Dispose();
+
+        Reactivity.Effect(
+            () =>
+            {
+                computes++;
+
+                return flaky.Value;
+            },
+            (value, previous) => applies += value + ","
+        );
+
+        expect.Equal(2, runs, "the read after the unwatch ran the function again");
+
+        Reactivity.Flush();
+
+        expect.Equal(2, runs, "the flush skips the retry");
+        expect.Equal(1, computes, "the effect computed once");
+        expect.Equal("0,", applies, "applies");
     }
 
     /// <summary>

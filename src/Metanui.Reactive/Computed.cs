@@ -122,19 +122,22 @@ public sealed class Computed<T> : ComputedNode
     }
 
     /// <summary>
-    /// Marks the computed dirty, so its next read runs the function again, and reports a change, since
-    /// a retry always replaces the error. A computed disposed since it was queued is skipped.
+    /// Runs the function again, before the pass commits anything, and reports whether it recovered:
+    /// only a recovery is a change for the subscribers. A run that fails again keeps the new error
+    /// silently, since every observer already saw an error for the change that asked for the retry.
+    /// A computed disposed since it was queued, or no longer errored (an unwatch cleared the error,
+    /// or a read recomputed it), is skipped.
     /// </summary>
     internal override bool RetryAtPassStart()
     {
-        if (IsDisposed)
+        if (IsDisposed || (Flags & ReactiveFlags.Errored) == 0)
         {
             return false;
         }
 
-        Flags |= ReactiveFlags.Dirty;
+        Update();
 
-        return true;
+        return (Flags & ReactiveFlags.Errored) == 0;
     }
 
     /// <summary>Computeds are never notified: only watching nodes (effects) are.</summary>
