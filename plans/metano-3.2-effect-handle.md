@@ -51,7 +51,7 @@ Done in ec928dc..a24116b. Verified with 0 warnings, 72/72 on .NET, 74/74 on Bun 
   - #768: setter imports. `RejectWriteInsideComputation` stays out of line on purpose.
   - #772: native labeled `continue`, which is leaner than the rewrite.
   - #773: discards.
-  - #775
+  - #774: the nullable-local walk (partly replaced by the #796 workaround below).
   - #778: `root` from TS with any arity.
   - #779: deconstruction.
   - #764/#765: `MetanoPackageRoot` and the seeded `version`.
@@ -104,7 +104,7 @@ This was parked by the core's final review. Repro shape:
 Once C's retry recovers `flaky`, `ShallowPropagate` sets E Dirty. But `CheckDirty(E)` returns false, and `RunIfDirty` re-arms `Watching`, which wipes Dirty. So E keeps -1.
 
 - [x] Scenario `RetryRecoveryUpdatesAPendingSibling`, reproducing exactly the shape above. It must fail on the current code.
-- [x] Fix: in `EffectNode.RunIfDirty`, re-test `(Flags & ReactiveFlags.Dirty) != 0` after `CheckDirty` returns false, before re-arming. Check whether `Computed` has the same gap (a computed sibling read through `Refresh`/`CheckDirty`). If it does, fix it the same way and add a scenario.
+- [x] ~~Fix: in `EffectNode.RunIfDirty`, re-test `(Flags & ReactiveFlags.Dirty) != 0` after `CheckDirty` returns false, before re-arming.~~ **Superseded** by the deferred retry (see the Phase Summary): the interim re-tests were removed. Check whether `Computed` has the same gap (a computed sibling read through `Refresh`/`CheckDirty`). If it does, fix it the same way and add a scenario.
 - [x] Hot path: this is one flag read, on the not-dirty branch only.
 
 ### Verification Plan
@@ -123,13 +123,14 @@ Done in 0584165, 9dec4a2 and a61517d. 80/80 pass on .NET and 82 on Bun, with str
   - Queuing the same computed twice is guarded. The scenario for the A,B / A,C order is deferred, see the ledger.
 - **Spec:** 4.2 records the one-pass timing as a deviation from Solid's F-9, and the 4.7 flowchart shows the retry step.
 - **Scenarios added:** three stale-sibling shapes, the glitch shape, error→error, disposed-on-chain and queue-once.
+- **Revised in the final fix wave:** the retry now runs eagerly at the start of the next pass and notifies only on recovery; error→error no longer reaches the observers (see the Final Recap).
 
 ---
 
 ## Task 4: Record the DSL-phase decisions (Phase 4)
 Status: Complete
 
-- [ ] Update `docs/handoff.md` and start `docs/design/0002-dsl-binding.md`, as a stub listing the open questions and the decisions taken so far:
+- [x] Update `docs/handoff.md` and start `docs/design/0002-dsl-binding.md`, as a stub listing the open questions and the decisions taken so far:
   - The **root as an object**: `Reactivity.CreateRoot()` returns an `IDisposable` scope with `Run<T>(Func<T>)` that can be re-entered. This covers owner capture (Solid `getOwner`/`runWithOwner`) for event handlers and async continuations. The callback `Root` stays as the low-level form.
   - Users rarely see roots. `Render(App, container)` creates the app root. `For` creates one root per item and `Show` one per branch. Components run under the current owner and are not roots. Roots that users create are for long-lived state outside the UI.
   - Disposal stays **synchronous** (`IDisposable`, not `IAsyncDisposable`), matching Solid 2. Async support (async computeds, `isPending`, possibly async cleanups) belongs to the async phase. Spec §5.4 reserves the bits for it.
@@ -145,7 +146,22 @@ Done in the docs commit. `docs/design/0002-dsl-binding.md` is a stub with the de
 ---
 
 ## Final Recap
-_(write when all phases complete)_
+
+Tasks 1, 3 and 4 are done; Task 2 is blocked on Metano #800 (`IDisposable` mapping, due in 3.3.0), with its work in progress on branch `wip/effect-handle` (2d7f3dd). **The plan stays open for Task 2.**
+
+- **Task 1:** Metano 3.2.0 everywhere; the 3.1.0 workarounds are gone except #796 (`Link?` in `ShallowPropagate`) and #794 (`Missing<T>`); MS0063 is exempted with a temporary, commented `NoWarn` (#799).
+- **Task 3:** the F-9 retry of an errored computed is deferred to the next flush pass, which removed the stale-sibling bug and the in-flush glitch without touching the DependencyGraph walks.
+- **Task 4:** `docs/design/0002-dsl-binding.md` stub and refreshed handoff.
+- **Final review fix wave:**
+  - The retry runs eagerly at the start of the next pass (`ComputedNode.RetryAtPassStart`), before the commit. A recovery propagates like a signal commit; a run that fails again keeps its error silently, so an always-failing computed costs one observer run and one boundary call per change (before, it cost two); a computed whose error an unwatch cleared is skipped. Spec 4.2 records the rule and its trade-off (an observer keeps the first error instance until it runs again for another reason).
+  - The retry queue link moved from `OwnerNode` to a new `ComputedNode` base, so effects and roots carry no scheduling state.
+  - An errored computed's reader is linked before the retry is queued, so a throwing scheduler no longer drops the subscription.
+  - Readability fixes, spec 4.4/4.5 notes on pending retries, audit markers for the 3.1.0 rows, and the 0002/handoff updates (root scope blocked on #800, re-entrant `Run` rules, layering).
+- **Open Metano issues:** #776, #781, #786, #787, #794, #796, #797, #798, #799, #800 (see the handoff and the audit).
 
 ## Deployment Plan
-_(write when all phases complete)_
+
+- From a clean clone on Metano 3.2.0: `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet test tests/Metanui.Reactive.Tests`, `bun install`, `bun test tests/js/reactive`, `scripts/bench-reactivity.sh test`, and strict tsc on both generated packages.
+- After removing or renaming a `.cs` file, delete every `.metano-stamp` under `targets/js` before building, or the stale `.ts` stays (#797).
+- The PR targets `feat/reactive-core` (PR #1). Benchmarks were not re-measured on 3.2.0; re-measure before quoting numbers.
+- Task 2 resumes from `wip/effect-handle` once Metano 3.3.0 ships #800.
