@@ -1,3 +1,4 @@
+import { ArgumentNullException } from "metano-runtime/system/exceptions/argument-null-exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import type { EffectNode } from "../effects/effect-node.js";
 import { DependencyGraph } from "../graph/dependency-graph.js";
@@ -12,7 +13,7 @@ export class FlushLoop {
   private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
   private static readonly runFlush: () => void = FlushLoop.run;
   private static readonly resumeFlush: () => void = FlushLoop.resume;
-  static scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
+  private static _scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
   private static _head: SignalNode | null = null;
   private static _tail: SignalNode | null = null;
   private static _computeHead: EffectNode | null = null;
@@ -25,8 +26,25 @@ export class FlushLoop {
 
   constructor() { }
 
+  static get scheduler(): IFlushScheduler {
+    return FlushLoop._scheduler;
+  }
+
   static get isRunning(): boolean {
     return FlushLoop._running;
+  }
+
+  static replaceScheduler(scheduler: IFlushScheduler): void {
+    if (scheduler == null) {
+      throw new ArgumentNullException("scheduler");
+    }
+
+    FlushLoop._scheduler = scheduler;
+    FlushLoop._scheduled = false;
+
+    if (FlushLoop.hasWork()) {
+      FlushLoop.requestFlush();
+    }
   }
 
   static enqueue(node: SignalNode): void {
@@ -77,7 +95,7 @@ export class FlushLoop {
 
     FlushLoop._scheduled = true;
     try {
-      FlushLoop.scheduler.schedule(flush);
+      FlushLoop._scheduler.schedule(flush);
     } catch (_err) {
       FlushLoop._scheduled = false;
       throw _err;

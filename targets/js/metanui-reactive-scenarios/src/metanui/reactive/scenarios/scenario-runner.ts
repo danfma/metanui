@@ -8,20 +8,13 @@ export class ScenarioRunner {
   constructor() { }
 
   static run(scenario: Scenario, expect: IExpect): void {
-    let dispose = () => {
-    };
-    Reactivity.scheduler = new ManualFlushScheduler();
+    const outerScheduler = Reactivity.scheduler;
+    Reactivity.useScheduler(new ManualFlushScheduler());
     try {
-      Reactivity.rootActionOfAction((disposeRoot: () => void) => {
-        dispose = disposeRoot;
-        scenario.run(expect);
-      });
-      Reactivity.flush();
-    } catch (_err) {
-      ScenarioRunner.catch(() => ScenarioRunner.settle(dispose));
-      throw _err;
+      ScenarioRunner.runInRoot(scenario, expect);
+    } finally {
+      Reactivity.useScheduler(outerScheduler);
     }
-    ScenarioRunner.settle(dispose);
   }
 
   static catch(action: () => void): Exception | null {
@@ -35,6 +28,22 @@ export class ScenarioRunner {
 
       return exception;
     }
+  }
+
+  private static runInRoot(scenario: Scenario, expect: IExpect): void {
+    let dispose = () => {
+    };
+    try {
+      Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+        dispose = disposeRoot;
+        scenario.run(expect);
+      });
+      Reactivity.flush();
+    } catch (_err) {
+      ScenarioRunner.catch(() => ScenarioRunner.settle(dispose));
+      throw _err;
+    }
+    ScenarioRunner.settle(dispose);
   }
 
   private static settle(dispose: () => void): void {

@@ -12,7 +12,7 @@ public sealed class SynchronizationContextSchedulerTests
         var applied = new List<int>();
         var dispose = () => { };
 
-        Reactivity.Scheduler = new SynchronizationContextFlushScheduler(context);
+        Reactivity.UseScheduler(new SynchronizationContextFlushScheduler(context));
 
         try
         {
@@ -38,7 +38,7 @@ public sealed class SynchronizationContextSchedulerTests
         finally
         {
             dispose();
-            Reactivity.Scheduler = new ManualFlushScheduler();
+            Reactivity.UseScheduler(new ManualFlushScheduler());
             Reactivity.Flush();
         }
     }

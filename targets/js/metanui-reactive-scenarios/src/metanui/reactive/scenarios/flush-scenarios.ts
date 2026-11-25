@@ -1,4 +1,5 @@
 import { throwError } from "metano-runtime";
+import { ArgumentNullException } from "metano-runtime/system/exceptions/argument-null-exception";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity, type IFlushScheduler } from "metanui-reactive/metanui/reactive";
@@ -36,7 +37,7 @@ class FlushScenarios$ThrowingComparer {
 }
 
 export class FlushScenarios {
-  static readonly all: Scenario[] = [new Scenario("write during a flush schedules no extra flush", FlushScenarios.writeDuringFlushSchedulesNoExtraFlush), new Scenario("flush inside an apply is a no-op", FlushScenarios.flushInsideApplyIsNoOp), new Scenario("throwing scheduler does not block later writes", FlushScenarios.throwingSchedulerDoesNotBlockLaterWrites), new Scenario("throwing comparer still propagates committed signals", FlushScenarios.throwingComparerStillPropagates)];
+  static readonly all: Scenario[] = [new Scenario("write during a flush schedules no extra flush", FlushScenarios.writeDuringFlushSchedulesNoExtraFlush), new Scenario("flush inside an apply is a no-op", FlushScenarios.flushInsideApplyIsNoOp), new Scenario("throwing scheduler does not block later writes", FlushScenarios.throwingSchedulerDoesNotBlockLaterWrites), new Scenario("throwing comparer still propagates committed signals", FlushScenarios.throwingComparerStillPropagates), new Scenario("write before the scheduler is configured is flushed by the new scheduler", FlushScenarios.writeBeforeSchedulerIsConfiguredIsFlushedByNewScheduler), new Scenario("using a null scheduler throws", FlushScenarios.usingNullSchedulerThrows), new Scenario("nested scenario runner restores the outer scheduler", FlushScenarios.nestedRunnerRestoresOuterScheduler)];
 
   constructor() { }
 
@@ -45,8 +46,8 @@ export class FlushScenarios {
     const source = Reactivity.signal(0);
     const relayed = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number) => relayed.value = (value + 1) | 0);
+    Reactivity.flush();
     FlushScenarios.withScheduler(scheduler, () => {
-      Reactivity.flush();
       source.value = 1;
       Reactivity.flush();
     });
@@ -96,13 +97,46 @@ export class FlushScenarios {
     expect.isTrue(ScenarioRunner.catch(Reactivity.flush) == null, "the next flush is clean");
   }
 
+  private static writeBeforeSchedulerIsConfiguredIsFlushedByNewScheduler(expect: IExpect): void {
+    const scheduler = new FlushScenarios$CountingScheduler(false);
+    let applied = 0;
+    const source = Reactivity.signal(0);
+    Reactivity.effect(() => source.value, (value: number, previous: number) => applied = value);
+    Reactivity.flush();
+    source.value = 1;
+    FlushScenarios.withScheduler(scheduler, () => expect.equal(1, scheduler.requests, "the new scheduler is asked for the flush"));
+    Reactivity.flush();
+    expect.equal(1, applied, "the write made before the swap is applied");
+  }
+
+  private static usingNullSchedulerThrows(expect: IExpect): void {
+    const error = ScenarioRunner.catch(() => Reactivity.useScheduler(FlushScenarios.missing<IFlushScheduler>()));
+    expect.isTrue(error instanceof ArgumentNullException, "a null scheduler is rejected");
+  }
+
+  private static nestedRunnerRestoresOuterScheduler(expect: IExpect): void {
+    const scheduler = new FlushScenarios$CountingScheduler(false);
+    const inner = new Scenario("inner", (_: IExpect) => {
+    });
+    let restored = false;
+    FlushScenarios.withScheduler(scheduler, () => {
+      ScenarioRunner.run(inner, expect);
+      restored = Reactivity.scheduler === scheduler;
+    });
+    expect.isTrue(restored, "the outer scheduler is in use after the nested run");
+  }
+
+  private static missing<T>(): T {
+    return null!;
+  }
+
   private static withScheduler(scheduler: IFlushScheduler, action: () => void): void {
     const previous = Reactivity.scheduler;
-    Reactivity.scheduler = scheduler;
+    Reactivity.useScheduler(scheduler);
     try {
       action();
     } finally {
-      Reactivity.scheduler = previous;
+      Reactivity.useScheduler(previous);
     }
   }
 }

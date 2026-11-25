@@ -12,7 +12,7 @@ export interface WritableSignal {
 }
 
 export interface ReactivityApi {
-  scheduler: unknown;
+  useScheduler(scheduler: unknown): void;
   flush(): void;
   signal(initialValue: number): WritableSignal;
   computed(compute: () => number): ReadableNode;
@@ -33,7 +33,7 @@ export function variantModulePath(variant: string, file: string): string {
 export async function loadReactivity(variant: string): Promise<ReactivityApi> {
   const core = (await import(variantModulePath(variant, "index.ts"))) as CoreModule;
 
-  core.Reactivity.scheduler = new core.ManualFlushScheduler();
+  core.Reactivity.useScheduler(new core.ManualFlushScheduler());
 
   return core.Reactivity;
 }

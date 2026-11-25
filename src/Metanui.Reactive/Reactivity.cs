@@ -3,11 +3,20 @@ namespace Metanui.Reactive;
 /// <summary>Entry point of the reactive graph (one graph per process).</summary>
 public static partial class Reactivity
 {
-    public static IFlushScheduler Scheduler
-    {
-        get => FlushLoop.Scheduler;
-        set => FlushLoop.Scheduler = value;
-    }
+    /// <summary>
+    /// The scheduler that runs the flushes requested by writes: a <see cref="ManualFlushScheduler" />
+    /// until <see cref="UseScheduler" /> replaces it.
+    /// </summary>
+    public static IFlushScheduler Scheduler => FlushLoop.Scheduler;
+
+    /// <summary>
+    /// Makes <paramref name="scheduler" /> run the flushes from now on. When work is queued, the new
+    /// scheduler is asked for a flush at once, so writes made before the host configured its
+    /// scheduler are not stranded behind a request the previous scheduler never runs.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="scheduler" /> is null.</exception>
+    public static void UseScheduler(IFlushScheduler scheduler) =>
+        FlushLoop.ReplaceScheduler(scheduler);
 
     /// <summary>
     /// Applies the pending writes now and runs the flush to completion. Called while a flush is

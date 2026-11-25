@@ -317,7 +317,7 @@ public static class ErrorScenarios
 
         var previousScheduler = Reactivity.Scheduler;
 
-        Reactivity.Scheduler = scheduler;
+        Reactivity.UseScheduler(scheduler);
 
         try
         {
@@ -331,7 +331,7 @@ public static class ErrorScenarios
         }
         finally
         {
-            Reactivity.Scheduler = previousScheduler;
+            Reactivity.UseScheduler(previousScheduler);
         }
 
         Reactivity.Flush();
@@ -367,7 +367,7 @@ public static class ErrorScenarios
         var flushes = 0;
         Exception? last = null;
 
-        Reactivity.Scheduler = scheduler;
+        Reactivity.UseScheduler(scheduler);
 
         try
         {
@@ -385,7 +385,7 @@ public static class ErrorScenarios
         }
         finally
         {
-            Reactivity.Scheduler = previousScheduler;
+            Reactivity.UseScheduler(previousScheduler);
         }
 
         expect.Equal(101, flushes, "flushes until the pass limit");

@@ -20,7 +20,7 @@ internal static class FlushLoop
     /// <summary>The flush re-requested after a failed one: it continues that flush's pass budget.</summary>
     private static readonly Action ResumeFlush = Resume;
 
-    public static IFlushScheduler Scheduler = new ManualFlushScheduler();
+    private static IFlushScheduler _scheduler = new ManualFlushScheduler();
 
     private static SignalNode? _head;
     private static SignalNode? _tail;
@@ -37,6 +37,30 @@ internal static class FlushLoop
     /// pass limit across the flushes re-requested for it.
     /// </summary>
     private static int _passes;
+
+    /// <summary>The scheduler that runs the requested flushes.</summary>
+    public static IFlushScheduler Scheduler => _scheduler;
+
+    /// <summary>
+    /// Makes <paramref name="scheduler" /> run the flushes from now on. A flush requested from the
+    /// previous scheduler may never run (a manual one never runs it), so that request is forgotten
+    /// and, when work is queued, made again to the new scheduler.
+    /// </summary>
+    public static void ReplaceScheduler(IFlushScheduler scheduler)
+    {
+        if (scheduler is null)
+        {
+            throw new ArgumentNullException(nameof(scheduler));
+        }
+
+        _scheduler = scheduler;
+        _scheduled = false;
+
+        if (HasWork())
+        {
+            RequestFlush();
+        }
+    }
 
     /// <summary>Queues a signal whose pending write the next pass commits.</summary>
     public static void Enqueue(SignalNode node)
@@ -109,7 +133,7 @@ internal static class FlushLoop
 
         try
         {
-            Scheduler.Schedule(flush);
+            _scheduler.Schedule(flush);
         }
         catch
         {

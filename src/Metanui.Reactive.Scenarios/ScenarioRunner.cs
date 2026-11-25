@@ -7,13 +7,42 @@ public static class ScenarioRunner
     /// Runs <paramref name="scenario" /> from a clean graph: a manual scheduler, a root that owns
     /// everything the scenario creates, a final flush, then the root's disposal and a flush that
     /// drains whatever a failure left queued. When the scenario fails, that teardown still runs, and
-    /// its own errors are dropped so the scenario's error is the one reported.
+    /// its own errors are dropped so the scenario's error is the one reported. The scheduler in use
+    /// before the run is restored afterwards, so a nested run leaves the outer one intact.
     /// </summary>
     public static void Run(Scenario scenario, IExpect expect)
     {
-        Action dispose = () => { };
+        var outerScheduler = Reactivity.Scheduler;
 
-        Reactivity.Scheduler = new ManualFlushScheduler();
+        Reactivity.UseScheduler(new ManualFlushScheduler());
+
+        try
+        {
+            RunInRoot(scenario, expect);
+        }
+        finally
+        {
+            Reactivity.UseScheduler(outerScheduler);
+        }
+    }
+
+    public static Exception? Catch(Action action)
+    {
+        try
+        {
+            action();
+
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
+        }
+    }
+
+    private static void RunInRoot(Scenario scenario, IExpect expect)
+    {
+        Action dispose = () => { };
 
         try
         {
@@ -33,20 +62,6 @@ public static class ScenarioRunner
         }
 
         Settle(dispose);
-    }
-
-    public static Exception? Catch(Action action)
-    {
-        try
-        {
-            action();
-
-            return null;
-        }
-        catch (Exception exception)
-        {
-            return exception;
-        }
     }
 
     /// <summary>
