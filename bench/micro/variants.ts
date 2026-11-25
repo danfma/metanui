@@ -29,17 +29,6 @@ const shippedCheckDirty = `  static checkDirty(link: Link, sub: ReactiveNode): b
     }
   }`;
 
-const flagValues: Readonly<Record<string, number>> = {
-  None: 0,
-  Mutable: 1,
-  Watching: 2,
-  RecursedCheck: 4,
-  Recursed: 8,
-  Dirty: 16,
-  Pending: 32,
-  Errored: 64,
-};
-
 /** Replaces `search` once, and fails loudly when the generated code no longer contains it. */
 function replaceExact(root: string, file: string, search: string, replacement: string): void {
   const path = join(root, file);
@@ -64,8 +53,24 @@ function listTypeScriptFiles(directory: string): string[] {
   });
 }
 
+/** Reads the `Name: value` members of the generated `ReactiveFlags` object, so the literals follow the C# enum. */
+function readFlagValues(root: string): ReadonlyMap<string, number> {
+  const source = readFileSync(join(root, flagsFile), "utf8");
+  const body = /export const ReactiveFlags = \{([^}]*)\}/.exec(source)?.[1];
+
+  if (body === undefined) {
+    throw new Error(`Variant patch is stale: ${flagsFile} no longer declares the ReactiveFlags object.`);
+  }
+
+  const members = [...body.matchAll(/(\w+): (\d+),/g)];
+
+  return new Map(members.map(([, name, value]) => [name, Number(value)]));
+}
+
 function inlineFlagLiterals(root: string): void {
-  const pattern = /ReactiveFlags\.(None|Mutable|Watching|RecursedCheck|Recursed|Dirty|Pending|Errored)\b/g;
+  const flagValues = readFlagValues(root);
+  const pattern = new RegExp(`ReactiveFlags\\.(${[...flagValues.keys()].join("|")})\\b`, "g");
+  let replacements = 0;
 
   for (const path of listTypeScriptFiles(root)) {
     if (path.endsWith(flagsFile)) {
@@ -73,9 +78,18 @@ function inlineFlagLiterals(root: string): void {
     }
 
     const source = readFileSync(path, "utf8");
-    const inlined = source.replace(pattern, (_match, name: string) => String(flagValues[name]));
+
+    const inlined = source.replace(pattern, (_match, name: string) => {
+      replacements++;
+
+      return String(flagValues.get(name));
+    });
 
     writeFileSync(path, inlined);
+  }
+
+  if (replacements === 0) {
+    throw new Error("Variant patch is stale: no ReactiveFlags.X reference was replaced.");
   }
 }
 

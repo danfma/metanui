@@ -1,13 +1,31 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { median } from "./core.ts";
+import { median } from "../statistics.ts";
+import { workRoot } from "./core.ts";
 
 // Usage: bun run.ts [rounds=3] [variants=A,B,C]
 // Runs every workload and variant in its own Bun process, `rounds` times interleaved, and prints the
 // median of the per-process medians with every round's value, so the spread stays visible.
-const rounds = Number(process.argv[2] ?? "3");
+const rounds = parseRounds(process.argv[2] ?? "3");
 const variantNames = (process.argv[3] ?? "A,B,C").split(",");
 const workloads = ["deep", "wide", "many"];
 const directory = import.meta.dir;
+
+function parseRounds(argument: string): number {
+  const parsed = Number(argument);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`rounds must be a positive integer, got "${argument}"`);
+  }
+
+  return parsed;
+}
+
+for (const variant of variantNames) {
+  if (!existsSync(join(workRoot, variant))) {
+    throw new Error(`variant ${variant} is not prepared under .work: run \`bun prepare.ts\` first`);
+  }
+}
 
 interface OpsResult {
   readonly variant: string;

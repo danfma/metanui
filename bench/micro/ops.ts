@@ -1,4 +1,5 @@
-import { loadReactivity, median, type ReactivityApi, type ReadableNode } from "./core.ts";
+import { median } from "../statistics.ts";
+import { loadReactivity, type ReactivityApi, type ReadableNode } from "./core.ts";
 
 // Usage: bun ops.ts <variant> <deep|wide|many>
 // Prints the median µs per op (one write + flush) over 15 samples of 500 ops, after 2000 warm-up ops.

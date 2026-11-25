@@ -8,7 +8,7 @@ import {
 
 const bunExpect: IExpect = {
   equal<T>(expected: T, actual: T, label: string): void {
-    const message = `${label}: expected ${expected}, got ${actual}`;
+    const message = `${label}: expected ${Bun.inspect(expected)}, got ${Bun.inspect(actual)}`;
 
     expect(defaultEquals(expected, actual), message).toBe(true);
   },

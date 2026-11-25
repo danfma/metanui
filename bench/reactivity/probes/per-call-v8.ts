@@ -7,6 +7,7 @@ import { DependencyGraph as GraphB } from "../../micro/.work/B/metanui/reactive/
 import { Reactivity as ReactivityB } from "../../micro/.work/B/metanui/reactive/index.ts";
 import { DependencyGraph as GraphC } from "../../micro/.work/C/metanui/reactive/graph/dependency-graph.ts";
 import { Reactivity as ReactivityC } from "../../micro/.work/C/metanui/reactive/index.ts";
+import { median } from "../../statistics.ts";
 
 interface Variant {
   readonly reactivity: typeof ReactivityA;
@@ -57,8 +58,7 @@ function measure(label: string, call: () => unknown): void {
     samples.push(((performance.now() - start) * 1e6) / callsPerSample);
   }
 
-  samples.sort((left, right) => left - right);
-  console.log(`${name} ${label}: median ${samples[Math.floor(sampleCount / 2)].toFixed(2)} ns per call`);
+  console.log(`${name} ${label}: median ${median(samples).toFixed(2)} ns per call`);
 }
 
 measure("checkDirty", () => graph.checkDirty(derivedDeps, derived));
