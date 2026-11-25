@@ -59,14 +59,16 @@ public sealed class Signal<T> : SignalNode
         }
     }
 
-    // Kept out of line on purpose: the cold rejection path (RootNode, Teardown and the throw)
-    // stays out of the setter, which every write runs.
     /// <summary>
     /// Solid 2.0.4 rejects a write while the current owner is a computation, tracked or not (inside
     /// <see cref="Reactivity.Untrack{T}" /> too), or a root created under one. A root outside every
     /// computation and an apply (no owner) allow writes, and so does a cleanup run by a disposal
     /// (Solid <c>disposalDepth</c>). Called only when there is an owner.
     /// </summary>
+    /// <remarks>
+    /// Kept out of line on purpose: the cold rejection path (RootNode, Teardown and the throw) stays
+    /// out of the setter, which every write runs.
+    /// </remarks>
     private static void RejectWriteInsideComputation()
     {
         if (Teardown.Depth != 0)
