@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Ownership;
 
 /// <summary>
@@ -8,7 +6,6 @@ namespace Metanui.Reactive.Ownership;
 /// <see cref="Reactivity.Root{T}" />, and <see cref="Reactivity.ErrorBoundary" /> when it carries an
 /// error handler.
 /// </summary>
-[Transpile]
 internal sealed class RootNode : OwnerNode
 {
     /// <summary>

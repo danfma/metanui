@@ -1,9 +1,6 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive;
 
 /// <summary>Global tracking state of the graph.</summary>
-[Transpile]
 internal static class Tracking
 {
     /// <summary>The node whose dependencies are being collected; null outside a tracking scope.</summary>

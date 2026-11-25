@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Graph;
 
 // Port of alien-signals 3.2.1, stackblitz/alien-signals@8734d386d925025d0e99419bd9161c17b112c5ee:
@@ -12,7 +10,6 @@ namespace Metanui.Reactive.Graph;
 // inside a run, so it is always false.
 
 /// <summary>Maintains the dependency links and moves the dirty state through them.</summary>
-[Transpile]
 internal static class DependencyGraph
 {
     /// <summary>Records that <paramref name="sub" /> read <paramref name="dep" /> during the run stamped <paramref name="version" />.</summary>

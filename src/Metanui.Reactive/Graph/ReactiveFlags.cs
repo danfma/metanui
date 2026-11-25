@@ -1,5 +1,3 @@
-using Metano.Annotations;
-
 namespace Metanui.Reactive.Graph;
 
 /// <summary>
@@ -8,7 +6,6 @@ namespace Metanui.Reactive.Graph;
 /// (design 5.4).
 /// </summary>
 [Flags]
-[Transpile]
 internal enum ReactiveFlags
 {
     None = 0,
