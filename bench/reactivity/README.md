@@ -92,13 +92,11 @@ Both adapters make the same calls, so both pay the same adapter cost:
 | `computed(fn)` | `Reactivity.computed(fn)`, `.value` | `createMemo(fn)` |
 | `effect(fn)` | `Reactivity.effect(() => { fn(); return 0; }, discardValue)` | `createEffect(() => { fn(); return 0; }, discardValue)` |
 | `withBatch(fn)` | `fn()`, then `Reactivity.flush()` | `fn()`, then `flush()` |
-| `withBuild(fn)` | `Reactivity.rootFuncOfActionT`, disposer kept | `createRoot`, disposer kept |
+| `withBuild(fn)` | `Reactivity.root`, disposer kept | `createRoot`, disposer kept |
 | `cleanup()` | dispose every kept root, then `Reactivity.flush()` | dispose every kept root, then `flush()` |
 
 - `discardValue` is one shared no-op, so creating an effect does not allocate a closure for the
   apply side.
-- `withBuild` calls `rootFuncOfActionT` directly. `Reactivity.root(...)` dispatches on
-  `Function.length` and throws for this callback (danfma/metano#778, audit N6).
 - The harness may call `withBuild` several times before one `cleanup`, so the adapters keep every
   disposer, not only the last one.
 - **`cleanup` flushes after disposing.** The task brief's mapping has no flush there. Without it, the

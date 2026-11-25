@@ -9,7 +9,7 @@ const flushAfterEachRound = process.argv[2] === "flush";
 function discardValue(): void {}
 
 function buildAndDispose(count: number): void {
-  Reactivity.rootFuncOfActionT((dispose) => {
+  Reactivity.root((dispose) => {
     const sources = Array.from({ length: count }, (_, index) => Reactivity.signal(index));
 
     for (const source of sources) {

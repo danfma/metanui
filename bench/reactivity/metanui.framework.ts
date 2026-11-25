@@ -43,9 +43,8 @@ export const metanuiFramework: ReactiveFramework = {
     Reactivity.flush();
   },
 
-  // `Reactivity.root` dispatches on `Function.length` and throws here (danfma/metano#778).
   withBuild: (build) =>
-    Reactivity.rootFuncOfActionT((dispose) => {
+    Reactivity.root((dispose) => {
       rootDisposers.push(dispose);
 
       return build();
