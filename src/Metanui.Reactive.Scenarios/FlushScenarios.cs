@@ -27,7 +27,45 @@ public static class FlushScenarios
             "nested scenario runner restores the outer scheduler",
             NestedRunnerRestoresOuterScheduler
         ),
+        new Scenario(
+            "flush nested in a dirty check leaves the checked computed up to date",
+            FlushNestedInADirtyCheckLeavesTheCheckedComputedUpToDate
+        ),
     ];
+
+    /// <summary>
+    /// <c>reader</c> reads <c>late</c>, then <c>inner</c>. The dirty check of <c>reader</c> updates
+    /// <c>inner</c>, which calls <see cref="Reactivity.Flush" /> (allowed outside a flush, spec 4.6):
+    /// that nested flush commits the pending write to <c>late</c> and marks <c>reader</c> dirty.
+    /// <c>inner</c> returns an equal value, so the check reports no change, but the dirty mark set
+    /// during it must survive: <c>reader</c> must not stay on the value from before the commit.
+    /// </summary>
+    private static void FlushNestedInADirtyCheckLeavesTheCheckedComputedUpToDate(IExpect expect)
+    {
+        var trigger = Reactivity.Signal(0);
+        var late = Reactivity.Signal(0);
+
+        var inner = Reactivity.Computed(() =>
+        {
+            if (trigger.Value == 1)
+            {
+                Reactivity.Flush();
+            }
+
+            return 0;
+        });
+
+        var reader = Reactivity.Computed(() => late.Value + inner.Value);
+
+        expect.Equal(0, reader.Peek(), "initial value");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+        late.Value = 99;
+
+        expect.Equal(99, reader.Peek(), "the read sees the write the nested flush committed");
+        expect.Equal(99, reader.Peek(), "a later read sees it too");
+    }
 
     private static void WriteDuringFlushSchedulesNoExtraFlush(IExpect expect)
     {

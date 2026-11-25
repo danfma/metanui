@@ -234,7 +234,7 @@ public sealed class Computed<T> : ComputedNode
         }
         else if ((flags & ReactiveFlags.Pending) != 0)
         {
-            RecomputeIfDependencyChanged(flags);
+            RecomputeIfDependencyChanged();
         }
         else if (flags == ReactiveFlags.None)
         {
@@ -242,15 +242,27 @@ public sealed class Computed<T> : ComputedNode
         }
     }
 
-    private void RecomputeIfDependencyChanged(ReactiveFlags flags)
+    /// <summary>
+    /// Pending: recomputes when the dirty check finds a changed dependency. Otherwise only the pending
+    /// mark is cleared, from the current flags rather than those read before the check: a
+    /// <see cref="Reactivity.Flush" /> nested in the check (spec 4.6) may have marked this computed
+    /// dirty meanwhile, and then it recomputes too (Metanui: alien-signals writes back the flags read
+    /// before the check, since nothing can commit during it there).
+    /// </summary>
+    private void RecomputeIfDependencyChanged()
     {
         if (IsAnyDependencyDirty())
         {
             Recompute();
+
+            return;
         }
-        else
+
+        Flags &= ~ReactiveFlags.Pending;
+
+        if ((Flags & ReactiveFlags.Dirty) != 0)
         {
-            Flags = flags & ~ReactiveFlags.Pending;
+            Recompute();
         }
     }
 

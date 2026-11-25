@@ -21,9 +21,28 @@ class FlushScenarios$ThrowingComparer {
 }
 
 export class FlushScenarios {
-  static readonly all: Scenario[] = [new Scenario("write during a flush schedules no extra flush", FlushScenarios.writeDuringFlushSchedulesNoExtraFlush), new Scenario("flush inside an apply is a no-op", FlushScenarios.flushInsideApplyIsNoOp), new Scenario("throwing scheduler does not block later writes", FlushScenarios.throwingSchedulerDoesNotBlockLaterWrites), new Scenario("throwing comparer still propagates committed signals", FlushScenarios.throwingComparerStillPropagates), new Scenario("write before the scheduler is configured is flushed by the new scheduler", FlushScenarios.writeBeforeSchedulerIsConfiguredIsFlushedByNewScheduler), new Scenario("using a null scheduler throws", FlushScenarios.usingNullSchedulerThrows), new Scenario("nested scenario runner restores the outer scheduler", FlushScenarios.nestedRunnerRestoresOuterScheduler)];
+  static readonly all: Scenario[] = [new Scenario("write during a flush schedules no extra flush", FlushScenarios.writeDuringFlushSchedulesNoExtraFlush), new Scenario("flush inside an apply is a no-op", FlushScenarios.flushInsideApplyIsNoOp), new Scenario("throwing scheduler does not block later writes", FlushScenarios.throwingSchedulerDoesNotBlockLaterWrites), new Scenario("throwing comparer still propagates committed signals", FlushScenarios.throwingComparerStillPropagates), new Scenario("write before the scheduler is configured is flushed by the new scheduler", FlushScenarios.writeBeforeSchedulerIsConfiguredIsFlushedByNewScheduler), new Scenario("using a null scheduler throws", FlushScenarios.usingNullSchedulerThrows), new Scenario("nested scenario runner restores the outer scheduler", FlushScenarios.nestedRunnerRestoresOuterScheduler), new Scenario("flush nested in a dirty check leaves the checked computed up to date", FlushScenarios.flushNestedInADirtyCheckLeavesTheCheckedComputedUpToDate)];
 
   constructor() { }
+
+  private static flushNestedInADirtyCheckLeavesTheCheckedComputedUpToDate(expect: IExpect): void {
+    const trigger = Reactivity.signal(0);
+    const late = Reactivity.signal(0);
+    const inner = Reactivity.computed(() => {
+      if (trigger.value === 1) {
+        Reactivity.flush();
+      }
+
+      return 0;
+    });
+    const reader = Reactivity.computed(() => (late.value + inner.value) | 0);
+    expect.equal(0, reader.peek(), "initial value");
+    trigger.value = 1;
+    Reactivity.flush();
+    late.value = 99;
+    expect.equal(99, reader.peek(), "the read sees the write the nested flush committed");
+    expect.equal(99, reader.peek(), "a later read sees it too");
+  }
 
   private static writeDuringFlushSchedulesNoExtraFlush(expect: IExpect): void {
     const scheduler = new CountingScheduler();
