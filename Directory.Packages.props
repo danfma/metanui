@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup>
+    <!-- Always the latest stable Metano from NuGet (floating). Restore with
+         `dotnet restore` with force-evaluate to pick up a new release. -->
+    <PackageVersion Include="Metano" Version="*" />
+    <PackageVersion Include="Metano.Build.TypeScript" Version="*" />
+  </ItemGroup>
+</Project>

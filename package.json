@@ -1,0 +1,5 @@
+{
+  "name": "metanui-workspace",
+  "private": true,
+  "workspaces": ["targets/js/*"]
+}

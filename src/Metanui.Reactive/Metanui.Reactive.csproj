@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Metanui.Reactive</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-reactive/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+</Project>

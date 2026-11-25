@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Metanui.Reactive/Metanui.Reactive.csproj" />
+  </Folder>
+</Solution>

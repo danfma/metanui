@@ -1,0 +1,26 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "metanui-workspace",
+    },
+    "targets/js/metanui-reactive": {
+      "name": "metanui-reactive",
+      "peerDependencies": {
+        "metano-runtime": "^3.1.0",
+      },
+    },
+  },
+  "packages": {
+    "@js-temporal/polyfill": ["@js-temporal/polyfill@0.5.1", "", { "dependencies": { "jsbi": "^4.3.0" } }, "sha512-hloP58zRVCRSpgDxmqCWJNlizAlUgJFqG2ypq79DCvyv9tHjRYMDOcPFjzfl/A1/YxDvRCZz8wvZvmapQnKwFQ=="],
+
+    "decimal.js": ["decimal.js@10.6.0", "", {}, "sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg=="],
+
+    "jsbi": ["jsbi@4.3.2", "", {}, "sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew=="],
+
+    "metano-runtime": ["metano-runtime@3.1.0", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-i2zoUBjsCdW7H0cOyVkXLmt4kTxUbSsNzKh7f0CdRUa6l8PDcbZEE9bcIFcaPkmdNz/p7iHLYFqQ5ebYnb3asQ=="],
+
+    "metanui-reactive": ["metanui-reactive@workspace:targets/js/metanui-reactive"],
+  }
+}

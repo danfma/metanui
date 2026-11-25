@@ -1,0 +1,24 @@
+{
+  "name": "metanui-reactive",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./src/*.ts"
+    }
+  },
+  "sideEffects": false,
+  "exports": {
+    "./metanui/reactive": {
+      "source": "./src/metanui/reactive/index.ts",
+      "types": "./dist/metanui/reactive/index.d.ts",
+      "import": "./dist/metanui/reactive/index.js"
+    }
+  },
+  "peerDependencies": {
+    "metano-runtime": "^3.1.0"
+  }
+}

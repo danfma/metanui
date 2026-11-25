@@ -1,0 +1,13 @@
+bin/
+obj/
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+TestResults/
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/worktrees/
+.metano-cache.json
+.metano-stamp
+.cache/
