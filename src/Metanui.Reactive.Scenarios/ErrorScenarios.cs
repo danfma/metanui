@@ -151,6 +151,10 @@ public static class ErrorScenarios
             DisposerInBoundaryBodyKeepsCleanupErrorFromBoundary
         ),
         new Scenario(
+            "disposer called in a boundary handler keeps its cleanup error from the outer boundary",
+            DisposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary
+        ),
+        new Scenario(
             "write from a cleanup during disposal is allowed",
             WriteFromCleanupDuringDisposalIsAllowed
         ),
@@ -1745,6 +1749,41 @@ public static class ErrorScenarios
         expect.IsTrue(error is null, "the write from the cleanup does not throw");
         expect.Equal(2, outer.Value, "value after the rerun");
         expect.Equal(0, written.Value, "the cleanup write committed");
+    }
+
+    /// <summary>
+    /// An inner boundary's body throws outside any flush, and its handler calls the disposer of a
+    /// root whose cleanup throws. Cleanup errors never go to an error handler (spec 4.5): the outer
+    /// boundary must not receive it; the next flush rethrows it.
+    /// </summary>
+    private static void DisposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary(IExpect expect)
+    {
+        var outerErrors = "";
+
+        var disposeOther = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.OnCleanup(() => throw new InvalidOperationException("cleanup failed"));
+
+            return disposeRoot;
+        });
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.ErrorBoundary(
+                    () => throw new InvalidOperationException("body failed"),
+                    error => disposeOther()
+                ),
+            error => outerErrors += error.Message + ","
+        );
+
+        var next = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.Equal("", outerErrors, "the outer boundary receives no cleanup error");
+
+        expect.IsTrue(
+            next is not null && next.Message == "cleanup failed",
+            "the next flush rethrows the cleanup error"
+        );
     }
 
     private static void SelfDisposingComputedKeepsNoDependency(IExpect expect)
