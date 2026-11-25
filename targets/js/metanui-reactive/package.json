@@ -17,6 +17,16 @@
       "bun": "./src/metanui/reactive/index.ts",
       "types": "./dist/metanui/reactive/index.d.ts",
       "import": "./dist/metanui/reactive/index.js"
+    },
+    "./metanui/reactive/graph": {
+      "bun": "./src/metanui/reactive/graph/index.ts",
+      "types": "./dist/metanui/reactive/graph/index.d.ts",
+      "import": "./dist/metanui/reactive/graph/index.js"
+    },
+    "./metanui/reactive/scheduling": {
+      "bun": "./src/metanui/reactive/scheduling/index.ts",
+      "types": "./dist/metanui/reactive/scheduling/index.d.ts",
+      "import": "./dist/metanui/reactive/scheduling/index.js"
     }
   },
   "peerDependencies": {
