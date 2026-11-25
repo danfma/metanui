@@ -63,7 +63,7 @@ export class RootNode extends OwnerNode {
   private disposeFromCaller(): void {
     this.dispose();
 
-    if (!FlushLoop.isRunning) {
+    if (!FlushLoop.isRunning && !RootNode.isCaughtByOwner(Tracking.currentOwner)) {
       Teardown.rethrowFirstError();
     }
   }
@@ -100,6 +100,20 @@ export class RootNode extends OwnerNode {
       if (owner instanceof RootNode && (root = owner, true) && !(root._errorHandler == null)) {
         root.handleError(error);
 
+        return true;
+      }
+
+      owner = owner.parent;
+    }
+
+    return false;
+  }
+
+  private static isCaughtByOwner(owner: OwnerNode | null): boolean {
+    while (!(owner == null)) {
+      let root: RootNode;
+
+      if (!(owner instanceof RootNode && (root = owner, true)) || !(root._errorHandler == null)) {
         return true;
       }
 
