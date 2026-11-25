@@ -1,6 +1,6 @@
 import { HashCode, copyRecordWith } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Reactivity, type Computed } from "metanui-reactive/metanui/reactive";
+import { Reactivity, type Computed, type Signal } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
@@ -28,8 +28,26 @@ class OwnershipScenarios$Marker {
   }
 }
 
+class OwnershipScenarios$LateChildren {
+  readonly source: Signal<number> = Reactivity.signal(0);
+  computes: number = 0;
+  applies: number = 0;
+  cleanups: number = 0;
+
+  constructor() { }
+
+  create(): void {
+    Reactivity.effect(() => {
+      this.computes = (this.computes + 1) | 0;
+
+      return this.source.value;
+    }, (value: number, previous: number) => this.applies = (this.applies + 1) | 0);
+    Reactivity.onCleanup(() => this.cleanups = (this.cleanups + 1) | 0);
+  }
+}
+
 export class OwnershipScenarios {
-  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed), new Scenario("disposed queued effect neither applies nor resubscribes", OwnershipScenarios.disposedQueuedEffectNeitherAppliesNorResubscribes), new Scenario("apply cleanup that disposes its effect skips the apply", OwnershipScenarios.applyCleanupThatDisposesItsEffectSkipsTheApply), new Scenario("compute cleanup that disposes its effect skips the compute", OwnershipScenarios.computeCleanupThatDisposesItsEffectSkipsTheCompute), new Scenario("computed disposed by its own cleanup keeps the value of that run", OwnershipScenarios.computedDisposedByItsOwnCleanupKeepsTheValueOfThatRun)];
+  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed), new Scenario("disposed queued effect neither applies nor resubscribes", OwnershipScenarios.disposedQueuedEffectNeitherAppliesNorResubscribes), new Scenario("apply cleanup that disposes its effect skips the apply", OwnershipScenarios.applyCleanupThatDisposesItsEffectSkipsTheApply), new Scenario("compute cleanup that disposes its effect skips the compute", OwnershipScenarios.computeCleanupThatDisposesItsEffectSkipsTheCompute), new Scenario("computed disposed by its own cleanup keeps the value of that run", OwnershipScenarios.computedDisposedByItsOwnCleanupKeepsTheValueOfThatRun), new Scenario("computed disposed during its own run disposes what that run created next", OwnershipScenarios.computedDisposedDuringItsRunDisposesWhatTheRunCreated), new Scenario("effect disposed during its own compute disposes what that compute created next", OwnershipScenarios.effectDisposedDuringItsComputeDisposesWhatTheComputeCreated)];
 
   constructor() { }
 
@@ -273,5 +291,54 @@ export class OwnershipScenarios {
     Reactivity.flush();
     expect.equal(10, computed.value, "a later read returns the frozen value");
     expect.equal(2, runs, "runs");
+  }
+
+  private static computedDisposedDuringItsRunDisposesWhatTheRunCreated(expect: IExpect): void {
+    const late = new OwnershipScenarios$LateChildren();
+    const source = Reactivity.signal(0);
+    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+      const value = source.value;
+
+      if (value === 1) {
+        disposeRoot();
+        late.create();
+      }
+
+      return value;
+    }));
+    expect.equal(0, computed.value, "initial value");
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, computed.value, "the run that disposed the computed completes");
+    OwnershipScenarios.expectLateChildrenGone(expect, late);
+  }
+
+  private static effectDisposedDuringItsComputeDisposesWhatTheComputeCreated(expect: IExpect): void {
+    const late = new OwnershipScenarios$LateChildren();
+    const source = Reactivity.signal(0);
+    Reactivity.rootActionOfAction((disposeRoot: () => void) => Reactivity.effect(() => {
+      const value = source.value;
+
+      if (value === 1) {
+        disposeRoot();
+        late.create();
+      }
+
+      return value;
+    }, (value: number, previous: number) => {
+    }));
+    Reactivity.flush();
+    source.value = 1;
+    Reactivity.flush();
+    OwnershipScenarios.expectLateChildrenGone(expect, late);
+  }
+
+  private static expectLateChildrenGone(expect: IExpect, late: OwnershipScenarios$LateChildren): void {
+    Reactivity.flush();
+    late.source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, late.cleanups, "the cleanup registered after the disposal ran");
+    expect.equal(0, late.applies, "the effect created after the disposal never applied");
+    expect.equal(1, late.computes, "the effect created after the disposal never reran");
   }
 }
