@@ -44,22 +44,6 @@ internal static class LinkStack
         return link;
     }
 
-    /// <summary>Pops frames down to <paramref name="stackBase" /> and returns the first non-null one, or null.</summary>
-    public static Link? PopNonNull(int stackBase)
-    {
-        while (Top > stackBase)
-        {
-            var link = Pop();
-
-            if (link is not null)
-            {
-                return link;
-            }
-        }
-
-        return null;
-    }
-
     /// <summary>Drops every frame above <paramref name="stackBase" /> (a walk that ended early, e.g. by an exception).</summary>
     public static void Truncate(int stackBase)
     {

@@ -107,7 +107,7 @@ export class DependencyGraph {
 
   private static propagateAbove(link: Link, stackBase: number): void {
     let next = link.nextSub;
-    while (true) {
+    top: while (true) {
       const sub = link.sub;
       let flags = sub.flags;
 
@@ -156,21 +156,23 @@ export class DependencyGraph {
         continue;
       }
 
-      const resumed = LinkStack.popNonNull(stackBase);
+      while (LinkStack.top > stackBase) {
+        const popped = LinkStack.pop();
 
-      if (resumed == null) {
-        break;
+        if (!(popped == null)) {
+          link = popped;
+          next = link.nextSub;
+          continue top;
+        }
       }
-
-      link = resumed;
-      next = link.nextSub;
+      break;
     }
   }
 
   private static checkDirtyAbove(link: Link, sub: ReactiveNode): boolean {
     let checkDepth = 0;
     let dirty = false;
-    while (true) {
+    top: while (true) {
       const dep = link.dep;
       const flags = dep.flags;
 
@@ -207,7 +209,6 @@ export class DependencyGraph {
         }
       }
 
-      let resumedAbove = false;
       while (checkDepth > 0) {
         checkDepth = (checkDepth - 1) | 0;
         link = LinkStack.pop()!;
@@ -234,13 +235,8 @@ export class DependencyGraph {
 
         if (!(nextDep == null)) {
           link = nextDep;
-          resumedAbove = true;
-          break;
+          continue top;
         }
-      }
-
-      if (resumedAbove) {
-        continue;
       }
 
       return dirty && sub.flags !== ReactiveFlags.None;
