@@ -44,6 +44,14 @@ public static class OwnershipScenarios
             "computed disposed by its own cleanup keeps the value of that run",
             ComputedDisposedByItsOwnCleanupKeepsTheValueOfThatRun
         ),
+        new Scenario(
+            "computed disposed during its own run disposes what that run created next",
+            ComputedDisposedDuringItsRunDisposesWhatTheRunCreated
+        ),
+        new Scenario(
+            "effect disposed during its own compute disposes what that compute created next",
+            EffectDisposedDuringItsComputeDisposesWhatTheComputeCreated
+        ),
     ];
 
     private static void RootDisposeRunsCleanupsInReverse(IExpect expect)
@@ -403,5 +411,106 @@ public static class OwnershipScenarios
         expect.Equal(2, runs, "runs");
     }
 
+    private static void ComputedDisposedDuringItsRunDisposesWhatTheRunCreated(IExpect expect)
+    {
+        var late = new LateChildren();
+        var source = Reactivity.Signal(0);
+
+        var computed = Reactivity.Root(disposeRoot =>
+            Reactivity.Computed(() =>
+            {
+                var value = source.Value;
+
+                if (value == 1)
+                {
+                    disposeRoot();
+                    late.Create();
+                }
+
+                return value;
+            })
+        );
+
+        expect.Equal(0, computed.Value, "initial value");
+
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, computed.Value, "the run that disposed the computed completes");
+
+        ExpectLateChildrenGone(expect, late);
+    }
+
+    private static void EffectDisposedDuringItsComputeDisposesWhatTheComputeCreated(IExpect expect)
+    {
+        var late = new LateChildren();
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Root(disposeRoot =>
+            Reactivity.Effect(
+                () =>
+                {
+                    var value = source.Value;
+
+                    if (value == 1)
+                    {
+                        disposeRoot();
+                        late.Create();
+                    }
+
+                    return value;
+                },
+                (value, previous) => { }
+            )
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        ExpectLateChildrenGone(expect, late);
+    }
+
+    private static void ExpectLateChildrenGone(IExpect expect, LateChildren late)
+    {
+        Reactivity.Flush();
+        late.Source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, late.Cleanups, "the cleanup registered after the disposal ran");
+        expect.Equal(0, late.Applies, "the effect created after the disposal never applied");
+        expect.Equal(1, late.Computes, "the effect created after the disposal never reran");
+    }
+
     private sealed record Marker(string Name);
+
+    /// <summary>
+    /// What a run creates after it disposed its own owner: an effect and a cleanup, counting what
+    /// they do afterwards.
+    /// </summary>
+    private sealed class LateChildren
+    {
+        public Signal<int> Source { get; } = Reactivity.Signal(0);
+
+        public int Computes { get; private set; }
+
+        public int Applies { get; private set; }
+
+        public int Cleanups { get; private set; }
+
+        public void Create()
+        {
+            Reactivity.Effect(
+                () =>
+                {
+                    Computes++;
+
+                    return Source.Value;
+                },
+                (value, previous) => Applies++
+            );
+
+            Reactivity.OnCleanup(() => Cleanups++);
+        }
+    }
 }

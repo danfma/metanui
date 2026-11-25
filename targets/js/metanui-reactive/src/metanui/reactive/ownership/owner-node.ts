@@ -100,6 +100,7 @@ export abstract class OwnerNode extends ReactiveNode {
   purgeStaleDeps(): void {
     if (this.isDisposed) {
       this.depsTail = null;
+      this.disposeOwned();
     }
 
     DependencyGraph.purgeDeps(this);

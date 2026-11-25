@@ -100,14 +100,16 @@ public abstract class OwnerNode : ReactiveNode
     internal virtual void OnDisposed() { }
 
     /// <summary>
-    /// Ends a run: unlinks the dependencies it did not read again, or all of them when the run
-    /// disposed the node itself, so a disposed node keeps no dependency.
+    /// Ends a run: unlinks the dependencies it did not read again. When the run disposed the node
+    /// itself, it unlinks all of them and disposes what the run created or registered after the
+    /// disposal, so a disposed node keeps no dependency, child or cleanup.
     /// </summary>
     internal void PurgeStaleDeps()
     {
         if (IsDisposed)
         {
             DepsTail = null;
+            DisposeOwned();
         }
 
         DependencyGraph.PurgeDeps(this);
