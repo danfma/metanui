@@ -14,6 +14,11 @@ public static partial class Reactivity
     /// already running (for instance from an effect's apply), it does nothing: the running flush
     /// drains the new writes in its next pass.
     /// </summary>
+    /// <remarks>
+    /// The flush also releases the disposed effects still queued, which until then keep their bare
+    /// node (no callbacks, values or dependencies). A real scheduler flushes soon after the work is
+    /// queued; under <see cref="ManualFlushScheduler" /> only this call does.
+    /// </remarks>
     public static void Flush() => FlushLoop.Run();
 
     /// <summary>Creates a signal holding <paramref name="initialValue" />.</summary>
