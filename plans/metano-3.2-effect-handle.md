@@ -127,7 +127,7 @@ Done in 0584165, 9dec4a2 and a61517d. 80/80 pass on .NET and 82 on Bun, with str
 ---
 
 ## Task 4: Record the DSL-phase decisions (Phase 4)
-Status: Not started
+Status: Complete
 
 - [ ] Update `docs/handoff.md` and start `docs/design/0002-dsl-binding.md`, as a stub listing the open questions and the decisions taken so far:
   - The **root as an object**: `Reactivity.CreateRoot()` returns an `IDisposable` scope with `Run<T>(Func<T>)` that can be re-entered. This covers owner capture (Solid `getOwner`/`runWithOwner`) for event handlers and async continuations. The callback `Root` stays as the low-level form.
@@ -140,7 +140,7 @@ Status: Not started
 - The documents exist, link to each other and to the spec, and contain each decision listed above.
 
 ### Phase Summary
-_(write when phase completes)_
+Done in the docs commit. `docs/design/0002-dsl-binding.md` is a stub with the decisions and open questions above. `docs/handoff.md` was refreshed: Metano 3.2.0 state, the blocked effect handle (#800, Metano 3.3.0), the deferred F-9 retry, and the next steps.
 
 ---
 
