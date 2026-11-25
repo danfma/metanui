@@ -4,6 +4,7 @@ import { DependencyGraph } from "./graph/dependency-graph.js";
 import { ReactiveFlags } from "./graph/reactive-flags.js";
 import { SignalNode } from "./graph/signal-node.js";
 import { RootNode } from "./ownership/root-node.js";
+import { Teardown } from "./ownership/teardown.js";
 import { FlushLoop } from "./scheduling/flush-loop.js";
 import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
@@ -70,6 +71,10 @@ export class Signal<T> extends SignalNode {
   }
 
   private static rejectWriteInsideComputation(): void {
+    if (Teardown.depth !== 0) {
+      return;
+    }
+
     let root: RootNode;
 
     if (!(Tracking.currentOwner instanceof RootNode && (root = Tracking.currentOwner, true)) || root.underComputation) {

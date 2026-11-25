@@ -107,12 +107,21 @@ internal static class FlushLoop
         }
     }
 
+    /// <summary>Whether a flush is running; cleanup errors raised meanwhile are rethrown when it ends.</summary>
+    public static bool IsRunning => _running;
+
     /// <summary>
     /// Runs the flush (spec 4.7) in passes until no work is left: commit every pending write,
     /// propagate from the signals that changed, run the queued effect computes in queue order, then
     /// the applies they produced. Writes made by the applies start another pass. Called while a flush
     /// is running, it returns at once and lets the running flush drain.
     /// </summary>
+    /// <remarks>
+    /// An error no boundary handles leaves at once (Solid 2.0.4 ordering). The work still queued is
+    /// kept and another flush is requested, so the next flush runs it; unlike Solid, the graph is not
+    /// halted (spec 4.4). After a flush that ends normally, the first cleanup error raised during it
+    /// is rethrown.
+    /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// More than <see cref="MaxPasses" /> passes were needed; the pending writes are discarded.
     /// </exception>
@@ -130,10 +139,16 @@ internal static class FlushLoop
         {
             RunPasses();
         }
-        finally
+        catch
         {
             _running = false;
+            RequestFlushForLeftovers();
+
+            throw;
         }
+
+        _running = false;
+        Teardown.RethrowFirstError();
     }
 
     private static void RunPasses()
@@ -150,9 +165,31 @@ internal static class FlushLoop
             }
 
             passes++;
+            Tracking.Pass++;
             CommitAndPropagate();
             RunComputes();
             RunApplies();
+        }
+    }
+
+    /// <summary>
+    /// After a failed flush, asks for another one when work is left. A scheduler that throws here
+    /// is ignored, so the error that failed the flush is the one that leaves; the next write asks again.
+    /// </summary>
+    private static void RequestFlushForLeftovers()
+    {
+        if (!HasWork())
+        {
+            return;
+        }
+
+        try
+        {
+            RequestFlush();
+        }
+        catch
+        {
+            // RequestFlush already cleared _scheduled; keep the original error.
         }
     }
 

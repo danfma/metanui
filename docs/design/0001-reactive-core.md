@@ -72,7 +72,7 @@ Citations refer to the Solid 2.0 migration guide and cheatsheet (`solidjs/solid`
 - Same equality cut-off as signals: a recomputation that yields an equal value does not dirty downstream observers.
 - Ownership follows Solid's `createMemo`: a `Computed` attaches to the current owner when constructed and is disposed with it (unlinked from its dependencies; a later read returns the last value without recomputing). A `Computed` created outside any owner stays linked from its sources' subscriber lists until it loses its last subscriber (alien-signals/Vue behaviour), so it lives as long as its sources unless it is disposed; create computeds under an owner to bound their lifetime. Signals are plain values and have no owner.
 - Dependencies are re-collected on every run (dynamic dependencies); links no longer read are removed.
-- An exception thrown by the function is cached as the node's state and rethrown to every reader until a dependency changes (Solid 2.0 propagates errors through the graph).
+- An exception thrown by the function is cached as the node's state (flag `Errored`) and the same instance is rethrown to every reader until a dependency changes (Solid 2.0 propagates errors through the graph: a computed reading an errored one caches the error in turn). As in Solid 2.0.4 (`read`, rule F-9), a tracked re-read, meaning the observer reads the computed at the same position as in its previous run, retries the function when it happens in a later flush pass than the failure. So a computed that failed before reading any dependency is not stuck for good. Untracked reads and reads in the same pass only rethrow. A disposed computed keeps its last value or error.
 - Writing a signal inside a computed function is an error. The builder verifies the exact Solid 2.0 behaviour (throw vs dev warning) and matches it. Solid 2.0.4 throws (`REACTIVE_WRITE_IN_OWNED_SCOPE`) whenever the current owner is set, including inside `untrack`; Metanui throws `InvalidOperationException` when the current owner is a computation (computed or effect compute, untracked or not). Writes in an effect's apply and directly in a `Root` body are allowed; the latter is a deliberate deviation (Solid rejects it).
 
 ### 4.3 Effect (split)
@@ -84,14 +84,19 @@ Citations refer to the Solid 2.0 migration guide and cheatsheet (`solidjs/solid`
 
 ### 4.4 Errors in effects
 
-- An exception in `compute` or `apply` goes to the nearest error handler on the owner chain (Solid 2.0 error boundaries). Phase 1 ships only the owner-level handler that the DOM renderer needs, not a UI boundary component.
-- With no handler, the exception escapes `Flush()` (or the scheduler callback) after the remaining effects of the pass have run, so one failing effect does not freeze the others. The builder confirms the exact Solid 2.0 ordering and matches it.
+- An exception in `compute` or `apply` goes to the nearest error handler on the owner chain (Solid 2.0 error boundaries). Phase 1 ships only the owner-level handler that the DOM renderer needs (`Reactivity.ErrorBoundary(body, onError)`), not a UI boundary component. The handler runs untracked and with no owner, so it may write signals. An exception it throws goes to the next handler up. A failed compute queues no apply, and the effect runs again when one of the dependencies it read changes.
+- With no handler, the exception escapes `Flush()` (or the scheduler callback) at once, as in Solid 2.0.4 (`runQueue` has no catch). The work still queued (the other applies of the pass, computes and writes) is kept, and the failed flush requests another one, so the next flush runs it. A compute error from an effect's creation escapes the `Effect` call.
+- Deliberate deviations from Solid 2.0.4:
+  - Solid halts the whole reactive system after an unhandled effect error (`haltReactivity`: later writes and flushes are ignored). Metanui does not halt. There is one graph per process, so a halt would leave the whole UI dead after a single unhandled error, and recovering would need a reset hook.
+  - Solid sends an effect's compute error to the effect's own `error` handler, or logs it with `console.error`, and never to a boundary. Metanui has no per-effect error option and no log channel, so compute errors follow the same boundary-or-escape rule as apply errors.
 
 ### 4.5 Ownership and cleanup
 
 - Every computation is created under the current **owner**. `Root(dispose => ...)` creates an owner and hands back its disposer. As in Solid 2.0.4, a root created under an owner is owned by it and disposed with it; the disposer tears it down earlier. A root body is untracked.
 - When a computation re-runs, everything it created during the previous run (child computations, cleanups) is disposed first.
 - Disposal is depth-first; cleanups of one owner run in reverse registration order.
+- A throwing cleanup does not stop a disposal (Solid 2.0.4 `runCleanup`): the remaining cleanups run and the remaining children are disposed. Only the first error is kept, and it is rethrown once: by the root disposer when called outside a flush, otherwise when the running flush ends. A cleanup error raised elsewhere, for instance by the re-run of a computed during a read outside any flush, waits for the next flush or root disposal; unlike Solid, it does not schedule a flush. Cleanup errors never go to an error handler. The cleanups an apply registered run as part of the next apply, so a throw there is that apply's error.
+- A signal write from a cleanup run by a disposal is allowed even when a computation is the current owner (Solid `disposalDepth`).
 - `OnCleanup(action)` registers a cleanup on the current owner.
 - `OnSettled` (Solid 2.0 replacement for `onMount`) is in scope only if the DOM renderer needs it in Phase 1; the builder decides.
 
@@ -148,7 +153,7 @@ Port of alien-signals (`stackblitz/alien-signals`, the reactivity engine of Vue 
 
 ### 5.4 Room for async (not built in Phase 1)
 
-Reserve flag bits for a pending-async state and an error state, and keep the "value or exception" slot on computed nodes, so that async computeds, `isPending` and `latest` can be added later without changing the link structure.
+Reserve flag bits for a pending-async state and an error state, and keep the "value or exception" slot on computed nodes (Phase 6 uses bit 64 as `Errored`, the first bit above the alien-signals ones, and keeps the exception in a field next to the value), so that async computeds, `isPending` and `latest` can be added later without changing the link structure.
 
 ## 6. C# API
 

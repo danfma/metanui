@@ -26,4 +26,10 @@ internal static class Tracking
     /// every recomputation so that a repeated read of the same dependency links only once.
     /// </summary>
     public static int Cycle;
+
+    /// <summary>
+    /// Number of flush passes started (Solid <c>clock</c>). An errored computed retries on a tracked
+    /// re-read only in a later pass than the one where it failed.
+    /// </summary>
+    public static int Pass;
 }

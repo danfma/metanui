@@ -1,3 +1,4 @@
+import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { Computed } from "./computed.js";
 import { SplitEffect } from "./effects/split-effect.js";
 import type { IFlushScheduler } from "./i-flush-scheduler.js";
@@ -60,6 +61,10 @@ export class Reactivity {
     }
 
     throw new Error("No matching overload for root");
+  }
+
+  static errorBoundary(body: () => void, onError: (obj: Exception) => void): void {
+    new RootNode(onError).runBoundary(body);
   }
 
   static onCleanup(cleanup: () => void): void {

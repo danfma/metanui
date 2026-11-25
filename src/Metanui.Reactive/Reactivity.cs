@@ -38,6 +38,10 @@ public static partial class Reactivity
     /// the same effect and when the effect is disposed with its owner.
     /// If the scheduler throws while the effect is created, the exception escapes this call but the
     /// effect still exists and stays subscribed; its first apply runs on the next flush.
+    /// An exception from <paramref name="compute" /> or <paramref name="apply" /> goes to the nearest
+    /// <see cref="ErrorBoundary" />; with none, it escapes <see cref="Flush" /> (or this call, for the
+    /// first compute). A failed compute queues no apply. An effect created outside any owner is never
+    /// disposed; Solid warns about it in dev (<c>NO_OWNER_EFFECT</c>), Metanui has no warning channel.
     /// </remarks>
     public static void Effect<T>(Func<T> compute, Action<T, T> apply) =>
         new SplitEffect<T>(compute, apply).Start();
@@ -58,6 +62,22 @@ public static partial class Reactivity
 
             return true;
         });
+
+    /// <summary>
+    /// Runs <paramref name="body" /> under a new owner that handles errors (spec 4.4): an exception
+    /// from the compute or apply of an effect created under it, or from the body itself, goes to
+    /// <paramref name="onError" /> instead of escaping the flush. The nearest boundary among the owners
+    /// wins; an exception thrown by <paramref name="onError" /> goes to the next boundary up. The
+    /// handler runs untracked and with no owner, so it may write signals.
+    /// </summary>
+    /// <remarks>
+    /// Like a <see cref="Root{T}" /> body, <paramref name="body" /> runs once, untracked, and the
+    /// boundary is owned by the current owner. Phase 1 ships only this owner-level handler, not a UI
+    /// boundary that swaps content. Errors thrown by cleanups never reach a boundary: the disposal
+    /// rethrows them (spec 4.5).
+    /// </remarks>
+    public static void ErrorBoundary(Action body, Action<Exception> onError) =>
+        new RootNode(onError).RunBoundary(body);
 
     /// <summary>
     /// Registers <paramref name="cleanup" /> on the current owner; cleanups of one owner run last

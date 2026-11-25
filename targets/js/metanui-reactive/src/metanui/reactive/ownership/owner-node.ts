@@ -1,8 +1,10 @@
 import type { ClassType } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
+import { DependencyGraph } from "../graph/dependency-graph.js";
 import { ReactiveNode } from "../graph/reactive-node.js";
 import { Tracking } from "../tracking.js";
 import { CleanupEntry } from "./cleanup-entry.js";
+import { Teardown } from "./teardown.js";
 
 let OwnerNode$rt: ClassType<OwnerNode> | undefined;
 
@@ -78,16 +80,29 @@ export abstract class OwnerNode extends ReactiveNode {
     let child = this.firstChild;
     this.firstChild = null;
     while (!(child == null)) {
-      const next = child.nextSibling;
       child.parent = null;
+      child.prevSibling = null;
       child.dispose();
+      const next = child.nextSibling;
+      child.nextSibling = null;
       child = next;
     }
-    this.runCleanups();
+    const cleanups = this.cleanups;
+    this.cleanups = null;
+    Teardown.run(cleanups);
   }
 
   /** @internal */
   onDisposed(): void {
+  }
+
+  /** @internal */
+  purgeStaleDeps(): void {
+    if (this.isDisposed) {
+      this.depsTail = null;
+    }
+
+    DependencyGraph.purgeDeps(this);
   }
 
   private attachTo(parent: OwnerNode): void {
@@ -113,6 +128,7 @@ export abstract class OwnerNode extends ReactiveNode {
     const next = this.nextSibling;
     this.parent = null;
     this.prevSibling = null;
+    this.nextSibling = null;
 
     if (previous == null) {
       parent.firstChild = next;
@@ -122,15 +138,6 @@ export abstract class OwnerNode extends ReactiveNode {
 
     if (!(next == null)) {
       next.prevSibling = previous;
-    }
-  }
-
-  private runCleanups(): void {
-    let entry = this.cleanups;
-    this.cleanups = null;
-    while (!(entry == null)) {
-      entry.cleanup();
-      entry = entry.next;
     }
   }
 }

@@ -1,0 +1,315 @@
+import { intDiv, throwError, toException } from "metano-runtime";
+import type { Exception } from "metano-runtime/system/exceptions/exception";
+import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
+import { Reactivity, type Computed, type IFlushScheduler } from "metanui-reactive/metanui/reactive";
+import type { IExpect } from "./i-expect.js";
+import { ScenarioRunner } from "./scenario-runner.js";
+import { Scenario } from "./scenario.js";
+
+class ErrorScenarios$CountingScheduler implements IFlushScheduler {
+  requests: number = 0;
+
+  constructor() { }
+
+  schedule(flush: () => void): void {
+    this.requests = (this.requests + 1) | 0;
+  }
+}
+
+export class ErrorScenarios {
+  static readonly all: Scenario[] = [new Scenario("computed rethrows its error until a dependency changes", ErrorScenarios.computedRethrowsUntilDependencyChanges), new Scenario("errored computed without dependencies retries on a tracked re-read after a flush", ErrorScenarios.erroredComputedWithoutDepsRetriesOnTrackedReread), new Scenario("error in a nested dirty check leaves the graph usable", ErrorScenarios.errorInNestedCheckDirtyLeavesGraphUsable), new Scenario("boundary receives an effect apply error", ErrorScenarios.boundaryReceivesEffectError), new Scenario("boundary receives an effect compute error", ErrorScenarios.boundaryReceivesEffectComputeError), new Scenario("unhandled effect error escapes the flush", ErrorScenarios.unhandledEffectErrorEscapesFlush), new Scenario("throwing effect defers the others to the next flush", ErrorScenarios.throwingEffectDefersOthersToNextFlush), new Scenario("work left by a failed compute runs on the next flush", ErrorScenarios.workLeftByFailedComputeRunsOnNextFlush), new Scenario("throwing cleanup does not abort the disposal", ErrorScenarios.throwingCleanupDoesNotAbortDisposal), new Scenario("throwing cleanup in a rerun is rethrown after the flush", ErrorScenarios.throwingCleanupInRerunIsRethrownAfterFlush), new Scenario("write from a cleanup during disposal is allowed", ErrorScenarios.writeFromCleanupDuringDisposalIsAllowed), new Scenario("computed that disposes itself mid-run keeps no dependency", ErrorScenarios.selfDisposingComputedKeepsNoDependency), new Scenario("runner keeps the scenario error and drains leftover writes", ErrorScenarios.runnerKeepsScenarioErrorAndDrainsLeftovers)];
+
+  constructor() { }
+
+  private static computedRethrowsUntilDependencyChanges(expect: IExpect): void {
+    let runs = 0;
+    const source = Reactivity.signal(0);
+    const quotient = Reactivity.computed(() => {
+      runs = (runs + 1) | 0;
+      const divisor = source.value;
+
+      if (divisor === 0) {
+        throw new InvalidOperationException("Division by zero.");
+      }
+
+      return intDiv(10, divisor);
+    });
+    const first = ScenarioRunner.catch(() => ErrorScenarios.read(() => quotient.value));
+    const second = ScenarioRunner.catch(() => ErrorScenarios.read(() => quotient.peek()));
+    expect.isTrue(first instanceof InvalidOperationException, "the first read throws");
+    expect.isTrue(first === second, "the second read throws the same instance");
+    expect.equal(1, runs, "compute runs before the fix");
+    source.value = 5;
+    Reactivity.flush();
+    expect.equal(2, quotient.value, "value after the dependency changed");
+    expect.equal(2, runs, "compute runs after the fix");
+  }
+
+  private static erroredComputedWithoutDepsRetriesOnTrackedReread(expect: IExpect): void {
+    let runs = 0;
+    let seen = 0;
+    const trigger = Reactivity.signal(0);
+    const flaky = Reactivity.computed(() => {
+      runs = (runs + 1) | 0;
+
+      if (runs === 1) {
+        throw new InvalidOperationException("First run fails.");
+      }
+
+      return 42;
+    });
+    const first = ScenarioRunner.catch(() => ErrorScenarios.read(() => flaky.value));
+    const second = ScenarioRunner.catch(() => ErrorScenarios.read(() => flaky.value));
+    expect.isTrue(!(first == null) && first === second, "untracked reads rethrow the error");
+    expect.equal(1, runs, "untracked reads do not retry");
+    Reactivity.effect(() => {
+      ErrorScenarios.read(() => trigger.value);
+
+      return ErrorScenarios.readOr(flaky, -1);
+    }, (value: number, previous: number) => seen = value);
+    Reactivity.flush();
+    expect.equal(-1, seen, "a first tracked read sees the error");
+    expect.equal(1, runs, "a first tracked read does not retry");
+    trigger.value = 1;
+    Reactivity.flush();
+    expect.equal(42, seen, "a tracked re-read after a flush retries");
+    expect.equal(2, runs, "compute runs after the retry");
+  }
+
+  private static errorInNestedCheckDirtyLeavesGraphUsable(expect: IExpect): void {
+    const source = Reactivity.signal(0);
+    const failing = Reactivity.computed(() => ErrorScenarios.failWhenOne(source.value, "Failing."));
+    const next = Reactivity.computed(() => (failing.value + 1) | 0);
+    const guarded = Reactivity.computed(() => ErrorScenarios.readOr(next, -1));
+    expect.equal(1, guarded.value, "value before the error");
+    const root = Reactivity.signal(1);
+    const doubled = Reactivity.computed(() => Math.imul(root.value, 2));
+    const tripled = Reactivity.computed(() => Math.imul(root.value, 3));
+    const sum = Reactivity.computed(() => (doubled.value + tripled.value) | 0);
+    expect.equal(5, sum.value, "branching graph before the error");
+    source.value = 1;
+    root.value = 2;
+    Reactivity.flush();
+    expect.equal(-1, guarded.value, "the error crossed the nested dirty check");
+    expect.equal(10, sum.value, "a branching graph read afterwards is correct");
+  }
+
+  private static boundaryReceivesEffectError(expect: IExpect): void {
+    let caught = "";
+    const source = Reactivity.signal(0);
+    Reactivity.errorBoundary(() => Reactivity.effect(() => source.value, (value: number, previous: number) => {
+      if (value === 1) {
+        throw new InvalidOperationException("apply failed");
+      }
+    }), (error: Exception) => caught = error.message);
+    Reactivity.flush();
+    source.value = 1;
+    const flushError = ScenarioRunner.catch(Reactivity.flush);
+    expect.isTrue(flushError == null, "the flush does not throw");
+    expect.equal("apply failed", caught, "the boundary handler got the error");
+  }
+
+  private static boundaryReceivesEffectComputeError(expect: IExpect): void {
+    let log = "";
+    const source = Reactivity.signal(0);
+    Reactivity.errorBoundary(() => Reactivity.effect(() => (ErrorScenarios.failWhenOne((source.value + 1) | 0, "compute failed") - 1) | 0, (value: number, previous: number) => log = (log ?? "") + ("apply" + value + ",")), (error: Exception) => log = (log ?? "") + (error.message + ","));
+    Reactivity.flush();
+    expect.equal("compute failed,", log, "a creation-time compute error reaches the boundary");
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal("compute failed,apply1,", log, "the effect recovers when its dependency changes");
+  }
+
+  private static unhandledEffectErrorEscapesFlush(expect: IExpect): void {
+    const thrown = new InvalidOperationException("apply failed");
+    const source = Reactivity.signal(0);
+    Reactivity.effect(() => source.value, (value: number, previous: number) => {
+      if (value === 1) {
+        throw thrown;
+      }
+    });
+    Reactivity.flush();
+    source.value = 1;
+    const error = ScenarioRunner.catch(Reactivity.flush);
+    expect.isTrue(error === thrown, "the flush throws the original exception");
+  }
+
+  private static throwingEffectDefersOthersToNextFlush(expect: IExpect): void {
+    const thrown = new InvalidOperationException("apply failed");
+    let log = "";
+    const source = Reactivity.signal(0);
+    Reactivity.effect(() => source.value, (value: number, previous: number) => {
+      if (value === 1) {
+        throw thrown;
+      }
+    });
+    Reactivity.effect(() => source.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
+    Reactivity.flush();
+    source.value = 1;
+    const error = ScenarioRunner.catch(Reactivity.flush);
+    expect.isTrue(error === thrown, "the flush throws at once");
+    expect.equal("b0,", log, "the other effect has not applied yet");
+    Reactivity.flush();
+    expect.equal("b0,b1,", log, "the next flush runs the deferred apply");
+  }
+
+  private static workLeftByFailedComputeRunsOnNextFlush(expect: IExpect): void {
+    const scheduler = new ErrorScenarios$CountingScheduler();
+    let log = "";
+    const source = Reactivity.signal(0);
+    Reactivity.effect(() => ErrorScenarios.failWhenOne(source.value, "compute failed"), (value: number, previous: number) => {
+    });
+    Reactivity.effect(() => source.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
+    Reactivity.flush();
+    const previousScheduler = Reactivity.scheduler;
+    Reactivity.scheduler = scheduler;
+    try {
+      source.value = 1;
+      const error = ScenarioRunner.catch(Reactivity.flush);
+      expect.isTrue(error instanceof InvalidOperationException, "the compute error escapes");
+      expect.equal("b0,", log, "the other effect has not run yet");
+      expect.equal(2, scheduler.requests, "the failed flush requests another one");
+    } finally {
+      Reactivity.scheduler = previousScheduler;
+    }
+    Reactivity.flush();
+    expect.equal("b0,b1,", log, "the next flush runs the queued compute and apply");
+  }
+
+  private static throwingCleanupDoesNotAbortDisposal(expect: IExpect): void {
+    const thrown = new InvalidOperationException("cleanup failed");
+    let log = "";
+    let caught = "";
+    let dispose = () => {
+    };
+    Reactivity.errorBoundary(() => Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+      dispose = disposeRoot;
+      Reactivity.effect(() => {
+        Reactivity.onCleanup(() => log = (log ?? "") + "child,");
+
+        return 0;
+      }, (value: number, previous: number) => {
+      });
+      Reactivity.onCleanup(() => log = (log ?? "") + "1,");
+      Reactivity.onCleanup(() => throwError(new InvalidOperationException("second")));
+      Reactivity.onCleanup(() => throwError(thrown));
+      Reactivity.onCleanup(() => log = (log ?? "") + "4,");
+    }), (error: Exception) => caught = error.message);
+    const error = ScenarioRunner.catch(dispose);
+    expect.equal("child,4,1,", log, "every cleanup and child ran");
+    expect.isTrue(error === thrown, "the disposer rethrows the first error");
+    expect.equal("", caught, "cleanup errors do not go to a boundary");
+  }
+
+  private static throwingCleanupInRerunIsRethrownAfterFlush(expect: IExpect): void {
+    let log = "";
+    const source = Reactivity.signal(0);
+    Reactivity.effect(() => {
+      const value = source.value;
+      Reactivity.onCleanup(() => {
+        if (value === 0) {
+          throw new InvalidOperationException("cleanup failed");
+        }
+      });
+
+      return value;
+    }, (value: number, previous: number) => log = (log ?? "") + ("a" + value + ","));
+    Reactivity.flush();
+    source.value = 1;
+    const error = ScenarioRunner.catch(Reactivity.flush);
+    expect.isTrue(error instanceof InvalidOperationException, "the flush rethrows the cleanup error");
+    expect.equal("a0,a1,", log, "the flush finished before rethrowing");
+    expect.isTrue(ScenarioRunner.catch(Reactivity.flush) == null, "the error is rethrown once");
+  }
+
+  private static writeFromCleanupDuringDisposalIsAllowed(expect: IExpect): void {
+    const source = Reactivity.signal(0);
+    const other = Reactivity.signal(0);
+    const written = Reactivity.signal(-1);
+    const inner = Reactivity.computed(() => {
+      const value = source.value;
+      Reactivity.onCleanup(() => written.value = value);
+
+      return value;
+    });
+    const outer = Reactivity.computed(() => (other.value + inner.value) | 0);
+    expect.equal(0, outer.value, "initial value");
+    source.value = 1;
+    other.value = 1;
+    Reactivity.flush();
+    const error = ScenarioRunner.catch(() => ErrorScenarios.read(() => outer.value));
+    Reactivity.flush();
+    expect.isTrue(error == null, "the write from the cleanup does not throw");
+    expect.equal(2, outer.value, "value after the rerun");
+    expect.equal(0, written.value, "the cleanup write committed");
+  }
+
+  private static selfDisposingComputedKeepsNoDependency(expect: IExpect): void {
+    let runs = 0;
+    const source = Reactivity.signal(0);
+    const late = Reactivity.signal(0);
+    let dispose = () => {
+    };
+    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+      dispose = disposeRoot;
+
+      return Reactivity.computed(() => {
+        runs = (runs + 1) | 0;
+        const value = source.value;
+
+        if (value === 1) {
+          dispose();
+        }
+
+        return (value + late.value) | 0;
+      });
+    });
+    expect.equal(0, computed.value, "initial value");
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, computed.value, "value of the run that disposed it");
+    late.value = 5;
+    Reactivity.flush();
+    expect.equal(1, computed.value, "a disposed computed keeps its last value");
+    expect.equal(2, runs, "the dependency read after disposal does not rerun it");
+  }
+
+  private static runnerKeepsScenarioErrorAndDrainsLeftovers(expect: IExpect): void {
+    const thrown = new InvalidOperationException("scenario failed");
+    const signal = Reactivity.signal(0);
+    const inner = new Scenario("inner", (_: IExpect) => {
+      Reactivity.onCleanup(() => throwError(new InvalidOperationException("cleanup failed")));
+      signal.value = 1;
+      throw thrown;
+    });
+    const error = ScenarioRunner.catch(() => ScenarioRunner.run(inner, expect));
+    expect.isTrue(error === thrown, "the scenario error is not masked by the cleanup error");
+    expect.equal(1, signal.peek(), "the leftover write was drained");
+    expect.isTrue(ScenarioRunner.catch(Reactivity.flush) == null, "no error is left behind");
+  }
+
+  private static read<T>(read: () => T): void {
+    const value = read();
+  }
+
+  private static failWhenOne(value: number, message: string): number {
+    if (value === 1) {
+      throw new InvalidOperationException(message);
+    }
+
+    return value;
+  }
+
+  private static readOr<T>(computed: Computed<T>, fallback: T): T {
+    try {
+      return computed.value;
+    } catch (e$) {
+      const e0 = toException(e$);
+      if (e0 instanceof InvalidOperationException) {
+        return fallback;
+      } else {
+        throw e$;
+      }
+    }
+  }
+}

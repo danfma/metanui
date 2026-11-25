@@ -6,11 +6,19 @@ namespace Metanui.Reactive;
 /// disposed with it; one created outside any owner stays subscribed to its sources until it is
 /// unwatched (spec 4.2).
 /// </summary>
+/// <remarks>
+/// An exception thrown by the function is cached with <see cref="ReactiveFlags.Errored" /> and
+/// rethrown, the same instance, by every read until a dependency changes. As in Solid 2.0.4, a
+/// tracked re-read in a later flush pass than the failure also retries it, so a computed that failed
+/// before reading any dependency is not stuck for good.
+/// </remarks>
 public sealed class Computed<T> : OwnerNode
 {
     private readonly Func<T> _compute;
     private readonly IEqualityComparer<T> _comparer;
     private T _value = default!;
+    private Exception? _error;
+    private int _errorPass;
 
     internal Computed(Func<T> compute, IEqualityComparer<T>? comparer = null)
     {
@@ -27,6 +35,11 @@ public sealed class Computed<T> : OwnerNode
 
             var observer = Tracking.ActiveObserver;
 
+            if ((Flags & ReactiveFlags.Errored) != 0)
+            {
+                return ReadErrored(observer);
+            }
+
             if (observer is not null)
             {
                 DependencyGraph.Link(this, observer, Tracking.Cycle);
@@ -41,16 +54,26 @@ public sealed class Computed<T> : OwnerNode
     {
         Refresh();
 
+        if ((Flags & ReactiveFlags.Errored) != 0)
+        {
+            throw _error!;
+        }
+
         return _value;
     }
 
     /// <summary>
     /// Disposes what the previous run created, runs the function again and reports whether the
-    /// result differs from the cached value.
+    /// result differs from the cached one. A run that throws caches the error and reports a change, and
+    /// so does the first good run after an error.
     /// </summary>
     internal override bool Update()
     {
         DisposeOwned();
+
+        var wasErrored = (Flags & ReactiveFlags.Errored) != 0;
+
+        _error = null;
         DepsTail = null;
         Flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
 
@@ -66,7 +89,7 @@ public sealed class Computed<T> : OwnerNode
 
             var next = _compute();
 
-            if (_comparer.Equals(_value, next))
+            if (!wasErrored && _comparer.Equals(_value, next))
             {
                 return false;
             }
@@ -75,12 +98,18 @@ public sealed class Computed<T> : OwnerNode
 
             return true;
         }
+        catch (Exception error)
+        {
+            CacheError(error);
+
+            return true;
+        }
         finally
         {
             Tracking.ActiveObserver = previousObserver;
             Tracking.CurrentOwner = previousOwner;
             Flags &= ~ReactiveFlags.RecursedCheck;
-            DependencyGraph.PurgeDeps(this);
+            PurgeStaleDeps();
         }
     }
 
@@ -105,13 +134,14 @@ public sealed class Computed<T> : OwnerNode
     }
 
     /// <summary>
-    /// Unsubscribes from every dependency and freezes the cached value: a later read returns it
-    /// without recomputing (Solid: "a post-disposal read freezes at the last committed value").
+    /// Unsubscribes from every dependency and freezes the cached value or error: a later read returns
+    /// or rethrows it without recomputing (Solid: "a post-disposal read freezes at the last committed
+    /// value").
     /// </summary>
     internal override void OnDisposed()
     {
         DepsTail = null;
-        Flags = ReactiveFlags.Mutable;
+        Flags = ReactiveFlags.Mutable | (Flags & ReactiveFlags.Errored);
         DependencyGraph.PurgeDeps(this);
     }
 
@@ -174,11 +204,62 @@ public sealed class Computed<T> : OwnerNode
         {
             _value = _compute();
         }
+        catch (Exception error)
+        {
+            CacheError(error);
+        }
         finally
         {
             Tracking.ActiveObserver = previousObserver;
             Tracking.CurrentOwner = previousOwner;
             Flags &= ~ReactiveFlags.RecursedCheck;
+            PurgeStaleDeps();
         }
+    }
+
+    private void CacheError(Exception error)
+    {
+        _error = error;
+        _errorPass = Tracking.Pass;
+        Flags |= ReactiveFlags.Errored;
+    }
+
+    /// <summary>
+    /// Read of an errored computed: subscribes the observer like a normal read, then rethrows the
+    /// cached error. Solid 2.0.4 <c>read</c> (F-9): only a tracked re-read (the observer read this
+    /// computed at the same position in its previous run) in a later flush pass than the failure
+    /// retries the function.
+    /// </summary>
+    private T ReadErrored(ReactiveNode? observer)
+    {
+        if (observer is null)
+        {
+            throw _error!;
+        }
+
+        var reread = IsNextDependencyOf(observer);
+
+        DependencyGraph.Link(this, observer, Tracking.Cycle);
+
+        if (reread && _errorPass != Tracking.Pass && !IsDisposed)
+        {
+            Recompute();
+
+            if ((Flags & ReactiveFlags.Errored) == 0)
+            {
+                return _value;
+            }
+        }
+
+        throw _error!;
+    }
+
+    /// <summary>Whether <paramref name="observer" />'s running pass is about to reuse its link to this computed.</summary>
+    private bool IsNextDependencyOf(ReactiveNode observer)
+    {
+        var tail = observer.DepsTail;
+        var next = tail is not null ? tail.NextDep : observer.Deps;
+
+        return next is not null && next.Dep == this;
     }
 }

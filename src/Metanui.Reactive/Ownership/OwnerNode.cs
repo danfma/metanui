@@ -66,7 +66,9 @@ public abstract class OwnerNode : ReactiveNode
     /// <summary>
     /// Disposes every child, newest first and depth-first, then runs the cleanups. Used before a
     /// re-run and on disposal. Both lists are taken off the node first, so a cleanup that disposes
-    /// an ancestor, or creates a new child, never makes the walk run an entry twice.
+    /// an ancestor, or creates a new child, never makes the walk run an entry twice. A throwing
+    /// cleanup does not stop the walk (<see cref="Teardown" />). Every disposed child leaves with its
+    /// sibling pointers cleared, so holding one does not retain the rest of the chain.
     /// </summary>
     internal void DisposeOwned()
     {
@@ -76,20 +78,40 @@ public abstract class OwnerNode : ReactiveNode
 
         while (child is not null)
         {
-            // Read before disposing: a sibling disposed meanwhile keeps its NextSibling, so the
-            // walk still reaches the rest of the detached chain.
+            child.Parent = null;
+            child.PrevSibling = null;
+            child.Dispose();
+
+            // Read after disposing: a cleanup that disposed a later sibling spliced it out of the
+            // chain, so the next pointer already skips it.
             var next = child.NextSibling;
 
-            child.Parent = null;
-            child.Dispose();
+            child.NextSibling = null;
             child = next;
         }
 
-        RunCleanups();
+        var cleanups = Cleanups;
+
+        Cleanups = null;
+        Teardown.Run(cleanups);
     }
 
     /// <summary>Releases what the node type holds once its children and cleanups are gone.</summary>
     internal virtual void OnDisposed() { }
+
+    /// <summary>
+    /// Ends a run: unlinks the dependencies it did not read again, or all of them when the run
+    /// disposed the node itself, so a disposed node keeps no dependency.
+    /// </summary>
+    internal void PurgeStaleDeps()
+    {
+        if (IsDisposed)
+        {
+            DepsTail = null;
+        }
+
+        DependencyGraph.PurgeDeps(this);
+    }
 
     private void AttachTo(OwnerNode parent)
     {
@@ -106,7 +128,7 @@ public abstract class OwnerNode : ReactiveNode
         parent.FirstChild = this;
     }
 
-    /// <summary>Splices the node out of its parent's children. Keeps NextSibling for a walk in progress.</summary>
+    /// <summary>Splices the node out of its parent's children and clears its sibling pointers.</summary>
     private void Detach()
     {
         var parent = Parent;
@@ -121,6 +143,7 @@ public abstract class OwnerNode : ReactiveNode
 
         Parent = null;
         PrevSibling = null;
+        NextSibling = null;
 
         if (previous is null)
         {
@@ -134,19 +157,6 @@ public abstract class OwnerNode : ReactiveNode
         if (next is not null)
         {
             next.PrevSibling = previous;
-        }
-    }
-
-    private void RunCleanups()
-    {
-        var entry = Cleanups;
-
-        Cleanups = null;
-
-        while (entry is not null)
-        {
-            entry.Cleanup();
-            entry = entry.Next;
         }
     }
 }

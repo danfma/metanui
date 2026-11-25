@@ -17,9 +17,11 @@ export class ScenarioRunner {
         scenario.run(expect);
       });
       Reactivity.flush();
-    } finally {
-      dispose();
+    } catch (_err) {
+      ScenarioRunner.catch(() => ScenarioRunner.settle(dispose));
+      throw _err;
     }
+    ScenarioRunner.settle(dispose);
   }
 
   static catch(action: () => void): Exception | null {
@@ -32,6 +34,14 @@ export class ScenarioRunner {
       const exception = e0;
 
       return exception;
+    }
+  }
+
+  private static settle(dispose: () => void): void {
+    try {
+      dispose();
+    } finally {
+      Reactivity.flush();
     }
   }
 }
