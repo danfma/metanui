@@ -37,6 +37,13 @@ internal static class FlushLoop
     private static bool _resumePending;
 
     /// <summary>
+    /// Whether the pending resume continues the failed flush's pass budget. A flush request made
+    /// after the failure (a write, a retry, a new effect's apply) clears it: the request was folded
+    /// into the resume already scheduled, which then runs it as a new flush, with a fresh budget.
+    /// </summary>
+    private static bool _resumeContinuesBudget;
+
+    /// <summary>
     /// Passes run by the current flush, counting the failed flushes it resumes (see
     /// <see cref="Resume" />), so an effect that throws after writing what it reads still reaches the
     /// pass limit across the flushes re-requested for it.
@@ -159,7 +166,11 @@ internal static class FlushLoop
     /// drains new work in its next pass). A scheduler that throws leaves no flush marked as scheduled,
     /// so the next request asks again.
     /// </summary>
-    public static void RequestFlush() => Request(RunFlush);
+    public static void RequestFlush()
+    {
+        _resumeContinuesBudget = false;
+        Request(RunFlush);
+    }
 
     private static void Request(Action flush)
     {
@@ -192,9 +203,9 @@ internal static class FlushLoop
     /// <remarks>
     /// An error no boundary handles leaves at once (Solid 2.0.4 ordering). The work still queued is
     /// kept and another flush is requested, so the next flush runs it; unlike Solid, the graph is not
-    /// halted (spec 4.4). That re-requested flush continues the failed flush's pass budget, and a
-    /// flush that stops at the pass limit requests no other. Any other flush (a direct call, or one
-    /// requested by a write) starts with a fresh budget. After a flush that ends normally, the first
+    /// halted (spec 4.4). That re-requested flush continues the failed flush's pass budget, unless a
+    /// flush was requested before it ran, and a flush that stops at the pass limit requests no other.
+    /// Any other flush (a direct call, or one requested by a write) starts with a fresh budget. After a flush that ends normally, the first
     /// cleanup error raised during it is rethrown.
     /// </remarks>
     /// <exception cref="InvalidOperationException">
@@ -204,14 +215,15 @@ internal static class FlushLoop
     public static void Run() => RunWithBudget(0);
 
     /// <summary>
-    /// Runs the flush re-requested after a failed one, continuing its pass budget. Does nothing when
-    /// another flush already ran the leftovers: its pass count belongs to that flush.
+    /// Runs the flush re-requested after a failed one, continuing its pass budget unless a flush was
+    /// requested since the failure. Does nothing when another flush already ran the leftovers: its
+    /// pass count belongs to that flush.
     /// </summary>
     private static void Resume()
     {
         if (_resumePending)
         {
-            RunWithBudget(_passes);
+            RunWithBudget(_resumeContinuesBudget ? _passes : 0);
         }
     }
 
@@ -225,6 +237,7 @@ internal static class FlushLoop
         _running = true;
         _scheduled = false;
         _resumePending = false;
+        _resumeContinuesBudget = false;
         _passes = passesUsed;
 
         var completed = RunPassesOrRequestResume();
@@ -295,6 +308,7 @@ internal static class FlushLoop
         }
 
         _resumePending = true;
+        _resumeContinuesBudget = true;
 
         try
         {
@@ -304,6 +318,7 @@ internal static class FlushLoop
         {
             // Request already cleared _scheduled; keep the original error.
             _resumePending = false;
+            _resumeContinuesBudget = false;
         }
     }
 

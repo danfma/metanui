@@ -99,6 +99,10 @@ public static class ErrorScenarios
             StaleResumeSpendsNoPassBudget
         ),
         new Scenario(
+            "write made while a resume is pending runs with a fresh pass budget",
+            WriteWhileAResumeIsPendingRunsWithAFreshBudget
+        ),
+        new Scenario(
             "apply after a skipped apply receives the last applied value",
             ApplyAfterSkippedApplyReceivesLastApplied
         ),
@@ -1188,6 +1192,69 @@ public static class ErrorScenarios
         expect.Equal(1, deferred, "the direct flush ran the apply the failed flush left");
         expect.Equal(0, failures, "no flush failed");
         expect.Equal(60, counter.Peek(), "the second count completed");
+    }
+
+    /// <summary>
+    /// A flush counts to 60, one pass per count, then fails with an apply left queued, so it requests
+    /// a resume. A write made before that resume runs is a new request (spec 4.4): the flush that runs
+    /// it, the resume, must not carry the 60 passes of the failed flush into the 60-pass count the
+    /// write starts, which would then stop at the 100-pass limit.
+    /// </summary>
+    private static void WriteWhileAResumeIsPendingRunsWithAFreshBudget(IExpect expect)
+    {
+        var scheduler = new RecordingScheduler();
+        var deferred = 0;
+        var failures = 0;
+        var counter = Reactivity.Signal(0);
+        var other = Reactivity.Signal(0);
+
+        Reactivity.Effect(() => counter.Value, (value, previous) => CountUpTo(counter, value, 60));
+
+        Reactivity.Effect(
+            () => counter.Value,
+            (value, previous) =>
+            {
+                if (value == 60)
+                {
+                    throw new InvalidOperationException("apply failed");
+                }
+            }
+        );
+
+        Reactivity.Effect(() => counter.Value, (value, previous) => deferred = value);
+        Reactivity.Effect(() => other.Value, (value, previous) => CountUpTo(other, value, 60));
+        Reactivity.Flush();
+
+        var previousScheduler = Reactivity.Scheduler;
+
+        Reactivity.UseScheduler(scheduler);
+
+        try
+        {
+            counter.Value = 1;
+            ScenarioRunner.Catch(scheduler.Take()!);
+            other.Value = 1;
+
+            var flush = scheduler.Take();
+
+            while (flush is not null)
+            {
+                if (ScenarioRunner.Catch(flush) is not null)
+                {
+                    failures++;
+                }
+
+                flush = scheduler.Take();
+            }
+        }
+        finally
+        {
+            Reactivity.UseScheduler(previousScheduler);
+        }
+
+        expect.Equal(60, deferred, "the resume ran the apply the failed flush left");
+        expect.Equal(0, failures, "no flush failed");
+        expect.Equal(60, other.Peek(), "the count the write started completed");
     }
 
     /// <summary>Writes the next count while <paramref name="value" /> is between 1 and <paramref name="limit" />.</summary>

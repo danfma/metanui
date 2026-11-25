@@ -78,7 +78,7 @@ Known behaviour, stated precisely:
    - move `Tracking.Pass` into `FlushLoop`;
    - split `ErrorScenarios.cs` by theme;
    - one type per file for `IFlushScheduler`/`ManualFlushScheduler`;
-   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, a write during a pending resume, the A,B / A,C retry-queue order (optional, see the F-9 section), a retry queued in the last allowed pass;
+   - missing scenarios: a boundary handler that disposes an owner between the failing effect and the boundary (the error then escapes, spec 4.4), a root disposer called from a boundary handler, the A,B / A,C retry-queue order (optional, see the F-9 section), a retry queued in the last allowed pass;
    - rethrow cached errors with `ExceptionDispatchInfo` so the .NET stack of `throw _error` is kept;
    - sanitise the `.cpuprofile` paths before publishing benchmark artefacts.
 
