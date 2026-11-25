@@ -81,7 +81,7 @@ export class RootNode extends OwnerNode {
       const e0 = toException(e$);
       const handlerError = e0;
 
-      if (!RootNode.tryRouteError(this, handlerError)) {
+      if (!RootNode.tryRouteError(this.parent, handlerError)) {
         throw e$;
       }
     } finally {
@@ -92,8 +92,7 @@ export class RootNode extends OwnerNode {
   }
 
   /** @internal */
-  static tryRouteError(node: OwnerNode, error: Exception): boolean {
-    let owner = node.parent;
+  static tryRouteError(owner: OwnerNode | null, error: Exception): boolean {
     while (!(owner == null)) {
       let root: RootNode;
 

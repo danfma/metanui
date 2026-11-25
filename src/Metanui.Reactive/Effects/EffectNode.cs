@@ -74,7 +74,8 @@ internal abstract class EffectNode : OwnerNode
     /// Apply phase of a flush: runs the cleanups of the previous apply, then the apply, untracked and
     /// with no owner. A disposed effect's queued apply is skipped, and so is the apply of an effect
     /// that one of those cleanups disposed. An exception from either goes to the nearest error
-    /// boundary, or escapes.
+    /// boundary, or escapes. The owner is read first: a cleanup or apply that disposes the effect
+    /// detaches it, and its error must still reach the boundary that owned it.
     /// </summary>
     internal void RunApply()
     {
@@ -83,13 +84,15 @@ internal abstract class EffectNode : OwnerNode
             return;
         }
 
+        var owner = Parent;
+
         try
         {
             RunApplyUnowned();
         }
         catch (Exception error)
         {
-            if (!RootNode.TryRouteError(this, error))
+            if (!RootNode.TryRouteError(owner, error))
             {
                 throw;
             }
@@ -174,10 +177,13 @@ internal abstract class EffectNode : OwnerNode
     /// <summary>
     /// Runs the compute and reports whether its apply should be queued: false when the compute
     /// disposed the effect or was skipped because a cleanup did. An exception goes to the nearest
-    /// error boundary and makes it return false, or escapes when there is none.
+    /// error boundary and makes it return false, or escapes when there is none. The owner is read
+    /// first, as in <see cref="RunApply" />.
     /// </summary>
     private bool TryRunCompute()
     {
+        var owner = Parent;
+
         try
         {
             RunCompute();
@@ -186,7 +192,7 @@ internal abstract class EffectNode : OwnerNode
         }
         catch (Exception error)
         {
-            if (!RootNode.TryRouteError(this, error))
+            if (!RootNode.TryRouteError(owner, error))
             {
                 throw;
             }
