@@ -52,7 +52,7 @@ public static class EffectScenarios
             {
                 applies++;
                 appliedValue = value;
-                appliedPrevious = previous!;
+                appliedPrevious = previous;
             }
         );
 

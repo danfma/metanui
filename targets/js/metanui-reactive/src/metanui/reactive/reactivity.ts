@@ -30,7 +30,7 @@ export class Reactivity {
     return new Computed(compute, comparer);
   }
 
-  static effect<T>(compute: () => T, apply: (arg1: T, arg2: T | null) => void): void {
+  static effect<T>(compute: () => T, apply: (arg1: T, arg2: T) => void): void {
     new SplitEffect(compute, apply).start();
   }
 

@@ -44,7 +44,7 @@ export class FlushScenarios {
     const scheduler = new FlushScenarios$CountingScheduler(false);
     const source = Reactivity.signal(0);
     const relayed = Reactivity.signal(0);
-    Reactivity.effect(() => source.value, (value: number, previous: number | null) => relayed.value = (value + 1) | 0);
+    Reactivity.effect(() => source.value, (value: number, previous: number) => relayed.value = (value + 1) | 0);
     FlushScenarios.withScheduler(scheduler, () => {
       Reactivity.flush();
       source.value = 1;
@@ -58,12 +58,12 @@ export class FlushScenarios {
     let log = "";
     const source = Reactivity.signal(0);
     const relayed = Reactivity.signal(0);
-    Reactivity.effect(() => source.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => source.value, (value: number, previous: number) => {
       relayed.value = (value + 1) | 0;
       Reactivity.flush();
       log = (log ?? "") + ("a" + relayed.value + ",");
     });
-    Reactivity.effect(() => relayed.value, (value: number, previous: number | null) => log = (log ?? "") + ("b" + value + ","));
+    Reactivity.effect(() => relayed.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
     Reactivity.flush();
     expect.equal("a0,b0,b1,", log, "the nested flush neither commits nor runs applies early");
   }

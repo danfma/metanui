@@ -2,12 +2,12 @@ import { EffectNode } from "./effect-node.js";
 
 export class SplitEffect<T> extends EffectNode {
   private readonly _compute: () => T;
-  private readonly _apply: (arg1: T, arg2: T | null) => void;
+  private readonly _apply: (arg1: T, arg2: T) => void;
   private _value: T = null!;
-  private _applied: T | null = null;
+  private _applied: T = null!;
   private _hasApplied: boolean = false;
 
-  constructor(compute: () => T, apply: (arg1: T, arg2: T | null) => void) {
+  constructor(compute: () => T, apply: (arg1: T, arg2: T) => void) {
     super();
     this._compute = compute;
     this._apply = apply;

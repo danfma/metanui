@@ -77,7 +77,7 @@ Citations refer to the Solid 2.0 migration guide and cheatsheet (`solidjs/solid`
 
 ### 4.3 Effect (split)
 
-- `Effect(compute, apply)`: `compute` is tracked and returns a value; `apply(value, previous)` is untracked and performs the side effect. `apply` may return a cleanup that runs before the next `apply` and on disposal.
+- `Effect(compute, apply)`: `compute` is tracked and returns a value; `apply(value, previous)` is untracked and performs the side effect. `apply` returns nothing: cleanups registered with `Reactivity.OnCleanup` while an `apply` runs belong to that `apply`, and run (last registered first) before the next `apply` and on disposal. This is the C# shape of Solid's "apply returns a cleanup".
 - `compute` runs during the flush, together with all other computations; every `apply` of the flush runs after **all** computes of that flush. This ordering is what lets renderers read the whole graph before touching the platform.
 - On creation, `compute` runs immediately; the first `apply` runs at the end of the current flush (or the next one if created outside a flush). The first `apply` receives `previous = value`, so `previous` is never `default` (which would be 0 on .NET but null in TypeScript for a value type).
 - Writes performed inside `apply` schedule another flush pass. A pass limit detects infinite update loops and throws.

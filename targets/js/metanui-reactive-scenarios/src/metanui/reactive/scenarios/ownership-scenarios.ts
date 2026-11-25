@@ -39,11 +39,11 @@ export class OwnershipScenarios {
         });
 
         return run;
-      }, (value: number, previous: number | null) => {
+      }, (value: number, previous: number) => {
       });
 
       return run;
-    }, (value: number, previous: number | null) => {
+    }, (value: number, previous: number) => {
     });
     Reactivity.flush();
     count.value = 2;
@@ -67,7 +67,7 @@ export class OwnershipScenarios {
         return source.value;
       });
     });
-    Reactivity.effect(() => computed.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => computed.value, (value: number, previous: number) => {
     });
     Reactivity.flush();
     source.value = 1;
@@ -87,7 +87,7 @@ export class OwnershipScenarios {
       computes = (computes + 1) | 0;
 
       return (tracked.value + Reactivity.untrack(() => untracked.value)) | 0;
-    }, (value: number, previous: number | null) => {
+    }, (value: number, previous: number) => {
     });
     Reactivity.flush();
     untracked.value = 1;
@@ -103,13 +103,13 @@ export class OwnershipScenarios {
     const source = Reactivity.signal(0);
     let disposeInner = () => {
     };
-    Reactivity.effect(() => source.value, (value: number, previous: number | null) => {
+    Reactivity.effect(() => source.value, (value: number, previous: number) => {
       if (value > 0) {
         disposeInner();
       }
     });
     disposeInner = Reactivity.rootFuncOfActionT<() => void>((dispose: () => void) => {
-      Reactivity.effect(() => source.value, (value: number, previous: number | null) => appliesOfB = (appliesOfB + 1) | 0);
+      Reactivity.effect(() => source.value, (value: number, previous: number) => appliesOfB = (appliesOfB + 1) | 0);
 
       return dispose;
     });
