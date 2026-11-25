@@ -524,23 +524,69 @@ Done in 6cde2ad, f9d3e63 and 0be4b87. 59/59 pass on .NET and Bun, and strict tsc
 ---
 
 ## Task 9: Review gate and docs (Phase 9)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
-- [ ] **Step 1:** Run `dotnet csharpier format .`, `dotnet build`, both test suites and the benchmark correctness tests. Expected: all green.
-- [ ] **Step 2:** Run the reviewers in parallel: `compiler-man`, `bob`, `backend-reviewer` (all `.cs`), `frontend-reviewer` (hand-written `.ts` under `tests/js` and `bench`), `architecture-reviewer`. A `REPROVADO` verdict blocks: fix and rerun. Report `APROVADO COM RESSALVAS` items to the maintainer.
-- [ ] **Step 3:** Update `docs/handoff.md`: Phase 1 core done, benchmark summary, open Metano issues, next design `0002-dsl-binding.md`. Update the spec's status line if the implementation changed any decision.
-- [ ] **Step 4: Commit** `docs: record reactive core results`.
+- [x] **Step 1:** Run `dotnet csharpier format .`, `dotnet build`, both test suites and the benchmark correctness tests. Expected: all green.
+- [x] **Step 2:** Run the reviewers in parallel: `compiler-man`, `bob`, `backend-reviewer` (all `.cs`), `frontend-reviewer` (hand-written `.ts` under `tests/js` and `bench`), `architecture-reviewer`. A `REPROVADO` verdict blocks: fix and rerun. Report `APROVADO COM RESSALVAS` items to the maintainer.
+- [x] **Step 3:** Update `docs/handoff.md`: Phase 1 core done, benchmark summary, open Metano issues, next design `0002-dsl-binding.md`. Update the spec's status line if the implementation changed any decision.
+- [x] **Step 4: Commit** `docs: record reactive core results`.
 
 ### Verification Plan
 - format, build, both suites and the benchmark correctness tests green
 - no `REPROVADO` verdict left
 
 ### Phase Summary
-_(write when phase completes)_
+Step 1 verified at 357e42e: csharpier clean, build 0 errors and 0 warnings, 59/59 on .NET and Bun. Step 2: all five reviewers ran in parallel on 3d3486d..357e42e (compiler-man, architecture-reviewer, backend-reviewer, frontend-reviewer, bob). All five returned APROVADO COM RESSALVAS; none returned REPROVADO.
+- compiler-man confirmed the alien-signals port line for line.
+- **Found by the review and fixed in one wave** (357e42e..17d4d37, 12 commits; 72/72 on both platforms):
+  - the scheduler latch: a write made before the host set its scheduler froze flushing silently. `Reactivity.UseScheduler` replaces the setter;
+  - an F-9 retry left sibling observers stale;
+  - a node disposed during its own run adopted children;
+  - a stale resume budget;
+  - cleanup errors reached boundaries from computations;
+  - a self-disposing effect routed its error from a detached parent;
+  - mandatory blank lines;
+  - shared scenario helpers;
+  - spec deviations completed. Computed now has Solid `lazy: true` semantics (maintainer decision). Also documented: value equality, no `prev`, first apply gets `previous = value`, nested apply order, nested `Flush()` as in Solid, a top-level ErrorBoundary inside a Root;
+  - handoff next steps;
+  - bench script hardening.
+- **Scoped re-review:** everything addressed except the items parked in the ledger and listed in the Final Recap:
+  - a retry leaves an already-Pending sibling stale (one-line follow-up);
+  - the boundary-handler disposer contradicts spec 4.5;
+  - the per-item Root under a live boundary escape gap.
+- Step 3: `docs/handoff.md` was updated in the fix wave (55758cb).
 
 ## Final Recap
-_(write when all phases complete: summary of the entire piece of work)_
+Phase 1's reactive core is done on branch `feat/reactive-core`, from 3d3486d to the HEAD of this plan.
+
+**What it is.** A C# 15 / .NET 11 fine-grained reactive core, transpiled to TypeScript by Metano 3.1.0. It provides:
+- signals with deferred writes;
+- lazy computeds (Solid `lazy: true`);
+- split `compute`/`apply` effects;
+- an owner tree with LIFO cleanups and disposal;
+- error boundaries with error caching and the F-9 retry;
+- a flush loop with a pass budget and a pluggable `IFlushScheduler` (`Reactivity.UseScheduler`).
+
+Signals and computeds are created only through `Reactivity.Signal`/`Reactivity.Computed`. The engine is a line-for-line port of alien-signals @8734d38. The public semantics follow Solid 2.0.4, and every deviation is documented in spec 4.1–4.7.
+
+**Evidence.**
+- Tests: 72 scenarios, written once in C#, pass on .NET (TUnit) and Bun. Real scheduler tests exist on both platforms. Strict tsc is clean.
+- TS audit: `docs/design/0001-reactive-core-ts-audit.md`.
+- Benchmark (`bench/reactivity/README.md`, raw results committed): on an idle host, Bun meets the 10–15% budget against Solid 2.0.4 on every test. V8 misses on createSignals and cellx1000.
+
+**Metano.** About 30 transpiler findings went upstream: #761, #764–#765, #768–#779, #781, #785–#787 and #794. Most are fixed in Metano 3.2.0. The workarounds stay until the upgrade.
+
+**Open, in the handoff and the ledger:**
+- the Metano 3.2.0 upgrade;
+- the 0002 DSL binding design;
+- a separate V8 optimisation phase. Subclass field emit is the leading F2 hypothesis: V8 creates objects ~2.4× slower when a derived class declares fields;
+- parked findings: a Pending sibling stale on retry, the boundary-handler disposer, and the per-item Root escape gap;
+- deferred minors.
 
 ## Deployment Plan
-_(write when all phases complete. Expected: nothing is published in Phase 1; record how to build, test and benchmark from a clean clone, and which Metano version was used)_
+Nothing is published in Phase 1: the generated packages are private workspace packages. From a clean clone:
+1. `dotnet tool restore && dotnet build`. The SDK is 11.0.100 (`global.json`). Metano is 3.1.0, pinned by the tool manifest and the current lock. Do not force-restore before the planned 3.2.0 upgrade, because the packages float (`*`).
+2. `bun install`
+3. `dotnet test tests/Metanui.Reactive.Tests` and `bun test tests/js/reactive`
+4. Benchmark: `scripts/bench-reactivity.sh test`, then the timed run on a quiet machine (1-minute load below 1.0), as described in `bench/reactivity/README.md`. Micro benchmarks are under `bench/micro/`.
