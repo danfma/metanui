@@ -25,7 +25,7 @@ export class Reactivity {
   static onCleanup(cleanup: () => void): void {
     const apply = Tracking.activeApply;
 
-    if (!(apply == null)) {
+    if (!(apply == null) && Tracking.activeObserver == null) {
       apply.addApplyCleanup(cleanup);
     }
   }

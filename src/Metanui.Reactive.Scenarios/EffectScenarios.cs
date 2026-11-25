@@ -16,6 +16,10 @@ public static class EffectScenarios
         new Scenario("applies run after all computes", AppliesRunAfterAllComputes),
         new Scenario("apply is untracked", ApplyIsUntracked),
         new Scenario("apply cleanup runs before the next apply", ApplyCleanupRunsBeforeNextApply),
+        new Scenario(
+            "cleanup in a computation nested in an apply stays out of the apply",
+            NestedCleanupStaysOutOfApply
+        ),
         new Scenario("write in apply schedules another pass", WriteInApplySchedulesAnotherPass),
         new Scenario("effect write loop throws", EffectWriteLoopThrows),
         new Scenario("equal record write does not rerun the effect", EqualRecordWriteDoesNotRerun),
@@ -163,6 +167,45 @@ public static class EffectScenarios
         Reactivity.Flush();
 
         expect.Equal("apply1,cleanup1,apply2,", log, "cleanup order");
+    }
+
+    private static void NestedCleanupStaysOutOfApply(IExpect expect)
+    {
+        var log = "";
+        var count = new Signal<int>(1);
+
+        Reactivity.Effect(
+            () => count.Value,
+            (value, previous) =>
+            {
+                log += "apply" + value + ",";
+
+                var nested = new Computed<int>(() =>
+                {
+                    Reactivity.OnCleanup(() => log += "computed-cleanup,");
+
+                    return value;
+                });
+
+                var read = nested.Value;
+
+                Reactivity.Effect(
+                    () =>
+                    {
+                        Reactivity.OnCleanup(() => log += "effect-cleanup,");
+
+                        return read;
+                    },
+                    (innerValue, innerPrevious) => { }
+                );
+            }
+        );
+
+        Reactivity.Flush();
+        count.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal("apply1,apply2,", log, "no nested cleanup ran with the outer apply");
     }
 
     private static void WriteInApplySchedulesAnotherPass(IExpect expect)
