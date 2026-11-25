@@ -182,18 +182,31 @@ public sealed class Computed<T> : ComputedNode
 
     /// <summary>
     /// With no subscriber left, drops the dependencies and what the last run created, and recomputes
-    /// on the next read (Solid <c>unobserved</c>).
+    /// on the next read (Solid <c>unobserved</c>, spec 4.2).
     /// </summary>
+    /// <remarks>
+    /// A computed with no dependency has nothing to drop, and alien-signals leaves it as it is, since
+    /// running it again gives the same value. When its last run created children or registered
+    /// cleanups, those are still disposed, and it recomputes on the next read to create them again;
+    /// an errored one keeps its error instead, as its retry rule (F-9) expects.
+    /// </remarks>
     internal override void Unwatched()
     {
-        if (DepsTail is null)
+        if (DepsTail is not null)
         {
-            return;
+            Flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+            DependencyGraph.DisposeAllDepsInReverse(this);
+            DisposeOwned();
         }
+        else if (FirstChild is not null || Cleanups is not null)
+        {
+            if ((Flags & ReactiveFlags.Errored) == 0)
+            {
+                Flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+            }
 
-        Flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
-        DependencyGraph.DisposeAllDepsInReverse(this);
-        DisposeOwned();
+            DisposeOwned();
+        }
     }
 
     /// <summary>
