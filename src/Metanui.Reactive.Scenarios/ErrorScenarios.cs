@@ -47,6 +47,10 @@ public static class ErrorScenarios
             EffectThrowingOnEveryChangeNeverHitsPassLimit
         ),
         new Scenario(
+            "resume made stale by a direct flush spends no pass budget",
+            StaleResumeSpendsNoPassBudget
+        ),
+        new Scenario(
             "apply after a skipped apply receives the last applied value",
             ApplyAfterSkippedApplyReceivesLastApplied
         ),
@@ -498,6 +502,77 @@ public static class ErrorScenarios
         expect.Equal(150, source.Value, "every write was applied");
     }
 
+    /// <summary>
+    /// A failed flush requests a resume, but a direct flush runs the leftovers first and spends 60
+    /// passes. When the stale resume runs later, it must not carry those passes into the next
+    /// 60-pass flush, which would then stop at the 100-pass limit.
+    /// </summary>
+    private static void StaleResumeSpendsNoPassBudget(IExpect expect)
+    {
+        var scheduler = new RecordingScheduler();
+        var deferred = 0;
+        var failures = 0;
+        var failing = Reactivity.Signal(0);
+        var counter = Reactivity.Signal(0);
+
+        Reactivity.Effect(
+            () => failing.Value,
+            (value, previous) =>
+            {
+                if (value == 1)
+                {
+                    throw new InvalidOperationException("apply failed");
+                }
+            }
+        );
+
+        Reactivity.Effect(() => failing.Value, (value, previous) => deferred = value);
+        Reactivity.Effect(() => counter.Value, (value, previous) => CountUpTo(counter, value, 60));
+        Reactivity.Flush();
+
+        var previousScheduler = Reactivity.Scheduler;
+
+        Reactivity.UseScheduler(scheduler);
+
+        try
+        {
+            failing.Value = 1;
+            ScenarioRunner.Catch(scheduler.Take()!);
+            counter.Value = 1;
+            Reactivity.Flush();
+            counter.Value = 1;
+
+            var flush = scheduler.Take();
+
+            while (flush is not null)
+            {
+                if (ScenarioRunner.Catch(flush) is not null)
+                {
+                    failures++;
+                }
+
+                flush = scheduler.Take();
+            }
+        }
+        finally
+        {
+            Reactivity.UseScheduler(previousScheduler);
+        }
+
+        expect.Equal(1, deferred, "the direct flush ran the apply the failed flush left");
+        expect.Equal(0, failures, "no flush failed");
+        expect.Equal(60, counter.Peek(), "the second count completed");
+    }
+
+    /// <summary>Writes the next count while <paramref name="value" /> is between 1 and <paramref name="limit" />.</summary>
+    private static void CountUpTo(Signal<int> counter, int value, int limit)
+    {
+        if (value > 0 && value < limit)
+        {
+            counter.Value = value + 1;
+        }
+    }
+
     private static void ApplyAfterSkippedApplyReceivesLastApplied(IExpect expect)
     {
         var log = "";
@@ -807,20 +882,56 @@ public static class ErrorScenarios
         }
     }
 
-    /// <summary>Keeps the last flush requested, so a scenario can run it like an event loop would.</summary>
+    /// <summary>
+    /// Keeps every flush requested, in request order, so a scenario can run them like an event loop
+    /// would.
+    /// </summary>
     private sealed class RecordingScheduler : IFlushScheduler
     {
-        private Action? _pending;
+        private RequestedFlush? _first;
+        private RequestedFlush? _last;
 
-        public void Schedule(Action flush) => _pending = flush;
+        public void Schedule(Action flush)
+        {
+            var requested = new RequestedFlush(flush);
 
+            if (_last is null)
+            {
+                _first = requested;
+            }
+            else
+            {
+                _last.Next = requested;
+            }
+
+            _last = requested;
+        }
+
+        /// <summary>Removes and returns the oldest flush requested, or null when none is left.</summary>
         public Action? Take()
         {
-            var flush = _pending;
+            var first = _first;
 
-            _pending = null;
+            if (first is null)
+            {
+                return null;
+            }
 
-            return flush;
+            _first = first.Next;
+
+            if (_first is null)
+            {
+                _last = null;
+            }
+
+            return first.Flush;
+        }
+
+        private sealed class RequestedFlush(Action flush)
+        {
+            public Action Flush { get; } = flush;
+
+            public RequestedFlush? Next { get; set; }
         }
     }
 

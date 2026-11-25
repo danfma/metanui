@@ -22,6 +22,7 @@ export class FlushLoop {
   private static _applyTail: EffectNode | null = null;
   private static _scheduled: boolean = false;
   private static _running: boolean = false;
+  private static _resumePending: boolean = false;
   private static _passes: number = 0;
 
   constructor() { }
@@ -43,7 +44,7 @@ export class FlushLoop {
     FlushLoop._scheduled = false;
 
     if (FlushLoop.hasWork()) {
-      FlushLoop.requestFlush();
+      FlushLoop.request(FlushLoop._resumePending ? FlushLoop.resumeFlush : FlushLoop.runFlush);
     }
   }
 
@@ -107,7 +108,9 @@ export class FlushLoop {
   }
 
   private static resume(): void {
-    FlushLoop.runWithBudget(FlushLoop._passes);
+    if (FlushLoop._resumePending) {
+      FlushLoop.runWithBudget(FlushLoop._passes);
+    }
   }
 
   private static runWithBudget(passesUsed: number): void {
@@ -117,6 +120,7 @@ export class FlushLoop {
 
     FlushLoop._running = true;
     FlushLoop._scheduled = false;
+    FlushLoop._resumePending = false;
     FlushLoop._passes = passesUsed;
     const completed = FlushLoop.runPassesOrRequestResume();
 
@@ -162,9 +166,11 @@ export class FlushLoop {
       return;
     }
 
+    FlushLoop._resumePending = true;
     try {
       FlushLoop.request(FlushLoop.resumeFlush);
     } catch (_err) {
+      FlushLoop._resumePending = false;
     }
   }
 
