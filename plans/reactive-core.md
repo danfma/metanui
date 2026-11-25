@@ -358,7 +358,7 @@ Done in f81025c, 36e51d5 and a9a7847. 36/36 scenarios pass on .NET and Bun, and 
 ---
 
 ## Task 6: Errors (Phase 6)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
@@ -368,22 +368,54 @@ Status: Not started   <!-- Not started | In progress | Complete -->
 **Interfaces:**
 - Produces: `public static void Reactivity.ErrorBoundary(Action body, Action<Exception> onError)` creates an owner with an error handler; errors from computations under it go to the nearest handler up the chain (spec 4.4). A computed stores a thrown exception in its value slot (flag bit 64 `Errored`, spec 5.4) and rethrows it on every read until a dependency changes.
 
-- [ ] **Step 1: Confirm the error ordering in `@solidjs/signals` 2.0.4** (unhandled effect error: are the remaining effects of the pass still run before the throw?). Write the answer in the task report. The scenarios below assume yes. If 2.0.4 differs, follow 2.0.4 and update spec 4.4.
-- [ ] **Step 2: Write the scenarios** in `ErrorScenarios`:
+- [x] **Step 1: Confirm the error ordering in `@solidjs/signals` 2.0.4** (unhandled effect error: are the remaining effects of the pass still run before the throw?). Write the answer in the task report. The scenarios below assume yes. If 2.0.4 differs, follow 2.0.4 and update spec 4.4.
+- [x] **Step 2: Write the scenarios** in `ErrorScenarios`:
   - `ComputedRethrowsUntilDependencyChanges`: reading twice throws the same exception instance with 1 compute run; after fixing the dependency and flushing, it returns a value.
   - `BoundaryReceivesEffectError`: an exception in `apply` under `ErrorBoundary` reaches `onError`, and `Flush()` does not throw.
   - `UnhandledEffectErrorEscapesFlush`: with no boundary, `Flush()` throws the original exception.
   - `ThrowingEffectDoesNotStopOthers` (Review Focus 5): effect A throws in apply and effect B in the same pass still applies; then `Flush()` throws.
-- [ ] **Step 3: Run both suites.** Expected: the new scenarios fail.
-- [ ] **Step 4: Implement.**
-- [ ] **Step 5: Run both suites.** Expected: all pass.
-- [ ] **Step 6: Commit** `feat: add error propagation and error boundaries`.
+- [x] **Step 3: Run both suites.** Expected: the new scenarios fail.
+- [x] **Step 4: Implement.**
+- [x] **Step 5: Run both suites.** Expected: all pass.
+- [x] **Step 6: Commit** `feat: add error propagation and error boundaries`.
 
 ### Verification Plan
 - Both suites green, Error scenarios included; Solid 2.0.4 error-ordering finding recorded
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 4ccb775, 06c790b and de64c09. 54/54 scenarios pass on .NET and Bun, and strict tsc is clean. The review took two fix rounds: an unbounded failed-flush re-request loop, apply cleanups that aborted on a throw, and then a pass budget that leaked into unrelated flushes. All three are fixed, and the re-review approved.
+- **Solid 2.0.4 findings** (from the tarball):
+  - An unhandled effect error halts reactivity (`haltReactivity`).
+  - Effect compute errors go to the effect's own handler or to console.error.
+  - Cleanup errors: the walk continues, and the first error is rethrown.
+  - Disposal is exempt from the write check.
+  - `NO_OWNER_EFFECT` is a warning.
+- **Rulings and deviations** (recorded in spec 4.4):
+  - **No halt.** An unhandled error throws at once, the remaining work stays queued, and one flush is re-requested.
+  - **Effect compute and apply errors** go to the nearest `ErrorBoundary`, or escape `Flush()`.
+  - **Throwing cleanups follow Solid:** the walk continues, and the first error is rethrown by the disposer or at the end of the flush. Cleanup errors never reach a boundary. An apply-cleanup error becomes the apply's error, and that apply is skipped.
+- **Errors in computeds:**
+  - `Errored = 64`. A computed caches the error and rethrows it.
+  - The normal read path costs one flag test.
+  - Solid's retry rule applies: a no-deps errored computed retries when a tracked observer re-reads it in a later pass, at most once per pass.
+- **Pass budget:** only the flush re-requested after a failure (`ResumeFlush`) carries the pass budget. Every other flush starts fresh. At the limit, pending writes are discarded and the pass-limit error is thrown.
+- **Disposal hygiene:**
+  - Writes are allowed during disposal (`Teardown.Depth`).
+  - Disposed nodes clear their sibling pointers.
+  - A self-disposing run keeps no dependencies.
+  - `ScenarioRunner` keeps the scenario's own error and drains leftovers, with no reset API.
+- **Phase 7:** decide whether to keep the defensive `try/finally` in `Propagate`/`CheckDirty` (no longer reachable from user code), and rename or drop `ErrorInNestedCheckDirtyLeavesGraphUsable` with it.
+- **Deferred to the final review** (ledger):
+  - a stale resume uses a stale budget;
+  - a write during a pending resume;
+  - a stranded queue at the limit;
+  - `throw _error` loses the .NET stack;
+  - TS `toException` identity;
+  - the ErrorBoundary disposer;
+  - a boundary handler writing inside a nested computation;
+  - `Teardown.Depth` without try/finally;
+  - the nested runner scheduler;
+  - a cleanup registered after self-disposal.
 
 ---
 
