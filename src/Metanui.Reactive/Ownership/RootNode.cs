@@ -85,14 +85,18 @@ internal sealed class RootNode : OwnerNode
         throw new InvalidOperationException("A root cannot be notified.");
 
     /// <summary>
-    /// The disposer handed to the body. Outside a flush it rethrows the first cleanup error of the
-    /// disposal; inside one, the flush rethrows it when it ends (Solid <c>disposeRootSelf</c>).
+    /// The disposer handed to the body. It rethrows the first cleanup error of the disposal at once
+    /// only when nothing on the way out would take it: outside a flush, and with no computation or
+    /// error boundary among the current owners (a computed would cache it, an effect compute or a
+    /// boundary body would hand it to a boundary). Otherwise the error waits for the end of the
+    /// running flush, or for the next flush or root disposal (Solid <c>disposeRootSelf</c>; spec 4.5:
+    /// cleanup errors never go to an error handler).
     /// </summary>
     private void DisposeFromCaller()
     {
         Dispose();
 
-        if (!FlushLoop.IsRunning)
+        if (!FlushLoop.IsRunning && !IsCaughtByOwner(Tracking.CurrentOwner))
         {
             Teardown.RethrowFirstError();
         }
@@ -145,6 +149,25 @@ internal sealed class RootNode : OwnerNode
             {
                 root.HandleError(error);
 
+                return true;
+            }
+
+            owner = owner.Parent;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether an exception thrown now under <paramref name="owner" /> would be caught before it
+    /// reaches the caller: by a computation or by an error boundary among the owners.
+    /// </summary>
+    private static bool IsCaughtByOwner(OwnerNode? owner)
+    {
+        while (owner is not null)
+        {
+            if (owner is not RootNode root || root._errorHandler is not null)
+            {
                 return true;
             }
 

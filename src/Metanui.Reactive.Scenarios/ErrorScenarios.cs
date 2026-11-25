@@ -71,6 +71,18 @@ public static class ErrorScenarios
             ThrowingCleanupInRerunIsRethrownAfterFlush
         ),
         new Scenario(
+            "disposer called in a computed defers its cleanup error to the flush",
+            DisposerInComputedDefersCleanupError
+        ),
+        new Scenario(
+            "disposer called in an effect compute keeps its cleanup error from the boundary",
+            DisposerInEffectComputeKeepsCleanupErrorFromBoundary
+        ),
+        new Scenario(
+            "disposer called in a boundary body keeps its cleanup error from the boundary",
+            DisposerInBoundaryBodyKeepsCleanupErrorFromBoundary
+        ),
+        new Scenario(
             "write from a cleanup during disposal is allowed",
             WriteFromCleanupDuringDisposalIsAllowed
         ),
@@ -758,6 +770,75 @@ public static class ErrorScenarios
         expect.Equal("a0,a1,", log, "the flush finished before rethrowing");
         expect.IsTrue(ScenarioRunner.Catch(Reactivity.Flush) is null, "the error is rethrown once");
     }
+
+    private static void DisposerInComputedDefersCleanupError(IExpect expect)
+    {
+        var thrown = new InvalidOperationException("cleanup failed");
+        var dispose = RootWithThrowingCleanup(thrown);
+
+        var computed = Reactivity.Computed(() =>
+        {
+            dispose();
+
+            return 1;
+        });
+
+        var readError = ScenarioRunner.Catch(() => Read(() => computed.Value));
+        var flushError = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(readError is null, "the computed does not take the cleanup error");
+        expect.Equal(1, computed.Value, "the computed holds its value");
+        expect.IsTrue(flushError == thrown, "the next flush rethrows the cleanup error");
+    }
+
+    private static void DisposerInEffectComputeKeepsCleanupErrorFromBoundary(IExpect expect)
+    {
+        var thrown = new InvalidOperationException("cleanup failed");
+        var caught = "";
+        var dispose = RootWithThrowingCleanup(thrown);
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.Effect(
+                    () =>
+                    {
+                        dispose();
+
+                        return 0;
+                    },
+                    (value, previous) => { }
+                ),
+            error => caught = error.Message
+        );
+
+        var flushError = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.Equal("", caught, "the cleanup error does not go to the boundary");
+        expect.IsTrue(flushError == thrown, "the next flush rethrows the cleanup error");
+    }
+
+    private static void DisposerInBoundaryBodyKeepsCleanupErrorFromBoundary(IExpect expect)
+    {
+        var thrown = new InvalidOperationException("cleanup failed");
+        var caught = "";
+        var dispose = RootWithThrowingCleanup(thrown);
+
+        Reactivity.ErrorBoundary(() => dispose(), error => caught = error.Message);
+
+        var flushError = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.Equal("", caught, "the cleanup error does not go to the boundary");
+        expect.IsTrue(flushError == thrown, "the next flush rethrows the cleanup error");
+    }
+
+    /// <summary>Creates a root whose only cleanup throws <paramref name="thrown" />, and returns its disposer.</summary>
+    private static Action RootWithThrowingCleanup(Exception thrown) =>
+        Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.OnCleanup(() => throw thrown);
+
+            return disposeRoot;
+        });
 
     private static void WriteFromCleanupDuringDisposalIsAllowed(IExpect expect)
     {
