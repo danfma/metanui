@@ -5,7 +5,7 @@ import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
 export class OwnershipScenarios {
-  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows)];
+  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed)];
 
   constructor() { }
 
@@ -131,5 +131,26 @@ export class OwnershipScenarios {
       const value = writer.value;
     });
     expect.isTrue(error instanceof InvalidOperationException, "the write inside untrack throws");
+  }
+
+  private static writeInRootInsideComputedThrows(expect: IExpect): void {
+    const target = new Signal(0);
+    const writer = new Computed(() => {
+      Reactivity.rootFuncOfActionT<number>((dispose: () => void) => target.value = 1);
+
+      return 0;
+    });
+    const error = ScenarioRunner.catch(() => {
+      const value = writer.value;
+    });
+    expect.isTrue(error instanceof InvalidOperationException, "the write in the nested root throws");
+  }
+
+  private static writeInNestedRootIsAllowed(expect: IExpect): void {
+    const target = new Signal(0);
+    const error = ScenarioRunner.catch(() => Reactivity.rootFuncOfActionT<number>((outer: () => void) => Reactivity.rootFuncOfActionT<number>((inner: () => void) => target.value = 1)));
+    Reactivity.flush();
+    expect.isTrue(error == null, "the write in the nested root does not throw");
+    expect.equal(1, target.value, "committed value");
   }
 }
