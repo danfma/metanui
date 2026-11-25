@@ -1,5 +1,5 @@
 {
   "name": "metanui-workspace",
   "private": true,
-  "workspaces": ["targets/js/*"]
+  "workspaces": ["targets/js/*", "tests/js/*", "bench/*"]
 }

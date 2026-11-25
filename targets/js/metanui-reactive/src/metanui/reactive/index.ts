@@ -1,1 +1,1 @@
-export { Placeholder } from "./placeholder.js";
+export { Signal } from "./signal.js";

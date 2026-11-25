@@ -4,5 +4,6 @@
          `dotnet restore` with force-evaluate to pick up a new release. -->
     <PackageVersion Include="Metano" Version="*" />
     <PackageVersion Include="Metano.Build.TypeScript" Version="*" />
+    <PackageVersion Include="TUnit" Version="*" />
   </ItemGroup>
 </Project>

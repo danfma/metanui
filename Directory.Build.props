@@ -7,5 +7,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
+    <!-- Generated packages export their TS sources under the `bun` condition, which Bun applies
+         by default, so `bun test` runs the transpiled code without a dist build. -->
+    <MetanoSourceCondition>bun</MetanoSourceCondition>
   </PropertyGroup>
 </Project>

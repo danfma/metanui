@@ -1,0 +1,10 @@
+{
+  "name": "metanui-reactive-tests",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "metano-runtime": "^3.1.0",
+    "metanui-reactive": "workspace:*",
+    "metanui-reactive-scenarios": "workspace:*"
+  }
+}

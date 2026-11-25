@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Metanui.Reactive.Scenarios</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-reactive-scenarios/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+    <!-- Metano: without an explicit root, a package with no package.json yet resolves to the
+         workspace-root package.json and rewrites it (MS0007). -->
+    <MetanoPackageRoot>../../targets/js/metanui-reactive-scenarios</MetanoPackageRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Metanui.Reactive/Metanui.Reactive.csproj" />
+  </ItemGroup>
+</Project>
