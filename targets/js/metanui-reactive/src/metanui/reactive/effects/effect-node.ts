@@ -57,13 +57,14 @@ export abstract class EffectNode extends OwnerNode {
       return;
     }
 
+    const owner = this.parent;
     try {
       this.runApplyUnowned();
     } catch (e$) {
       const e0 = toException(e$);
       const error = e0;
 
-      if (!RootNode.tryRouteError(this, error)) {
+      if (!RootNode.tryRouteError(owner, error)) {
         throw e$;
       }
     }
@@ -125,6 +126,7 @@ export abstract class EffectNode extends OwnerNode {
   protected abstract releaseUserState(): void;
 
   private tryRunCompute(): boolean {
+    const owner = this.parent;
     try {
       this.runCompute();
 
@@ -133,7 +135,7 @@ export abstract class EffectNode extends OwnerNode {
       const e0 = toException(e$);
       const error = e0;
 
-      if (!RootNode.tryRouteError(this, error)) {
+      if (!RootNode.tryRouteError(owner, error)) {
         throw e$;
       }
 

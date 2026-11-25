@@ -63,6 +63,14 @@ public static class ErrorScenarios
             UnhandledApplyCleanupErrorEscapes
         ),
         new Scenario(
+            "apply cleanup that disposes its effect and throws reaches the boundary",
+            SelfDisposingApplyCleanupErrorReachesBoundary
+        ),
+        new Scenario(
+            "effect compute that disposes its effect and throws reaches the boundary",
+            SelfDisposingComputeErrorReachesBoundary
+        ),
+        new Scenario(
             "throwing cleanup does not abort the disposal",
             ThrowingCleanupDoesNotAbortDisposal
         ),
@@ -685,6 +693,77 @@ public static class ErrorScenarios
         );
 
         expect.Equal("apply0,second,", log, "the other cleanup ran first");
+    }
+
+    private static void SelfDisposingApplyCleanupErrorReachesBoundary(IExpect expect)
+    {
+        var caught = "";
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Root(disposeRoot =>
+            Reactivity.ErrorBoundary(
+                () =>
+                    Reactivity.Effect(
+                        () => source.Value,
+                        (value, previous) =>
+                        {
+                            if (value == 0)
+                            {
+                                Reactivity.OnCleanup(() => DisposeAndFail(disposeRoot));
+                            }
+                        }
+                    ),
+                error => caught = error.Message
+            )
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush does not throw");
+        expect.Equal("disposed and failed", caught, "the boundary got the cleanup error");
+    }
+
+    private static void SelfDisposingComputeErrorReachesBoundary(IExpect expect)
+    {
+        var caught = "";
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Root(disposeRoot =>
+            Reactivity.ErrorBoundary(
+                () =>
+                    Reactivity.Effect(
+                        () =>
+                        {
+                            if (source.Value == 1)
+                            {
+                                DisposeAndFail(disposeRoot);
+                            }
+
+                            return 0;
+                        },
+                        (value, previous) => { }
+                    ),
+                error => caught = error.Message
+            )
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush does not throw");
+        expect.Equal("disposed and failed", caught, "the boundary got the compute error");
+    }
+
+    private static void DisposeAndFail(Action dispose)
+    {
+        dispose();
+
+        throw new InvalidOperationException("disposed and failed");
     }
 
     /// <summary>

@@ -122,7 +122,7 @@ internal sealed class RootNode : OwnerNode
         }
         catch (Exception handlerError)
         {
-            if (!TryRouteError(this, handlerError))
+            if (!TryRouteError(Parent, handlerError))
             {
                 throw;
             }
@@ -136,13 +136,16 @@ internal sealed class RootNode : OwnerNode
     }
 
     /// <summary>
-    /// Hands <paramref name="error" />, thrown by <paramref name="node" />, to the nearest error
-    /// boundary among its owners (spec 4.4). Returns false when there is none, so the caller rethrows.
+    /// Hands <paramref name="error" /> to the nearest error boundary from <paramref name="owner" />
+    /// (the owner of the node that threw, read before that node ran) up through its owners (spec 4.4).
+    /// Returns false when there is none, so the caller rethrows.
     /// </summary>
-    internal static bool TryRouteError(OwnerNode node, Exception error)
+    /// <remarks>
+    /// When the failing run disposed an owner between the node and the boundary, that owner is
+    /// detached and the walk stops there, so the error escapes instead.
+    /// </remarks>
+    internal static bool TryRouteError(OwnerNode? owner, Exception error)
     {
-        var owner = node.Parent;
-
         while (owner is not null)
         {
             if (owner is RootNode root && root._errorHandler is not null)
