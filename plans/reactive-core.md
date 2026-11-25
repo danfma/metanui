@@ -168,7 +168,7 @@ Done in 22546b3. 5/5 scenarios pass on .NET and on Bun. The task review approved
 ---
 
 ## Task 3: Dependency graph and Computed (Phase 3)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
@@ -182,7 +182,7 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - `internal static class DependencyGraph { Link(ReactiveNode dep, ReactiveNode sub, int version); Link? Unlink(Link link, ReactiveNode sub); void Propagate(Link link); bool CheckDirty(Link link, ReactiveNode sub); void ShallowPropagate(Link link); }`: a line-by-line port of alien-signals `system.ts` (the `Stack<T>` helper becomes an internal sealed class; `update`/`notify`/`unwatched` callbacks become the `ReactiveNode` abstract members).
   - `Tracking.ActiveObserver` (`ReactiveNode?`), and a global `int Cycle` version counter as in alien-signals `index.ts`.
 
-- [ ] **Step 1: Write the scenarios** in `ComputedScenarios`:
+- [x] **Step 1: Write the scenarios** in `ComputedScenarios`:
   - `IsLazy`: the compute function counter stays 0 until the first `Value` read.
   - `IsCached`: two reads with no write → 1 run.
   - `RecomputesAfterFlush`: `doubled` of `count`; write 5, flush → `doubled.Value == 10`, 2 runs.
@@ -190,18 +190,39 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - `EqualResultStopsPropagation`: `parity = count % 2`; `downstream` reads `parity`; writing `count` 0 → 2 → flush must not re-run `downstream`.
   - `DynamicDependencyIsDropped` (Review Focus 3): `flag=true`, `a`, `b`; `pick = flag ? a : b`; read; set `flag=false`, flush, read; then write `a`, flush; `pick`'s run counter must not increase.
   - `WriteInsideComputeThrows`: a computed that writes a signal throws `InvalidOperationException` on read (check with `ScenarioRunner.Catch`). First confirm the behaviour in `@solidjs/signals` 2.0.4 (its tests or source). If Solid only warns, match that instead, and write down what you found in the task report.
-- [ ] **Step 2: Run both suites.** Expected: the new scenarios fail.
-- [ ] **Step 3: Implement** the port and `Computed<T>`. Signal and computed `Value` getters call `DependencyGraph.Link` when `Tracking.ActiveObserver` is not null. Flush commit calls `Propagate` on the signal's `Subs`.
-- [ ] **Step 4: Run both suites.** Expected: all pass.
-- [ ] **Step 5: Hot-path audit** of the generated `dependency-graph.ts`, `computed.ts` and `signal.ts`: no closures, no `new` outside `Link`, no `List`, no interface calls. Record the findings.
-- [ ] **Step 6: Commit** `feat: add dependency graph and computed`.
+- [x] **Step 2: Run both suites.** Expected: the new scenarios fail.
+- [x] **Step 3: Implement** the port and `Computed<T>`. Signal and computed `Value` getters call `DependencyGraph.Link` when `Tracking.ActiveObserver` is not null. Flush commit calls `Propagate` on the signal's `Subs`.
+- [x] **Step 4: Run both suites.** Expected: all pass.
+- [x] **Step 5: Hot-path audit** of the generated `dependency-graph.ts`, `computed.ts` and `signal.ts`: no closures, no `new` outside `Link`, no `List`, no interface calls. Record the findings.
+- [x] **Step 6: Commit** `feat: add dependency graph and computed`.
 
 ### Verification Plan
 - Both suites green, Computed scenarios included
 - Hot-path audit notes recorded in the Phase Summary
 
 ### Phase Summary
-_(write when phase completes)_
+Done in dc11212 and 4db8b09. 13/13 scenarios pass on .NET and Bun, and `tsc --strict` passes on the generated package. The task review (opus) compared the port line by line with alien-signals @8734d38 and approved it, with no finding above Minor.
+- **Port deviations, all behaviour-equivalent:**
+  - no `innerWrite` parameter;
+  - the labeled `continue top` loops are restructured, because Metano drops labeled statements (#772);
+  - the upstream per-branch `Stack` nodes became `LinkStack`, a static `Link?[]` with a top index. Each `Propagate` and `CheckDirty` saves its base on entry and restores it in a `finally`, so re-entrant walks are safe (scenario `NestedDirtyCheck`).
+- **Flush:** it commits every pending write first, then propagates each signal that changed using alien-signals' `trigger` idiom (`Propagate` + `ShallowPropagate`). Signals are never left `Dirty`. The seam for the effect phases is in `FlushLoop`.
+- **Hot-path audit:**
+  - the only `new` in `dependency-graph.ts` is `new Link`;
+  - there are no closures, and the flags are numeric;
+  - `Propagate`/`CheckDirty` each cost one extra call plus a `try/finally` (measure it in Phase 7);
+  - `link-stack.ts` emits `?? null` on every indexed read (record it in Phase 7).
+- **Solid 2.0.4:** writing a signal inside an owned scope throws in dev and test builds. We match that with `InvalidOperationException`, but the check is observer-based until Phase 5 makes it owner-based.
+- **Metano issues behind the workarounds:**
+  - #768: setter-only import, which also hits exception types;
+  - #772: labeled statements;
+  - #773: discard assignment;
+  - #774: nullable local annotation;
+  - #775: no narrowing after `!`.
+- **Follow-ups:**
+  - Phase 4: `Notify` must clear `Watching`; the flush must still propagate or unchain already-committed signals when a comparer or `Notify` throws.
+  - Phase 5: owner-based write check. Spec 4.2 says an unowned computed lives "until unreachable", but it stays linked from its sources' `Subs` until it is unwatched. Settle this.
+  - Phase 6: a computed that throws before capturing any dependency is stuck forever; also cover the exception path of the stack restore.
 
 ---
 
