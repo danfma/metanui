@@ -1,9 +1,11 @@
-import { throwError } from "metano-runtime";
+import { throwError, toException } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { DependencyGraph } from "../graph/dependency-graph.js";
 import { ReactiveFlags } from "../graph/reactive-flags.js";
 import { CleanupEntry } from "../ownership/cleanup-entry.js";
 import { OwnerNode } from "../ownership/owner-node.js";
+import { RootNode } from "../ownership/root-node.js";
+import { Teardown } from "../ownership/teardown.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
 
@@ -25,8 +27,9 @@ export abstract class EffectNode extends OwnerNode {
 
   /** @internal */
   start(): void {
-    this.runCompute();
-    FlushLoop.enqueueApply(this);
+    if (this.tryRunCompute()) {
+      FlushLoop.enqueueApply(this);
+    }
   }
 
   /** @internal */
@@ -38,8 +41,9 @@ export abstract class EffectNode extends OwnerNode {
     const flags = this.flags;
 
     if ((flags & ReactiveFlags.Dirty) !== 0 || (flags & ReactiveFlags.Pending) !== 0 && DependencyGraph.checkDirty(this.deps!, this)) {
-      this.runCompute();
-      FlushLoop.enqueueApply(this);
+      if (this.tryRunCompute()) {
+        FlushLoop.enqueueApply(this);
+      }
     } else {
       if (!(this.deps == null)) {
         this.flags = ReactiveFlags.Watching;
@@ -53,6 +57,19 @@ export abstract class EffectNode extends OwnerNode {
       return;
     }
 
+    try {
+      this.runApplyUnowned();
+    } catch (e$) {
+      const e0 = toException(e$);
+      const error = e0;
+
+      if (!RootNode.tryRouteError(this, error)) {
+        throw e$;
+      }
+    }
+  }
+
+  private runApplyUnowned(): void {
     const previousObserver = Tracking.activeObserver;
     const previousOwner = Tracking.currentOwner;
     const previousApply = Tracking.activeApply;
@@ -82,7 +99,9 @@ export abstract class EffectNode extends OwnerNode {
 
   /** @internal */
   onDisposed(): void {
-    this.runApplyCleanups();
+    const applyCleanups = this._applyCleanups;
+    this._applyCleanups = null;
+    Teardown.run(applyCleanups);
     this.depsTail = null;
     this.flags = ReactiveFlags.None;
     DependencyGraph.purgeDeps(this);
@@ -96,6 +115,23 @@ export abstract class EffectNode extends OwnerNode {
   protected abstract compute(): void;
 
   protected abstract apply(): void;
+
+  private tryRunCompute(): boolean {
+    try {
+      this.runCompute();
+
+      return true;
+    } catch (e$) {
+      const e0 = toException(e$);
+      const error = e0;
+
+      if (!RootNode.tryRouteError(this, error)) {
+        throw e$;
+      }
+
+      return false;
+    }
+  }
 
   private runCompute(): void {
     this.disposeOwned();
@@ -112,7 +148,7 @@ export abstract class EffectNode extends OwnerNode {
       Tracking.activeObserver = previousObserver;
       Tracking.currentOwner = previousOwner;
       this.flags &= ~ReactiveFlags.RecursedCheck;
-      DependencyGraph.purgeDeps(this);
+      this.purgeStaleDeps();
     }
   }
 

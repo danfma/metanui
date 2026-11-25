@@ -4,6 +4,8 @@ import { DependencyGraph } from "../graph/dependency-graph.js";
 import type { SignalNode } from "../graph/signal-node.js";
 import type { IFlushScheduler } from "../i-flush-scheduler.js";
 import { ManualFlushScheduler } from "../manual-flush-scheduler.js";
+import { Teardown } from "../ownership/teardown.js";
+import { Tracking } from "../tracking.js";
 
 export class FlushLoop {
   private static readonly maxPasses: number = 100;
@@ -20,6 +22,10 @@ export class FlushLoop {
   private static _running: boolean = false;
 
   constructor() { }
+
+  static get isRunning(): boolean {
+    return FlushLoop._running;
+  }
 
   static enqueue(node: SignalNode): void {
     if (FlushLoop._tail == null) {
@@ -81,9 +87,13 @@ export class FlushLoop {
     FlushLoop._scheduled = false;
     try {
       FlushLoop.runPasses();
-    } finally {
+    } catch (_err) {
       FlushLoop._running = false;
+      FlushLoop.requestFlushForLeftovers();
+      throw _err;
     }
+    FlushLoop._running = false;
+    Teardown.rethrowFirstError();
   }
 
   private static runPasses(): void {
@@ -95,9 +105,21 @@ export class FlushLoop {
       }
 
       passes = (passes + 1) | 0;
+      Tracking.pass = (Tracking.pass + 1) | 0;
       FlushLoop.commitAndPropagate();
       FlushLoop.runComputes();
       FlushLoop.runApplies();
+    }
+  }
+
+  private static requestFlushForLeftovers(): void {
+    if (!FlushLoop.hasWork()) {
+      return;
+    }
+
+    try {
+      FlushLoop.requestFlush();
+    } catch (_err) {
     }
   }
 

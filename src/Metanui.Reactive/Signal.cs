@@ -64,14 +64,20 @@ public sealed class Signal<T> : SignalNode
         FlushLoop.RequestFlush();
     }
 
-    // Metano #768: same missing import, for RootNode and InvalidOperationException
+    // Metano #768: same missing import, for RootNode, Teardown and InvalidOperationException
     /// <summary>
     /// Solid 2.0.4 rejects a write while the current owner is a computation, tracked or not (inside
     /// <see cref="Reactivity.Untrack{T}" /> too), or a root created under one. A root outside every
-    /// computation and an apply (no owner) allow writes. Called only when there is an owner.
+    /// computation and an apply (no owner) allow writes, and so does a cleanup run by a disposal
+    /// (Solid <c>disposalDepth</c>). Called only when there is an owner.
     /// </summary>
     private static void RejectWriteInsideComputation()
     {
+        if (Teardown.Depth != 0)
+        {
+            return;
+        }
+
         if (Tracking.CurrentOwner is not RootNode root || root.UnderComputation)
         {
             throw new InvalidOperationException(WriteInsideComputationMessage);

@@ -15,6 +15,8 @@ namespace Metanui.Reactive.Effects;
 /// The compute owns what it creates. The apply runs with no owner (Solid 2.0.4 effect phase), so it
 /// cannot create computations; its cleanups form a separate chain, run before the next apply and
 /// last on disposal, like the cleanup a Solid effect function returns.
+/// An exception from the compute or the apply goes to the nearest error boundary among the owners;
+/// with none it escapes (spec 4.4). A failed compute queues no apply.
 /// </remarks>
 [Transpile]
 internal abstract class EffectNode : OwnerNode
@@ -33,8 +35,10 @@ internal abstract class EffectNode : OwnerNode
     /// <summary>Runs the compute for the first time and queues the first apply.</summary>
     internal void Start()
     {
-        RunCompute();
-        FlushLoop.EnqueueApply(this);
+        if (TryRunCompute())
+        {
+            FlushLoop.EnqueueApply(this);
+        }
     }
 
     /// <summary>
@@ -55,8 +59,10 @@ internal abstract class EffectNode : OwnerNode
             || ((flags & ReactiveFlags.Pending) != 0 && DependencyGraph.CheckDirty(Deps!, this))
         )
         {
-            RunCompute();
-            FlushLoop.EnqueueApply(this);
+            if (TryRunCompute())
+            {
+                FlushLoop.EnqueueApply(this);
+            }
         }
         else if (Deps is not null)
         {
@@ -66,7 +72,8 @@ internal abstract class EffectNode : OwnerNode
 
     /// <summary>
     /// Apply phase of a flush: runs the cleanups of the previous apply, then the apply, untracked and
-    /// with no owner. A disposed effect's queued apply is skipped.
+    /// with no owner. A disposed effect's queued apply is skipped. An exception from either goes to
+    /// the nearest error boundary, or escapes.
     /// </summary>
     internal void RunApply()
     {
@@ -75,6 +82,21 @@ internal abstract class EffectNode : OwnerNode
             return;
         }
 
+        try
+        {
+            RunApplyUnowned();
+        }
+        catch (Exception error)
+        {
+            if (!RootNode.TryRouteError(this, error))
+            {
+                throw;
+            }
+        }
+    }
+
+    private void RunApplyUnowned()
+    {
         var previousObserver = Tracking.ActiveObserver;
         var previousOwner = Tracking.CurrentOwner;
         var previousApply = Tracking.ActiveApply;
@@ -117,7 +139,10 @@ internal abstract class EffectNode : OwnerNode
     /// </summary>
     internal override void OnDisposed()
     {
-        RunApplyCleanups();
+        var applyCleanups = _applyCleanups;
+
+        _applyCleanups = null;
+        Teardown.Run(applyCleanups);
         DepsTail = null;
         Flags = ReactiveFlags.None;
         DependencyGraph.PurgeDeps(this);
@@ -133,7 +158,33 @@ internal abstract class EffectNode : OwnerNode
     /// <summary>Runs the user apply with the last computed value and the previously applied one.</summary>
     protected abstract void Apply();
 
-    /// <summary>Disposes what the previous compute created, then runs the compute as the observer and owner.</summary>
+    /// <summary>
+    /// Runs the compute; an exception goes to the nearest error boundary and makes it return false,
+    /// or escapes when there is none.
+    /// </summary>
+    private bool TryRunCompute()
+    {
+        try
+        {
+            RunCompute();
+
+            return true;
+        }
+        catch (Exception error)
+        {
+            if (!RootNode.TryRouteError(this, error))
+            {
+                throw;
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Disposes what the previous compute created, then runs the compute as the observer and owner.
+    /// A compute that disposed its own effect keeps no dependency.
+    /// </summary>
     private void RunCompute()
     {
         DisposeOwned();
@@ -156,10 +207,11 @@ internal abstract class EffectNode : OwnerNode
             Tracking.ActiveObserver = previousObserver;
             Tracking.CurrentOwner = previousOwner;
             Flags &= ~ReactiveFlags.RecursedCheck;
-            DependencyGraph.PurgeDeps(this);
+            PurgeStaleDeps();
         }
     }
 
+    /// <summary>Runs the previous apply's cleanups as part of the next apply: a throw is the apply's error.</summary>
     private void RunApplyCleanups()
     {
         var entry = _applyCleanups;

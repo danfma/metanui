@@ -6,6 +6,7 @@ export const ReactiveFlags = {
   Recursed: 8,
   Dirty: 16,
   Pending: 32,
+  Errored: 64,
 } as const;
 
 export type ReactiveFlags = number & { readonly __enum?: "ReactiveFlags" };
