@@ -1,16 +1,20 @@
 import type { ReactiveNode } from "./reactive-node.js";
 
 export class Link {
-  version: number = 0;
+  version: number;
   dep: ReactiveNode;
   sub: ReactiveNode;
-  prevSub: Link | null = null;
+  prevSub: Link | null;
   nextSub: Link | null = null;
-  prevDep: Link | null = null;
-  nextDep: Link | null = null;
+  prevDep: Link | null;
+  nextDep: Link | null;
 
-  constructor(dep: ReactiveNode, sub: ReactiveNode) {
+  constructor(version: number, dep: ReactiveNode, sub: ReactiveNode, prevDep: Link | null, nextDep: Link | null, prevSub: Link | null) {
+    this.version = version;
     this.dep = dep;
     this.sub = sub;
+    this.prevDep = prevDep;
+    this.nextDep = nextDep;
+    this.prevSub = prevSub;
   }
 }

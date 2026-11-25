@@ -1,7 +1,5 @@
 namespace Metanui.Reactive.Graph;
 
-#pragma warning disable CS0649 // fields are assigned by the dependency graph (Task 3)
-
 /// <summary>A vertex of the dependency graph; public only so the public primitives can derive from it.</summary>
 public abstract class ReactiveNode
 {

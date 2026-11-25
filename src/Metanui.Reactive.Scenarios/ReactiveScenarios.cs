@@ -3,5 +3,5 @@ namespace Metanui.Reactive.Scenarios;
 /// <summary>Every scenario of the reactive core; each phase appends its scenario class here.</summary>
 public static class ReactiveScenarios
 {
-    public static Scenario[] All { get; } = [.. SignalScenarios.All];
+    public static Scenario[] All { get; } = [.. SignalScenarios.All, .. ComputedScenarios.All];
 }

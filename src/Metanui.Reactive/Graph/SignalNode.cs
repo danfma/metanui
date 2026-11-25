@@ -1,13 +1,16 @@
 namespace Metanui.Reactive.Graph;
 
-/// <summary>Graph node of a signal: carries a pending write until the flush commits it.</summary>
+/// <summary>
+/// Graph node of a signal: carries a pending write until the flush commits it through
+/// <see cref="ReactiveNode.Update" />.
+/// </summary>
 public abstract class SignalNode : ReactiveNode
 {
-    /// <summary>Next signal with a pending write in the flush queue.</summary>
+    /// <summary>
+    /// Next signal in the flush queue of pending writes; during a flush, next signal whose committed
+    /// value changed.
+    /// </summary>
     internal SignalNode? NextPending;
-
-    /// <summary>Commits the pending write, if it differs from the committed value.</summary>
-    internal abstract void CommitPending();
 
     /// <summary>Signals are never notified: they are sources, not subscribers.</summary>
     internal override void Notify() =>

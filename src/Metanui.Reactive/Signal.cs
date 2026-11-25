@@ -5,6 +5,9 @@ namespace Metanui.Reactive;
 /// </summary>
 public sealed class Signal<T> : SignalNode
 {
+    private const string WriteInsideComputationMessage =
+        "Writing to a signal inside a computation is not allowed; move the write outside.";
+
     private readonly IEqualityComparer<T> _comparer;
     private T _value;
     private T _pending;
@@ -18,11 +21,30 @@ public sealed class Signal<T> : SignalNode
         Flags = ReactiveFlags.Mutable;
     }
 
+    /// <summary>
+    /// Get: the committed value; inside a tracking scope, also subscribes the current observer.
+    /// Set: queues a pending write, committed by the next flush.
+    /// </summary>
     public T Value
     {
-        get => _value;
+        get
+        {
+            var observer = Tracking.ActiveObserver;
+
+            if (observer is not null)
+            {
+                DependencyGraph.Link(this, observer, Tracking.Cycle);
+            }
+
+            return _value;
+        }
         set
         {
+            if (Tracking.ActiveObserver is not null)
+            {
+                RejectWriteInsideComputation();
+            }
+
             _pending = value;
 
             if (_hasPending)
@@ -35,8 +57,12 @@ public sealed class Signal<T> : SignalNode
         }
     }
 
-    // Metano: the import of a type referenced only inside a property setter body is not emitted
+    // Metano #768: the import of a type referenced only inside a property setter body is not emitted
     private void Queue() => FlushLoop.Enqueue(this);
+
+    // Metano #768: same missing import, for InvalidOperationException
+    private static void RejectWriteInsideComputation() =>
+        throw new InvalidOperationException(WriteInsideComputationMessage);
 
     /// <summary>Reads the committed value without subscribing the current observer.</summary>
     public T Peek() => _value;
@@ -60,6 +86,4 @@ public sealed class Signal<T> : SignalNode
 
         return true;
     }
-
-    internal override void CommitPending() => Update();
 }
