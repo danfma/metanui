@@ -170,7 +170,7 @@ export class OwnershipScenarios {
       return 0;
     });
     const error = ScenarioRunner.catch(() => {
-      const value = writer.value;
+      writer.value;
     });
     expect.isTrue(error instanceof InvalidOperationException, "the write inside untrack throws");
   }

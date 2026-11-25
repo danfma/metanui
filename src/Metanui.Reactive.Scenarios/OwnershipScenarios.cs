@@ -227,11 +227,7 @@ public static class OwnershipScenarios
             return 0;
         });
 
-        // Metano #773: a discard assignment `_ = expr` is emitted as an assignment to an undeclared `_`
-        var error = ScenarioRunner.Catch(() =>
-        {
-            var value = writer.Value;
-        });
+        var error = ScenarioRunner.Catch(() => _ = writer.Value);
 
         expect.IsTrue(error is InvalidOperationException, "the write inside untrack throws");
     }

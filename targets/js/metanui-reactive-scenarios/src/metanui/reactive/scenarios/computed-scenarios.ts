@@ -115,7 +115,7 @@ export class ComputedScenarios {
       return 0;
     });
     const error = ScenarioRunner.catch(() => {
-      const value = writer.value;
+      writer.value;
     });
     expect.isTrue(error instanceof InvalidOperationException, "reading a writing computed throws");
   }
