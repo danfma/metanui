@@ -245,7 +245,7 @@ export class DependencyGraph {
 
   static shallowPropagate(link: Link): void {
     let current: Link | null = link;
-    while (!(current == null)) {
+    do {
       const sub = current.sub;
       const flags = sub.flags;
 
@@ -258,7 +258,7 @@ export class DependencyGraph {
       }
 
       current = current.nextSub;
-    }
+    } while (!(current == null));
   }
 
   static purgeDeps(sub: ReactiveNode): void {
