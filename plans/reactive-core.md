@@ -73,7 +73,7 @@ scripts/bench-reactivity.sh
 ---
 
 ## Task 1: Scenario pipeline on both platforms (Phase 1)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 Proves that C# scenarios transpile with the core and run under TUnit and `bun test`. Ships the smallest real behaviour: a `Signal<T>` that returns its initial value.
@@ -96,14 +96,14 @@ Proves that C# scenarios transpile with the core and run under TUnit and `bun te
   - Scenario convention: each `*Scenarios` class has `public static Scenario[] All` and one `private static void <Name>(IExpect expect)` per scenario; scenario names are sentences (`"signal reads its initial value"`).
 - Scenarios project: `[assembly: TranspileAssembly]`, `[assembly: EmitPackage("metanui-reactive-scenarios")]`, `MetanoOutputDir` `../../targets/js/metanui-reactive-scenarios/src`, `MetanoClean` true, ProjectReference to `Metanui.Reactive`.
 
-- [ ] **Step 1: Write the scenario** `SignalScenarios.ReadsInitialValue`: `expect.Equal(42, new Signal<int>(42).Value, "initial value")`; also a record case: `expect.Equal(new Point(1, 2), new Signal<Point>(new Point(1, 2)).Value, "record value")` with `private sealed record Point(int X, int Y)` in the scenarios file.
-- [ ] **Step 2: Write the .NET adapter.** `ThrowingExpect : IExpect` throws `InvalidOperationException($"{label}: expected {expected}, got {actual}")` on mismatch, using `EqualityComparer<T>.Default`. `ReactiveScenarioTests` has `public static IEnumerable<Func<Scenario>> Cases()` over `ReactiveScenarios.All`, and `[Test, MethodDataSource(nameof(Cases)), NotInParallel] public void Runs(Scenario scenario) => ScenarioRunner.Run(scenario, new ThrowingExpect());`. Make TUnit display `scenario.Name` (override `ToString` on `Scenario` → `Name`).
-- [ ] **Step 3: Write the Bun adapter** `tests/js/reactive/reactive.test.ts`: `for (const scenario of ReactiveScenarios.all) test(scenario.name, () => ScenarioRunner.run(scenario, bunExpect))`, with `bunExpect` implementing the transpiled `IExpect` through `expect(actual, label).toEqual(expected)` / `toBe(true)`. `package.json` depends on `metanui-reactive-scenarios` and `metanui-reactive` via `workspace:*` and on `metano-runtime` ^3.1.0.
-- [ ] **Step 4: Run to see it fail.** Run `dotnet build`. Expected: a compile error, because `Signal<T>` does not exist yet.
-- [ ] **Step 5: Implement `Signal<T>`** (constructor and `Value` getter over a private field).
-- [ ] **Step 6: Run both suites.** Run `dotnet build && dotnet test tests/Metanui.Reactive.Tests && bun install && bun test tests/js/reactive`. Expected: 1 scenario passing on each side.
-- [ ] **Step 7: Inspect the generated TS.** Check that `targets/js/metanui-reactive-scenarios/src` imports `metanui-reactive` as a package (not a relative path into another package), that `Scenario[]` is a native array, and that `IsTrue`/`Equal` keep usable names (`isTrue`, `equal`). Any deviation is a Metano finding: note it in the task report with a repro.
-- [ ] **Step 8: Commit** `test: add shared scenario pipeline for the reactive core`.
+- [x] **Step 1: Write the scenario** `SignalScenarios.ReadsInitialValue`: `expect.Equal(42, new Signal<int>(42).Value, "initial value")`; also a record case: `expect.Equal(new Point(1, 2), new Signal<Point>(new Point(1, 2)).Value, "record value")` with `private sealed record Point(int X, int Y)` in the scenarios file.
+- [x] **Step 2: Write the .NET adapter.** `ThrowingExpect : IExpect` throws `InvalidOperationException($"{label}: expected {expected}, got {actual}")` on mismatch, using `EqualityComparer<T>.Default`. `ReactiveScenarioTests` has `public static IEnumerable<Func<Scenario>> Cases()` over `ReactiveScenarios.All`, and `[Test, MethodDataSource(nameof(Cases)), NotInParallel] public void Runs(Scenario scenario) => ScenarioRunner.Run(scenario, new ThrowingExpect());`. Make TUnit display `scenario.Name` (override `ToString` on `Scenario` → `Name`).
+- [x] **Step 3: Write the Bun adapter** `tests/js/reactive/reactive.test.ts`: `for (const scenario of ReactiveScenarios.all) test(scenario.name, () => ScenarioRunner.run(scenario, bunExpect))`, with `bunExpect` implementing the transpiled `IExpect` through `expect(actual, label).toEqual(expected)` / `toBe(true)`. `package.json` depends on `metanui-reactive-scenarios` and `metanui-reactive` via `workspace:*` and on `metano-runtime` ^3.1.0.
+- [x] **Step 4: Run to see it fail.** Run `dotnet build`. Expected: a compile error, because `Signal<T>` does not exist yet.
+- [x] **Step 5: Implement `Signal<T>`** (constructor and `Value` getter over a private field).
+- [x] **Step 6: Run both suites.** Run `dotnet build && dotnet test tests/Metanui.Reactive.Tests && bun install && bun test tests/js/reactive`. Expected: 1 scenario passing on each side.
+- [x] **Step 7: Inspect the generated TS.** Check that `targets/js/metanui-reactive-scenarios/src` imports `metanui-reactive` as a package (not a relative path into another package), that `Scenario[]` is a native array, and that `IsTrue`/`Equal` keep usable names (`isTrue`, `equal`). Any deviation is a Metano finding: note it in the task report with a repro.
+- [x] **Step 8: Commit** `test: add shared scenario pipeline for the reactive core`.
 
 **Fallback:** if Step 7 shows cross-package imports or delegates in records cannot work, stop and report. The spec's fallback (two suites in lockstep by scenario name) needs the maintainer's go-ahead.
 
@@ -112,7 +112,15 @@ Proves that C# scenarios transpile with the core and run under TUnit and `bun te
 - `bun install && bun test tests/js/reactive` → the same scenario passes
 
 ### Phase Summary
-_(write when phase completes)_
+Done in 19a72d5, 372d21a. Verification on 2026-11-25: 1 scenario passes on TUnit and 1 on `bun test`, and a mutation check fails both. The task review approved it with no findings above Minor.
+- The pipeline works. Scenarios live in `src/Metanui.Reactive.Scenarios`, which is transpiled to the `metanui-reactive-scenarios` package and imports `metanui-reactive` as a package. `Scenario[]` becomes a native array, and the port's members come out as `equal`/`isTrue`. The fallback (two suites) is not needed.
+- The Bun adapter compares with metano-runtime's `defaultEquals`, which mirrors .NET `EqualityComparer<T>.Default`. One known divergence: arrays compare by element in TS and by reference in .NET. Scenarios should assert on scalars or records, never on arrays.
+- Changes made outside the brief (ruled on in the ledger):
+  - `MetanoPackageRoot` in the scenarios csproj, because Metano otherwise rewrites the workspace-root package.json;
+  - a hand-seeded `"version": "1.0.0"` in `targets/js/metanui-reactive/package.json`, because Metano emits `^1.0.0` without writing a version;
+  - `global.json` uses the Microsoft.Testing.Platform runner, which `dotnet test` on SDK 11 requires;
+  - `MetanoSourceCondition=bun` in Directory.Build.props, so `bun test` runs the TS sources without a dist build.
+- Both Metano defects were reported to the Metano session. Remove the workarounds when they are fixed.
 
 ---
 
