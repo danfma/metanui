@@ -453,7 +453,7 @@ Done in 84dda82 and 4905632. 55/55 pass on .NET and Bun. Review approved, after 
 ---
 
 ## Task 8: Reactivity benchmark (Phase 8)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
@@ -468,14 +468,50 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - `signal.write` → set `.value`;
   - reads after a write in the harness happen only after `withBatch`, which flushes. Verify this assumption by running the harness's own correctness tests (`frameworks.test.ts`) on both adapters.
 
-- [ ] **Step 1: Write `scripts/bench-reactivity.sh`.** It clones the harness at the pinned commit into `.cache/js-reactivity-benchmark` (gitignored), copies both adapters into its `frameworks/`, registers them next to `alienSignals`, and runs it with Bun.
-- [ ] **Step 2: Run the harness correctness tests** for both adapters. Expected: pass.
-- [ ] **Step 3: Run the benchmark.** Write `bench/reactivity/README.md` with the machine, versions (Metano, `@solidjs/signals` 2.0.4, alien-signals 3.2.1), a results table, and the overhead vs Solid 2.0 per test against the 10–15% budget. Explain every miss with a Phase 7 audit item or a new one.
-- [ ] **Step 4: Commit** `perf: add js-reactivity-benchmark comparison`.
+- [x] **Step 1: Write `scripts/bench-reactivity.sh`.** It clones the harness at the pinned commit into `.cache/js-reactivity-benchmark` (gitignored), copies both adapters into its `frameworks/`, registers them next to `alienSignals`, and runs it with Bun.
+- [x] **Step 2: Run the harness correctness tests** for both adapters. Expected: pass.
+- [x] **Step 3: Run the benchmark.** Write `bench/reactivity/README.md` with the machine, versions (Metano, `@solidjs/signals` 2.0.4, alien-signals 3.2.1), a results table, and the overhead vs Solid 2.0 per test against the 10–15% budget. Explain every miss with a Phase 7 audit item or a new one.
+- [x] **Step 4: Commit** `perf: add js-reactivity-benchmark comparison`.
 
 ### Verification Plan
 - `scripts/bench-reactivity.sh` runs the harness correctness tests (pass) and the benchmark
 - `bench/reactivity/README.md` has the results table and the overhead vs Solid 2.0
+
+### Phase Summary
+Done in 0be6d15, 8aeb211, 9511d35 and 694b96d. A fairness review verified identical work counts across alien-signals 3.2.1, Solid 2.0.4 and Metanui through the real adapters: batching is symmetric, and the cleanup flush applies to both. Re-reviews then confirmed the tables against the committed raw outputs.
+- **Primary results** come from the idle host criptomaster: Fedora 45 x86_64, 12 cores. Every run started at a 1-minute load below 1.0. Each figure is the median of 3. Raw outputs are in `bench/reactivity/results/criptomaster-2026-11-25/`.
+  - **Bun 1.4.5:** budget met on every test. Metanui is 25–89% faster than Solid 2.0, though Solid's eager memos bias the lazy80% tests. Against alien-signals it ranges from −29% to +15%. No overall lead on updateSignals is claimed.
+  - **Node v26.8.2:** budget missed on createSignals (+17%; Solid's own times are noisy) and cellx1000 (+21%). Metanui is 1.2–2.7× behind alien-signals, but faster than Solid on every updateSignals sub-test.
+- **Adapters:** both `cleanup()` methods flush after disposing, because of F1 (controller ruling).
+- **Findings:**
+  - **F1:** disposed effects stay in the flush queue → fixed in Phase 8b (release references).
+  - **F2:** V8 node creation is slow because of node layout, not codegen.
+  - **F3:** V8 deep flush is slow, cause open.
+  - **The defensive try/finally costs about 1.5–3 ns per call on V8.** F2, F3 and that try/finally go to a **separate V8 optimisation phase** after this plan (maintainer decision).
+- **Mac runs** are kept as a secondary section and labelled as taken under load. The probes are in `bench/reactivity/probes/`, and `scripts/bench-reactivity.sh` has `prepare`/`test`/`probe` modes.
+
+---
+
+## Task 8b: Release disposed effects from the flush queue (Phase 8b)
+Status: Not started   <!-- Not started | In progress | Complete -->
+
+Benchmark finding F1 (bench/reactivity/README.md): disposing an effect does not take it out of `FlushLoop`'s queues. Under `ManualFlushScheduler`, 20 roots of 100,000 effects disposed without a flush retain about 900 MB until the next flush; with a flush, about 2 MB remain. Maintainer decision (2026-11-25): **release references on disposal**. The disposed node may stay in the queue, where it is already skipped, but it must no longer retain its graph or user closures.
+
+**Files:**
+- Modify: `src/Metanui.Reactive/Effects/{EffectNode.cs,SplitEffect.cs}` and, if needed, `src/Metanui.Reactive/Computed.cs` for the same retention pattern
+- Test: `src/Metanui.Reactive.Scenarios/OwnershipScenarios.cs` (behaviour); `bench/reactivity/probes/retain.ts` (memory evidence)
+
+**Interfaces:** no public API change.
+
+- [ ] **Step 1: Write the scenario** `DisposedQueuedEffectReleasesItsClosures`. An effect whose compute and apply close over a marker object is disposed while its apply is still queued. Then `Flush()` runs. Assert that no apply and no cleanup ran after disposal, and that the effect no longer appears as a subscriber of its source (write the source, flush, and check that nothing re-runs). Memory itself is checked by the probe.
+- [ ] **Step 2: Run both suites.** Expected: the scenario passes or fails according to current behaviour. Capture which one, and say so in the report.
+- [ ] **Step 3: Implement.** In `EffectNode`/`SplitEffect` disposal (`OnDisposed`), drop the references to the compute and apply delegates, the cached value and the applied value, after running the cleanups and purging the deps. The delegate fields need nullability for this, and the generated TS must keep `tsc --strict` clean. Apply the same release to a disposed `Computed` (its compute delegate and cached value/error) if the code shows the same retention.
+- [ ] **Step 4: Measure.** Run `scripts/bench-reactivity.sh probe retain` locally on Bun, with and without a flush. Expected: the no-flush heap is close to the with-flush heap (order of MB, not hundreds of MB). Record both numbers and the load.
+- [ ] **Step 5: Run both suites and strict tsc.** Expected: all pass.
+- [ ] **Step 6: Commit** `fix: release disposed effects from the flush queue`.
+
+### Verification Plan
+- Both suites green. The `retain` probe without a flush stays within a small multiple of the with-flush number. Strict tsc is clean.
 
 ### Phase Summary
 _(write when phase completes)_
