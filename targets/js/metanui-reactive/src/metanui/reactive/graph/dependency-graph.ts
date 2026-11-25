@@ -244,8 +244,8 @@ export class DependencyGraph {
   }
 
   static shallowPropagate(link: Link): void {
-    let current = link;
-    while (true) {
+    let current: Link | null = link;
+    while (!(current == null)) {
       const sub = current.sub;
       const flags = sub.flags;
 
@@ -257,13 +257,7 @@ export class DependencyGraph {
         }
       }
 
-      const nextSub = current.nextSub;
-
-      if (nextSub == null) {
-        return;
-      }
-
-      current = nextSub;
+      current = current.nextSub;
     }
   }
 
