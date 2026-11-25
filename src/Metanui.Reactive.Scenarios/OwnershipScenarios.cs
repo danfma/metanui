@@ -29,8 +29,8 @@ public static class OwnershipScenarios
         ),
         new Scenario("write in a root nested in a root is allowed", WriteInNestedRootIsAllowed),
         new Scenario(
-            "disposed queued effect releases its closures",
-            DisposedQueuedEffectReleasesItsClosures
+            "disposed queued effect neither applies nor resubscribes",
+            DisposedQueuedEffectNeitherAppliesNorResubscribes
         ),
         new Scenario(
             "apply cleanup that disposes its effect skips the apply",
@@ -263,8 +263,9 @@ public static class OwnershipScenarios
     }
 
     // No flush runs between the creation and the disposal, so the first apply is still queued when
-    // the root is disposed. That the closures are released is checked by bench/reactivity/probes/retain.ts.
-    private static void DisposedQueuedEffectReleasesItsClosures(IExpect expect)
+    // the root is disposed. Memory release is not observable here: the retain probe
+    // (bench/reactivity/probes/retain.ts) checks it.
+    private static void DisposedQueuedEffectNeitherAppliesNorResubscribes(IExpect expect)
     {
         var marker = new Marker("captured");
         var computes = 0;
