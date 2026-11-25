@@ -166,7 +166,7 @@ public static class FlushScenarios
         expect.IsTrue(restored, "the outer scheduler is in use after the nested run");
     }
 
-    // Metano: `null!`/`default!` of a non-generic reference type loses its `!` (emitted as `null`,
+    // Metano #794: `null!`/`default!` of a non-generic reference type loses its `!` (emitted as `null`,
     // which strict tsc rejects); for a type parameter it is kept (`null!`).
     private static T Missing<T>()
         where T : class => default!;
