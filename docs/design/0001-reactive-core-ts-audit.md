@@ -91,10 +91,11 @@ packages they are worked around, which is why those packages are clean.
 | `Graph/ReactiveNode.cs` | `graph/reactive-node.ts` | yes | Conforms. Field initializers, `/** @internal */` on internal members. A lazy `$runtimeType` getter, off the hot path. Empty `constructor() { }` (N4). |
 | `Graph/SignalNode.cs` | `graph/signal-node.ts` | no | Conforms. |
 | `Graph/LinkStack.cs` | `graph/link-stack.ts` | yes | `?? null` on every indexed read (N1). Not measurable (section 4). Empty constructor on a static class (N4). |
-| `Graph/DependencyGraph.cs` | `graph/dependency-graph.ts` | yes | Conforms. `while (true)` loops, numeric flags, `new Link` as the only allocation, no closures. Both labeled-`continue` sites are restructured (#772). `else if` chains come out as nested `else { if }` (N8). Empty constructor (N4). |
-| `Signal.cs` | `signal.ts` | yes | Read: `Tracking.activeObserver` test, `DependencyGraph.link`, field read. Write: one null test of `Tracking.currentOwner`. Setter helpers kept for #768. `is not null` is emitted as `!(x == null)` (N8). |
+| `Graph/DependencyGraph.cs` | `graph/dependency-graph.ts` | yes | Conforms. `while (true)` loops, numeric flags, `new Link` as the only allocation, no closures. Both labeled-`continue` sites are restructured (#772) (3.1.0; see §9). `else if` chains come out as nested `else { if }` (N8). Empty constructor (N4). |
+| `Signal.cs` | `signal.ts` | yes | Read: `Tracking.activeObserver` test, `DependencyGraph.link`, field read. Write: one null test of `Tracking.currentOwner`. Setter helpers kept for #768 (3.1.0; see §9). `is not null` is emitted as `!(x == null)` (N8). |
 | `Computed.cs` | `computed.ts` | yes | Read: `refresh()` (flag tests), one flag test for `Errored`, `link`, field read. Recompute uses `IEqualityComparer.equals`, the interface dispatch that spec 5.3 allows off the read path. `catch` has a redundant alias (N5). |
-| `Tracking.cs` | `tracking.ts` | yes | Conforms: static fields of one class. Empty constructor (N4). Exported from the public barrel although `internal` (FR, section 6). |
+| `ComputedNode.cs` | `computed-node.ts` | no | Added on 3.2.0. Conforms. Holds the retry queue link; the abstract `retryAtPassStart` is one virtual call per queued retry at the start of a flush pass, never on a read. |
+| `Tracking.cs` | `tracking.ts` | yes | Conforms: static fields of one class. Empty constructor (N4). Exported from the public barrel although `internal` (FR, section 6) (3.1.0; see §9). |
 | `Scheduling/FlushLoop.cs` | `scheduling/flush-loop.ts` | flush | Conforms. Intrusive queues, `runFlush`/`resumeFlush` cached as static fields, no allocation per flush. The comment in the empty `catch` is dropped, and the binding `_err` is unused (N3). Empty constructor (N4). |
 | `Ownership/OwnerNode.cs` | `ownership/owner-node.ts` | no | Conforms. The constant message `"…so " + "nothing…"` is concatenated at runtime instead of folded (N7). |
 | `Ownership/RootNode.cs` | `ownership/root-node.ts` | no | Conforms. `throw;` becomes `throw e$` (it rethrows the original value). Redundant `catch` alias (N5). |
@@ -102,7 +103,7 @@ packages they are worked around, which is why those packages are clean.
 | `Ownership/CleanupEntry.cs` | `ownership/cleanup-entry.ts` | no | Conforms. |
 | `Effects/EffectNode.cs` | `effects/effect-node.ts` | flush | Conforms. Redundant `catch` alias (N5). |
 | `Effects/SplitEffect.cs` | `effects/split-effect.ts` | flush | Conforms. `default(T)` fields are emitted as `null!`. |
-| `Reactivity.cs` | `reactivity.ts` | no | Conforms, except the `root(...)` rest-args dispatcher (#778, and N6). Empty constructor (N4). |
+| `Reactivity.cs` | `reactivity.ts` | no | Conforms, except the `root(...)` rest-args dispatcher (#778, and N6) (3.1.0; see §9). Empty constructor (N4). |
 | `IFlushScheduler.cs` | `i-flush-scheduler.ts`, `manual-flush-scheduler.ts` | no | Conforms. `ManualFlushScheduler` emits an explicit empty constructor (N4). |
 | `AssemblyInfo.cs`, `GlobalUsings.cs` | none | — | — |
 
