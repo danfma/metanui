@@ -52,6 +52,14 @@ public static class OwnershipScenarios
             "effect disposed during its own compute disposes what that compute created next",
             EffectDisposedDuringItsComputeDisposesWhatTheComputeCreated
         ),
+        new Scenario(
+            "pending computed disposed during its own dirty check keeps its last value",
+            PendingComputedDisposedDuringItsCheckKeepsItsLastValue
+        ),
+        new Scenario(
+            "pending computed disposed during an observer's dirty check keeps its last value",
+            PendingComputedDisposedDuringAnObserversCheckKeepsItsLastValue
+        ),
     ];
 
     private static void RootDisposeRunsCleanupsInReverse(IExpect expect)
@@ -465,6 +473,84 @@ public static class OwnershipScenarios
         ExpectLateChildrenGone(expect, late);
     }
 
+    /// <summary>
+    /// The dirty check of <c>reader</c> updates <c>inner</c>, whose cleanup disposes the root that owns
+    /// both. The check still reports a change, but the disposed reader must not run its released
+    /// function: it keeps its last value (spec 4.5).
+    /// </summary>
+    private static void PendingComputedDisposedDuringItsCheckKeepsItsLastValue(IExpect expect)
+    {
+        var runs = 0;
+        var source = Reactivity.Signal(0);
+        var graph = new DisposingGraph(source);
+
+        var reader = Reactivity.Root(disposeRoot =>
+        {
+            graph.Dispose = disposeRoot;
+
+            var inner = graph.CreateInner();
+
+            return Reactivity.Computed(() =>
+            {
+                runs++;
+
+                return inner.Value + 1;
+            });
+        });
+
+        expect.Equal(1, reader.Peek(), "initial value");
+
+        source.Value = 1;
+        Reactivity.Flush();
+
+        var error = ScenarioRunner.Catch(() => _ = reader.Peek());
+
+        expect.IsTrue(error is null, "the read that disposed it does not throw");
+        expect.Equal(1, reader.Peek(), "it keeps its last value");
+        expect.Equal(1, runs, "its released function never runs");
+    }
+
+    /// <summary>
+    /// The variant of <see cref="PendingComputedDisposedDuringItsCheckKeepsItsLastValue" /> one level
+    /// deeper: an effect's dirty check walks through <c>reader</c> to <c>inner</c>, whose update
+    /// disposes <c>reader</c>. The walk must not run the disposed reader on its way back.
+    /// </summary>
+    private static void PendingComputedDisposedDuringAnObserversCheckKeepsItsLastValue(
+        IExpect expect
+    )
+    {
+        var runs = 0;
+        var applied = 0;
+        var source = Reactivity.Signal(0);
+        var graph = new DisposingGraph(source);
+
+        var reader = Reactivity.Root(disposeRoot =>
+        {
+            graph.Dispose = disposeRoot;
+
+            var inner = graph.CreateInner();
+
+            return Reactivity.Computed(() =>
+            {
+                runs++;
+
+                return inner.Value + 1;
+            });
+        });
+
+        Reactivity.Effect(() => reader.Value, (value, previous) => applied = value);
+        Reactivity.Flush();
+
+        source.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush does not fail");
+        expect.Equal(1, applied, "the effect keeps the last value");
+        expect.Equal(1, reader.Peek(), "the reader keeps its last value");
+        expect.Equal(1, runs, "its released function never runs");
+    }
+
     private static void ExpectLateChildrenGone(IExpect expect, LateChildren late)
     {
         Reactivity.Flush();
@@ -477,6 +563,32 @@ public static class OwnershipScenarios
     }
 
     private sealed record Marker(string Name);
+
+    /// <summary>
+    /// A computed (<see cref="CreateInner" />) that reads a source and, when a change
+    /// re-runs it, calls <see cref="Dispose" /> from the cleanup of its first run: a dependency whose
+    /// update disposes an owner in the middle of a dirty check.
+    /// </summary>
+    private sealed class DisposingGraph(Signal<int> source)
+    {
+        public Action Dispose { get; set; } = () => { };
+
+        public Computed<int> CreateInner() =>
+            Reactivity.Computed(() =>
+            {
+                var value = source.Value;
+
+                Reactivity.OnCleanup(() =>
+                {
+                    if (value == 0)
+                    {
+                        Dispose();
+                    }
+                });
+
+                return value;
+            });
+    }
 
     /// <summary>
     /// What a run creates after it disposed its own owner: an effect and a cleanup, counting what

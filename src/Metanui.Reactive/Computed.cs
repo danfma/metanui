@@ -72,10 +72,22 @@ public sealed class Computed<T> : ComputedNode
     /// result differs from the cached one. A run that throws caches the error and reports a change, and
     /// so does the first good run after an error. The function and the comparer are read first: a
     /// cleanup or a run that disposes this computed releases them, and the run still completes, so a
-    /// later read returns its result.
+    /// later read returns its result. A computed already disposed reports no change and keeps its
+    /// last value or error: a dirty check whose dependency update disposed it may still ask it to
+    /// update, and its function is gone.
     /// </summary>
+    /// <remarks>
+    /// Disposal keeps <see cref="ReactiveFlags.Mutable" /> instead of clearing the flags as an effect
+    /// does, which would let the walk's own <c>sub.Flags != None</c> test skip it: a computed with no
+    /// flags is one that never ran, and the next read would run its released function.
+    /// </remarks>
     internal override bool Update()
     {
+        if (IsDisposed)
+        {
+            return false;
+        }
+
         var compute = _compute!;
         var comparer = _comparer!;
 
