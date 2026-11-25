@@ -23,6 +23,11 @@ public static class OwnershipScenarios
             "write inside untrack in a computed throws",
             WriteInsideUntrackInComputedThrows
         ),
+        new Scenario(
+            "write in a root created in a computed throws",
+            WriteInRootInsideComputedThrows
+        ),
+        new Scenario("write in a root nested in a root is allowed", WriteInNestedRootIsAllowed),
     ];
 
     private static void RootDisposeRunsCleanupsInReverse(IExpect expect)
@@ -94,7 +99,7 @@ public static class OwnershipScenarios
 
         Action dispose = () => { };
 
-        // Metano: tuple deconstruction (`var (a, b) = ...`) is not supported (MS0001)
+        // Metano #779: tuple deconstruction (`var (a, b) = ...`) is not supported (MS0001)
         var computed = Reactivity.Root(disposeRoot =>
         {
             dispose = disposeRoot;
@@ -204,5 +209,40 @@ public static class OwnershipScenarios
         });
 
         expect.IsTrue(error is InvalidOperationException, "the write inside untrack throws");
+    }
+
+    // Solid 2.0.4 throws here: the root's owner chain includes the computed, so the write still
+    // happens inside the computation.
+    private static void WriteInRootInsideComputedThrows(IExpect expect)
+    {
+        var target = new Signal<int>(0);
+
+        var writer = new Computed<int>(() =>
+        {
+            Reactivity.Root(dispose => target.Value = 1);
+
+            return 0;
+        });
+
+        var error = ScenarioRunner.Catch(() =>
+        {
+            var value = writer.Value;
+        });
+
+        expect.IsTrue(error is InvalidOperationException, "the write in the nested root throws");
+    }
+
+    private static void WriteInNestedRootIsAllowed(IExpect expect)
+    {
+        var target = new Signal<int>(0);
+
+        var error = ScenarioRunner.Catch(() =>
+            Reactivity.Root(outer => Reactivity.Root(inner => target.Value = 1))
+        );
+
+        Reactivity.Flush();
+
+        expect.IsTrue(error is null, "the write in the nested root does not throw");
+        expect.Equal(1, target.Value, "committed value");
     }
 }

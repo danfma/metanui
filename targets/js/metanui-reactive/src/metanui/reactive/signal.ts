@@ -52,7 +52,10 @@ export class Signal<T> extends SignalNode {
   }
 
   set value(value: T) {
-    Signal.rejectWriteInsideComputation();
+    if (!(Tracking.currentOwner == null)) {
+      Signal.rejectWriteInsideComputation();
+    }
+
     this._pending = value;
     this.queue();
   }
@@ -67,9 +70,9 @@ export class Signal<T> extends SignalNode {
   }
 
   private static rejectWriteInsideComputation(): void {
-    const owner = Tracking.currentOwner;
+    let root: RootNode;
 
-    if (!(owner == null) && !(owner instanceof RootNode)) {
+    if (!(Tracking.currentOwner instanceof RootNode && (root = Tracking.currentOwner, true)) || root.underComputation) {
       throw new InvalidOperationException(Signal.writeInsideComputationMessage);
     }
   }

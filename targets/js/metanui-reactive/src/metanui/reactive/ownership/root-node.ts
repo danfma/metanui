@@ -4,8 +4,12 @@ import { Tracking } from "../tracking.js";
 import { OwnerNode } from "./owner-node.js";
 
 export class RootNode extends OwnerNode {
+  /** @internal */
+  readonly underComputation: boolean = false;
+
   constructor() {
     super();
+    this.underComputation = RootNode.isUnderComputation(this.parent);
   }
 
   /** @internal */
@@ -30,5 +34,11 @@ export class RootNode extends OwnerNode {
   /** @internal */
   notify(): void {
     throwError(new InvalidOperationException("A root cannot be notified."));
+  }
+
+  private static isUnderComputation(parent: OwnerNode | null): boolean {
+    let root: RootNode;
+
+    return !(parent == null) && (!(parent instanceof RootNode && (root = parent, true)) || root.underComputation);
   }
 }

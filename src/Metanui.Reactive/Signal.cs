@@ -40,7 +40,11 @@ public sealed class Signal<T> : SignalNode
         }
         set
         {
-            RejectWriteInsideComputation();
+            if (Tracking.CurrentOwner is not null)
+            {
+                RejectWriteInsideComputation();
+            }
+
             _pending = value;
             Queue();
         }
@@ -63,13 +67,12 @@ public sealed class Signal<T> : SignalNode
     // Metano #768: same missing import, for RootNode and InvalidOperationException
     /// <summary>
     /// Solid 2.0.4 rejects a write while the current owner is a computation, tracked or not (inside
-    /// <see cref="Reactivity.Untrack{T}" /> too). A root body and an apply are not computations.
+    /// <see cref="Reactivity.Untrack{T}" /> too), or a root created under one. A root outside every
+    /// computation and an apply (no owner) allow writes. Called only when there is an owner.
     /// </summary>
     private static void RejectWriteInsideComputation()
     {
-        var owner = Tracking.CurrentOwner;
-
-        if (owner is not null && owner is not RootNode)
+        if (Tracking.CurrentOwner is not RootNode root || root.UnderComputation)
         {
             throw new InvalidOperationException(WriteInsideComputationMessage);
         }
