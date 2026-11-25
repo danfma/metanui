@@ -32,7 +32,7 @@ class EffectScenarios$Point {
 }
 
 export class EffectScenarios {
-  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun)];
+  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun), new Scenario("effect created in a compute applies before its parent", EffectScenarios.childEffectAppliesBeforeItsParent)];
 
   constructor() { }
 
@@ -212,5 +212,16 @@ export class EffectScenarios {
     Reactivity.flush();
     expect.equal(1, computes, "computes after an equal write");
     expect.equal(1, applies, "applies after an equal write");
+  }
+
+  private static childEffectAppliesBeforeItsParent(expect: IExpect): void {
+    let log = "";
+    Reactivity.effect(() => {
+      Reactivity.effect(() => 0, (value: number, previous: number) => log = (log ?? "") + "child,");
+
+      return 0;
+    }, (value: number, previous: number) => log = (log ?? "") + "parent,");
+    Reactivity.flush();
+    expect.equal("child,parent,", log, "apply order");
   }
 }

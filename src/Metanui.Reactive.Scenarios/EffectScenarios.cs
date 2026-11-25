@@ -28,6 +28,10 @@ public static class EffectScenarios
         new Scenario("write in apply schedules another pass", WriteInApplySchedulesAnotherPass),
         new Scenario("effect write loop throws", EffectWriteLoopThrows),
         new Scenario("equal record write does not rerun the effect", EqualRecordWriteDoesNotRerun),
+        new Scenario(
+            "effect created in a compute applies before its parent",
+            ChildEffectAppliesBeforeItsParent
+        ),
     ];
 
     private static void ComputeRunsOnCreationApplyOnFlush(IExpect expect)
@@ -310,4 +314,27 @@ public static class EffectScenarios
     }
 
     private sealed record Point(int X, int Y);
+
+    /// <summary>
+    /// The child's first apply is queued when the child is created, during the parent's compute, so
+    /// before the parent's own apply, which is queued when that compute returns.
+    /// </summary>
+    private static void ChildEffectAppliesBeforeItsParent(IExpect expect)
+    {
+        var log = "";
+
+        Reactivity.Effect(
+            () =>
+            {
+                Reactivity.Effect(() => 0, (value, previous) => log += "child,");
+
+                return 0;
+            },
+            (value, previous) => log += "parent,"
+        );
+
+        Reactivity.Flush();
+
+        expect.Equal("child,parent,", log, "apply order");
+    }
 }
