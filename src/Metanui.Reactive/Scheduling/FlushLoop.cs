@@ -210,7 +210,7 @@ internal static class FlushLoop
     /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// More than <see cref="MaxPasses" /> passes were needed; the pending writes and retries are
-    /// discarded.
+    /// discarded, and so is the first cleanup error raised during the flush.
     /// </exception>
     public static void Run() => RunWithBudget(0);
 
@@ -245,6 +245,7 @@ internal static class FlushLoop
         if (!completed)
         {
             DiscardPendingWritesAndRetries();
+            Teardown.DiscardFirstError();
 
             throw new InvalidOperationException(PassLimitMessage);
         }
@@ -515,7 +516,9 @@ internal static class FlushLoop
     /// Drops every queued write and every pending retry after the pass limit, so the graph is usable
     /// again; a computed whose retry is dropped keeps its error until a dependency changes or a later
     /// tracked re-read queues another retry. Computes and applies a failed flush left queued stay, and
-    /// run with the next flush.
+    /// run with the next flush: dropping a compute would leave the computeds between the effect and
+    /// the changed signal dirty, and a dirty computed stops every later propagation, so the effect
+    /// would never run again.
     /// </summary>
     private static void DiscardPendingWritesAndRetries()
     {

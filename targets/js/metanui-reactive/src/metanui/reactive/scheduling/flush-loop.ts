@@ -151,6 +151,7 @@ export class FlushLoop {
 
     if (!completed) {
       FlushLoop.discardPendingWritesAndRetries();
+      Teardown.discardFirstError();
       throw new InvalidOperationException(FlushLoop.passLimitMessage);
     }
 

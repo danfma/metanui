@@ -37,6 +37,10 @@ export class Teardown {
     throw error;
   }
 
+  static discardFirstError(): void {
+    Teardown._firstError = null;
+  }
+
   private static runOne(cleanup: () => void): Exception | null {
     try {
       cleanup();

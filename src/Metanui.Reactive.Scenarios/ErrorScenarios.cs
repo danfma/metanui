@@ -91,6 +91,14 @@ public static class ErrorScenarios
             ThrowingSelfWritingEffectStopsAtPassLimit
         ),
         new Scenario(
+            "flush stopped at the pass limit leaves no cleanup error to the next flush",
+            PassLimitLeavesNoCleanupErrorToTheNextFlush
+        ),
+        new Scenario(
+            "compute left by a flush that stopped at the pass limit runs on the next flush",
+            ComputeLeftByAPassLimitedFlushRunsOnTheNextFlush
+        ),
+        new Scenario(
             "effect that throws on every change never hits the pass limit",
             EffectThrowingOnEveryChangeNeverHitsPassLimit
         ),
@@ -1091,6 +1099,119 @@ public static class ErrorScenarios
 
         expect.Equal("0,1,", log, "the graph is usable afterwards");
     }
+
+    /// <summary>
+    /// A cleanup throws in the second pass of a flush that then loops until the pass limit. The
+    /// pass-limit error is what that flush reports, and the abort discards its state (spec 4.4): the
+    /// next, unrelated flush must not rethrow the cleanup error.
+    /// </summary>
+    private static void PassLimitLeavesNoCleanupErrorToTheNextFlush(IExpect expect)
+    {
+        var source = Reactivity.Signal(0);
+
+        Reactivity.Effect(
+            () =>
+            {
+                var value = source.Value;
+
+                if (value == 1)
+                {
+                    Reactivity.OnCleanup(() =>
+                        throw new InvalidOperationException("cleanup failed")
+                    );
+                }
+
+                return value;
+            },
+            (value, previous) =>
+            {
+                if (value >= 1)
+                {
+                    source.Value = value + 1;
+                }
+            }
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+
+        var limit = ScenarioRunner.Catch(Reactivity.Flush);
+        var next = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(
+            limit is not null && limit.Message == ExpectedMessages.PassLimit,
+            "the looping flush stops at the pass limit"
+        );
+
+        expect.IsTrue(next is null, "the next flush does not rethrow the cleanup error");
+    }
+
+    /// <summary>
+    /// Pins the choice spec 4.4 records for the pass limit: pending writes and retries are discarded,
+    /// but the effect computes a failed flush left are kept. <c>looping</c> writes what it reads
+    /// until its compute throws in the 100th pass, before <c>reader</c>, queued behind it, runs; the
+    /// resume then stops at the limit at once. Discarding <c>reader</c>'s compute would leave
+    /// <c>derived</c> dirty, and a dirty computed stops every later propagation, so <c>reader</c>
+    /// would never run again.
+    /// </summary>
+    private static void ComputeLeftByAPassLimitedFlushRunsOnTheNextFlush(IExpect expect)
+    {
+        var applied = 0;
+        var scheduler = new RecordingScheduler();
+        var loop = Reactivity.Signal(0);
+        var other = Reactivity.Signal(0);
+
+        Reactivity.Effect(
+            () => FailWhenHundred(loop.Value),
+            (value, previous) =>
+            {
+                if (value >= 1)
+                {
+                    loop.Value = value + 1;
+                }
+            }
+        );
+
+        var derived = Reactivity.Computed(() => loop.Value + other.Value);
+
+        Reactivity.Effect(() => derived.Value, (value, previous) => applied = value);
+        Reactivity.Flush();
+
+        var previousScheduler = Reactivity.Scheduler;
+        Exception? last = null;
+
+        Reactivity.UseScheduler(scheduler);
+
+        try
+        {
+            loop.Value = 1;
+
+            var flush = scheduler.Take();
+
+            while (flush is not null)
+            {
+                last = ScenarioRunner.Catch(flush);
+                flush = scheduler.Take();
+            }
+        }
+        finally
+        {
+            Reactivity.UseScheduler(previousScheduler);
+        }
+
+        expect.IsTrue(
+            last is not null && last.Message == ExpectedMessages.PassLimit,
+            "the resume stops at the pass limit"
+        );
+
+        other.Value = 1000;
+        Reactivity.Flush();
+
+        expect.Equal(1100, applied, "the reader runs again and sees the later write");
+    }
+
+    private static int FailWhenHundred(int value) =>
+        value == 100 ? throw new InvalidOperationException("compute failed") : value;
 
     private static void EffectThrowingOnEveryChangeNeverHitsPassLimit(IExpect expect)
     {
