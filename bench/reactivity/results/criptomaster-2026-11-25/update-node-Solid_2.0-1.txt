@@ -1,0 +1,10 @@
+load:  15:27:42 up 44 min,  2 users,  load average: 0,99, 1,20, 1,15
+node: v26.8.2
+Solid 2.0 | update1to1 | 212.14
+Solid 2.0 | update2to1 | 104.33
+Solid 2.0 | update4to1 | 54.47
+Solid 2.0 | update1000to1 | 12.68
+Solid 2.0 | update1to2 | 68.52
+Solid 2.0 | update1to4 | 109.40
+Solid 2.0 | update1to1000 | 1823.81
+Solid 2.0 | updateSignals (sum) | 2385.35

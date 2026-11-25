@@ -60,6 +60,15 @@ On the primary host:
   rose to about 1.0–1.3 during the runs.
 - Bun and Node runs alternate: Bun 1, Node 1, Bun 2, Node 2, Bun 3, Node 3. Each table cell is the
   median of the three runs.
+- The raw outputs of every run and probe are committed in
+  [`results/criptomaster-2026-11-25/`](results/criptomaster-2026-11-25/). The folder holds:
+  - `bun1`–`bun3` and `node1`–`node3`;
+  - the `update-*` sub-test runs;
+  - the probe outputs;
+  - `profile.txt` and the raw `prof/*.cpuprofile` behind the F3 profile table;
+  - `log`, the 1/5/15-minute load at the start and end of each step;
+  - `measure-host.sh`, the script that ran it all, and `summarize.mjs`, which turns the CPU profile
+    into `profile.txt`.
 
 | Run | 1/5/15-min load at start | 1/5/15-min load at end |
 |---|---|---|
@@ -131,7 +140,7 @@ fastest of several repetitions, except `cellx`, which is a sum of 10 runs. "vs" 
 `Metanui / other − 1`, so a negative value means Metanui is faster. Each cell is the median of three
 runs.
 
-### Bun 1.4.5 (JavaScriptCore), primary
+### Bun 1.4.5 (JavaScriptCore)
 
 | Test | alien-signals 3.2.1 | Solid 2.0.4 | Metanui | Metanui vs Solid 2.0 | Metanui vs alien |
 |---|---:|---:|---:|---:|---:|
@@ -165,14 +174,14 @@ apply.
   Metanui skip. The largest gaps (-89% and -77%) are partly that, not codegen.
 - **The comparison with alien-signals holds only for JavaScriptCore, through this harness's adapters
   and its aggregate figures.** It reverses on V8 (next table). Against alien-signals, Metanui ranges
-  from 27% faster (`4-1000x12`) to 15% slower (`cellx1000`). It is slower in `createComputations`
+  from 29% faster (`createSignals`) to 15% slower (`cellx1000`). It is slower in `createComputations`
   (+9%), `updateSignals` (+11%), `diamond` (+7%), `repeatedObservers` (+6%), `triangle` (+12%) and
   `cellx1000` (+15%).
 - **The `cellx` tests are noisy even on this host.** Metanui's `cellx1000` took 9.63, 12.60 and
   32.16 ms in the three runs. The other `cellx` cells moved by up to 37% across the three runs. Every
   non-`cellx` cell moved by 18% or less.
 
-### Node v26.8.2 (V8), secondary
+### Node v26.8.2 (V8)
 
 | Test | alien-signals 3.2.1 | Solid 2.0.4 | Metanui | Metanui vs Solid 2.0 | Metanui vs alien |
 |---|---:|---:|---:|---:|---:|
@@ -314,13 +323,18 @@ A third Bun run started at a load of 11.4 and is left out.
 | 3-5x500 | 127.18 | 333.89 | 146.80 | -56% | +15% |
 | 6-100x15 - dyn50% | 238.61 | 539.95 | 264.63 | -51% | +11% |
 
-The Mac and the primary host agree on every conclusion:
+The Mac and the primary host agree on the budget verdicts:
 
 - the budget is met on Bun;
 - on V8, `createSignals` and `cellx1000` miss the budget, and Metanui is well behind alien-signals.
 
-The size of the V8 `createSignals` miss differs between the two machines (+52% on the Mac, +17% on
-the host).
+They diverge in two places, and the size of the V8 `createSignals` miss also differs (+52% on the
+Mac, +17% on the host):
+
+| Comparison | Mac | Primary host |
+|---|---|---|
+| Bun `updateSignals` vs alien-signals | Metanui 17% faster | a tie: +11% in the harness aggregate, -5% in the per-sub-test sum |
+| Node `createComputations` vs Solid 2.0 | Metanui 10% slower | Metanui 7% faster |
 
 ## Misses and findings
 
@@ -399,7 +413,7 @@ on the primary host:
 These costs are real, but they are far too small to explain a gap of tens of ms in `cellx`.
 
 A V8 CPU profile of `cellx` alone (`node --cpu-prof`, 50 µs sampling) spreads the time with no single
-hot spot:
+hot spot. The numbers come from `results/criptomaster-2026-11-25/profile.txt`:
 
 | Entry | Share of profile |
 |---|---:|

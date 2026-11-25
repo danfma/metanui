@@ -1,0 +1,12 @@
+load:  15:36:23 up 52 min,  2 users,  load average: 0,76, 1,01, 1,07
+node: v26.8.2
+Metanui | cellx1000 | 44.69
+Metanui | cellx2500 | 92.67
+Metanui | cellx1000 | 46.88
+Metanui | cellx2500 | 88.50
+Metanui | cellx1000 | 45.52
+Metanui | cellx2500 | 103.96
+Metanui | cellx1000 | 56.42
+Metanui | cellx2500 | 99.10
+Metanui | cellx1000 | 37.58
+Metanui | cellx2500 | 92.73

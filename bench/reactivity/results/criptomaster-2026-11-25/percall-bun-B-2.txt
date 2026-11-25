@@ -1,0 +1,3 @@
+load:  15:36:19 up 52 min,  2 users,  load average: 0,83, 1,03, 1,08
+B checkDirty: median 1.79 ns per call
+B propagate: median 3.06 ns per call

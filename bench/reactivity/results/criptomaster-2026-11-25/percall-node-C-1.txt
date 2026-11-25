@@ -1,0 +1,4 @@
+load:  15:36:10 up 52 min,  2 users,  load average: 0,89, 1,05, 1,09
+node: v26.8.2
+C checkDirty: median 5.08 ns per call
+C propagate: median 11.65 ns per call

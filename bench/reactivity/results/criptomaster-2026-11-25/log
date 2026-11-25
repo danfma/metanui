@@ -1,0 +1,103 @@
+bun1 start 0.69 0.62 0.56 1/919 8216
+bun1 end   1.04 0.91 0.70 1/910 8964 exit=0
+node1 start 0.95 0.90 0.70 1/910 8972
+node1 end   1.05 1.08 0.85 1/906 9733 exit=0
+bun2 start 0.97 1.07 0.85 1/904 9741
+bun2 end   1.21 1.33 1.02 1/827 10761 exit=0
+node2 start 0.94 1.26 1.00 1/826 10814
+node2 end   1.24 1.31 1.08 1/826 11841 exit=0
+bun3 start 0.97 1.24 1.07 1/826 11857
+bun3 end   1.07 1.23 1.10 1/825 12824 exit=0
+node3 start 0.98 1.21 1.09 1/825 12832
+node3 end   1.14 1.28 1.17 1/831 13837 exit=0
+update-bun-Alien_Signals-1 start 0.96 1.24 1.16 1/834 13928
+update-bun-Alien_Signals-1 end   0.97 1.23 1.15 1/834 13976 exit=0
+update-node-Alien_Signals-1 start 0.97 1.23 1.15 1/834 13980
+update-node-Alien_Signals-1 end   0.97 1.22 1.15 1/834 14062 exit=0
+update-bun-Solid_2.0-1 start 0.97 1.22 1.15 1/834 14066
+update-bun-Solid_2.0-1 end   1.18 1.25 1.16 1/836 14266 exit=0
+update-node-Solid_2.0-1 start 0.99 1.20 1.15 1/834 14323
+update-node-Solid_2.0-1 end   0.99 1.18 1.14 1/832 14480 exit=0
+update-bun-Metanui-1 start 0.99 1.18 1.14 1/832 14484
+update-bun-Metanui-1 end   0.92 1.16 1.14 1/832 14532 exit=0
+update-node-Metanui-1 start 0.92 1.16 1.14 2/832 14536
+update-node-Metanui-1 end   1.07 1.18 1.14 1/831 14655 exit=0
+update-bun-Alien_Signals-2 start 0.99 1.16 1.14 1/831 14663
+update-bun-Alien_Signals-2 end   0.99 1.16 1.14 1/831 14748 exit=0
+update-node-Alien_Signals-2 start 0.99 1.16 1.14 1/831 14752
+update-node-Alien_Signals-2 end   0.92 1.14 1.13 1/833 14839 exit=0
+update-bun-Solid_2.0-2 start 0.92 1.14 1.13 1/833 14843
+update-bun-Solid_2.0-2 end   0.95 1.12 1.12 1/829 15003 exit=0
+update-node-Solid_2.0-2 start 0.95 1.12 1.12 1/829 15007
+update-node-Solid_2.0-2 end   1.31 1.20 1.15 1/828 15161 exit=0
+update-bun-Metanui-2 start 0.94 1.12 1.13 1/828 15255
+update-bun-Metanui-2 end   1.02 1.14 1.13 1/830 15309 exit=0
+update-node-Metanui-2 start 0.94 1.11 1.12 1/829 15418
+update-node-Metanui-2 end   1.30 1.19 1.15 1/827 15500 exit=0
+update-bun-Alien_Signals-3 start 0.99 1.13 1.13 1/834 15602
+update-bun-Alien_Signals-3 end   0.99 1.12 1.13 1/835 15688 exit=0
+update-node-Alien_Signals-3 start 0.99 1.12 1.13 1/835 15692
+update-node-Alien_Signals-3 end   1.32 1.19 1.15 1/836 15777 exit=0
+update-bun-Solid_2.0-3 start 0.94 1.11 1.12 1/832 15869
+update-bun-Solid_2.0-3 end   1.18 1.15 1.13 1/833 16030 exit=0
+update-node-Solid_2.0-3 start 0.92 1.09 1.11 1/832 16125
+update-node-Solid_2.0-3 end   1.00 1.09 1.11 1/832 16284 exit=0
+update-bun-Metanui-3 start 0.92 1.07 1.11 1/832 16292
+update-bun-Metanui-3 end   1.10 1.11 1.11 1/832 16377 exit=0
+update-node-Metanui-3 start 0.93 1.07 1.10 1/833 16429
+update-node-Metanui-3 end   0.94 1.06 1.10 1/832 16508 exit=0
+retain-noflush start 0.94 1.06 1.10 1/832 16512
+retain-noflush end   0.94 1.06 1.10 1/833 16598 exit=0
+retain-flush start 0.94 1.06 1.10 1/833 16602
+retain-flush end   1.35 1.15 1.13 1/833 16650 exit=0
+shape-bun start 0.96 1.07 1.10 1/833 16745
+shape-bun end   0.96 1.07 1.10 1/833 16793 exit=0
+shape-node start 0.96 1.07 1.10 1/833 16797
+shape-node end   0.96 1.07 1.10 1/833 16842 exit=0
+create-bun-metanui start 0.96 1.07 1.10 1/833 16846
+create-bun-metanui end   0.96 1.07 1.10 1/833 16894 exit=0
+create-node-metanui start 0.96 1.07 1.10 1/833 16898
+create-node-metanui end   0.97 1.07 1.10 1/833 16943 exit=0
+create-bun-solid2 start 0.97 1.07 1.10 1/833 16947
+create-bun-solid2 end   0.97 1.07 1.10 1/833 16995 exit=0
+create-node-solid2 start 0.97 1.07 1.10 1/833 16999
+create-node-solid2 end   0.97 1.07 1.10 1/833 17044 exit=0
+create-bun-alien start 0.97 1.07 1.10 1/833 17048
+create-bun-alien end   0.97 1.07 1.10 1/833 17133 exit=0
+create-node-alien start 0.97 1.07 1.10 1/833 17137
+create-node-alien end   0.89 1.05 1.09 1/833 17182 exit=0
+sbench-node-Alien_Signals start 0.89 1.05 1.09 1/833 17186
+sbench-node-Alien_Signals end   0.91 1.05 1.09 1/833 17305 exit=0
+sbench-node-Solid_2.0 start 0.91 1.05 1.09 1/833 17309
+sbench-node-Solid_2.0 end   1.20 1.12 1.11 1/834 17467 exit=0
+sbench-node-Metanui start 0.94 1.06 1.09 1/834 17522
+sbench-node-Metanui end   1.15 1.11 1.11 1/833 17642 exit=0
+percall-node-A-1 start 0.97 1.07 1.09 1/832 17742
+percall-node-A-1 end   0.97 1.07 1.09 1/832 17824 exit=0
+percall-bun-A-1 start 0.97 1.07 1.09 1/832 17828
+percall-bun-A-1 end   0.89 1.05 1.09 1/832 17868 exit=0
+percall-node-B-1 start 0.89 1.05 1.09 1/832 17872
+percall-node-B-1 end   0.89 1.05 1.09 1/832 17917 exit=0
+percall-bun-B-1 start 0.89 1.05 1.09 1/832 17921
+percall-bun-B-1 end   0.89 1.05 1.09 1/824 17961 exit=0
+percall-node-C-1 start 0.89 1.05 1.09 1/824 17965
+percall-node-C-1 end   0.90 1.05 1.09 1/824 18010 exit=0
+percall-bun-C-1 start 0.90 1.05 1.09 1/824 18014
+percall-bun-C-1 end   0.90 1.05 1.09 1/824 18054 exit=0
+percall-node-A-2 start 0.90 1.05 1.09 1/824 18058
+percall-node-A-2 end   0.90 1.05 1.09 1/824 18103 exit=0
+percall-bun-A-2 start 0.90 1.05 1.09 1/824 18107
+percall-bun-A-2 end   0.83 1.03 1.08 1/824 18147 exit=0
+percall-node-B-2 start 0.83 1.03 1.08 1/824 18151
+percall-node-B-2 end   0.83 1.03 1.08 1/824 18196 exit=0
+percall-bun-B-2 start 0.83 1.03 1.08 1/824 18200
+percall-bun-B-2 end   0.83 1.03 1.08 1/824 18240 exit=0
+percall-node-C-2 start 0.83 1.03 1.08 1/824 18244
+percall-node-C-2 end   0.76 1.01 1.07 2/824 18327 exit=0
+percall-bun-C-2 start 0.76 1.01 1.07 1/824 18331
+percall-bun-C-2 end   0.76 1.01 1.07 1/824 18371 exit=0
+cellx-node start 0.76 1.01 1.07 1/824 18375
+cellx-node end   1.02 1.06 1.09 1/824 18420 exit=0
+profile start 0.94 1.05 1.08 1/825 18469
+profile end 0.94 1.05 1.08 1/825 18489
+ALL-DONE

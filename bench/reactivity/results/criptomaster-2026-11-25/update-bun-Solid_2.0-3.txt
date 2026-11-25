@@ -1,0 +1,9 @@
+load:  15:31:48 up 48 min,  2 users,  load average: 0,94, 1,11, 1,12
+Solid 2.0 | update1to1 | 321.18
+Solid 2.0 | update2to1 | 176.19
+Solid 2.0 | update4to1 | 80.47
+Solid 2.0 | update1000to1 | 11.58
+Solid 2.0 | update1to2 | 95.82
+Solid 2.0 | update1to4 | 110.53
+Solid 2.0 | update1to1000 | 1654.76
+Solid 2.0 | updateSignals (sum) | 2450.53

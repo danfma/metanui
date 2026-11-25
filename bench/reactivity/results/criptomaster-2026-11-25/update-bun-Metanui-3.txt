@@ -1,0 +1,9 @@
+load:  15:33:14 up 49 min,  2 users,  load average: 0,92, 1,07, 1,11
+Metanui | update1to1 | 38.74
+Metanui | update2to1 | 22.95
+Metanui | update4to1 | 11.74
+Metanui | update1000to1 | 3.54
+Metanui | update1to2 | 15.34
+Metanui | update1to4 | 26.24
+Metanui | update1to1000 | 555.74
+Metanui | updateSignals (sum) | 674.30
