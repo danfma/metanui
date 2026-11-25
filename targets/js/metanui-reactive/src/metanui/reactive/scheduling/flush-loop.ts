@@ -11,6 +11,7 @@ export class FlushLoop {
   private static readonly maxPasses: number = 100;
   private static readonly passLimitMessage: string = "Reactive flush exceeded 100 passes; an effect is probably writing a signal it depends on.";
   private static readonly runFlush: () => void = FlushLoop.run;
+  private static readonly resumeFlush: () => void = FlushLoop.resume;
   static scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
   private static _head: SignalNode | null = null;
   private static _tail: SignalNode | null = null;
@@ -66,13 +67,17 @@ export class FlushLoop {
   }
 
   static requestFlush(): void {
+    FlushLoop.request(FlushLoop.runFlush);
+  }
+
+  private static request(flush: () => void): void {
     if (FlushLoop._scheduled || FlushLoop._running) {
       return;
     }
 
     FlushLoop._scheduled = true;
     try {
-      FlushLoop.scheduler.schedule(FlushLoop.runFlush);
+      FlushLoop.scheduler.schedule(flush);
     } catch (_err) {
       FlushLoop._scheduled = false;
       throw _err;
@@ -80,34 +85,48 @@ export class FlushLoop {
   }
 
   static run(): void {
+    FlushLoop.runWithBudget(0);
+  }
+
+  private static resume(): void {
+    FlushLoop.runWithBudget(FlushLoop._passes);
+  }
+
+  private static runWithBudget(passesUsed: number): void {
     if (FlushLoop._running) {
       return;
     }
 
     FlushLoop._running = true;
     FlushLoop._scheduled = false;
-    try {
-      FlushLoop.runPasses();
-    } catch (_err) {
-      FlushLoop._running = false;
+    FlushLoop._passes = passesUsed;
+    const completed = FlushLoop.runPassesOrRequestResume();
 
-      if (!FlushLoop.passLimitReached()) {
-        FlushLoop.requestFlushForLeftovers();
-      }
-
-      throw _err;
+    if (!completed) {
+      FlushLoop.discardPendingWrites();
+      throw new InvalidOperationException(FlushLoop.passLimitMessage);
     }
-    FlushLoop._running = false;
-    FlushLoop._passes = 0;
+
     Teardown.rethrowFirstError();
   }
 
-  private static runPasses(): void {
+  private static runPassesOrRequestResume(): boolean {
+    try {
+      const completed = FlushLoop.runPasses();
+      FlushLoop._running = false;
+
+      return completed;
+    } catch (_err) {
+      FlushLoop._running = false;
+      FlushLoop.requestResumeForLeftovers();
+      throw _err;
+    }
+  }
+
+  private static runPasses(): boolean {
     while (FlushLoop.hasWork()) {
       if (FlushLoop._passes === FlushLoop.maxPasses) {
-        FlushLoop._passes = 0;
-        FlushLoop.discardPendingWrites();
-        throw new InvalidOperationException(FlushLoop.passLimitMessage);
+        return false;
       }
 
       FlushLoop._passes = (FlushLoop._passes + 1) | 0;
@@ -116,19 +135,17 @@ export class FlushLoop {
       FlushLoop.runComputes();
       FlushLoop.runApplies();
     }
+
+    return true;
   }
 
-  private static passLimitReached(): boolean {
-    return FlushLoop._passes === 0;
-  }
-
-  private static requestFlushForLeftovers(): void {
+  private static requestResumeForLeftovers(): void {
     if (!FlushLoop.hasWork()) {
       return;
     }
 
     try {
-      FlushLoop.requestFlush();
+      FlushLoop.request(FlushLoop.resumeFlush);
     } catch (_err) {
     }
   }
