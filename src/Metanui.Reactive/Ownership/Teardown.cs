@@ -61,6 +61,13 @@ internal static class Teardown
         throw error;
     }
 
+    /// <summary>
+    /// Forgets the error kept since the last rethrow. Used when a flush stops at the pass limit: that
+    /// error is what the flush reports, and an older cleanup error must not surface in a later,
+    /// unrelated flush.
+    /// </summary>
+    public static void DiscardFirstError() => _firstError = null;
+
     private static Exception? RunOne(Action cleanup)
     {
         try
