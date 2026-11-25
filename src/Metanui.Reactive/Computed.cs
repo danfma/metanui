@@ -261,10 +261,12 @@ public sealed class Computed<T> : ComputedNode
     /// retries the function.
     /// </summary>
     /// <remarks>
-    /// Unlike Solid, the retry does not run here: it is queued as an invalidation that the next flush
-    /// pass applies (<see cref="FlushLoop.EnqueueRetry" />), so every observer of this pass, this one
-    /// included, sees the same cached error, and no dirty check in progress sees the graph change
-    /// under it. The checks run before the link, which moves the observer's dependency tail.
+    /// Unlike Solid, the retry does not run here: it is queued, and the next flush pass runs it at its
+    /// start (<see cref="RetryAtPassStart" />), so every observer of this pass, this one included,
+    /// sees the same cached error, and no dirty check in progress sees the graph change under it. The
+    /// retry condition is checked before the link, which moves the observer's dependency tail, and the
+    /// retry is queued after it, so a scheduler that throws on the flush request leaves the observer
+    /// subscribed.
     /// </remarks>
     private T ReadErrored(ReactiveNode? observer)
     {
@@ -273,12 +275,14 @@ public sealed class Computed<T> : ComputedNode
             throw _error!;
         }
 
-        if (IsNextDependencyOf(observer) && _errorPass != Tracking.Pass && !IsDisposed)
+        var retry = IsNextDependencyOf(observer) && _errorPass != Tracking.Pass && !IsDisposed;
+
+        DependencyGraph.Link(this, observer, Tracking.Cycle);
+
+        if (retry)
         {
             FlushLoop.EnqueueRetry(this);
         }
-
-        DependencyGraph.Link(this, observer, Tracking.Cycle);
 
         throw _error!;
     }

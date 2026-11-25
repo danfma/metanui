@@ -61,6 +61,10 @@ public static class ErrorScenarios
             ComputedDisposedWhileItsRetryIsPendingIsNotRetried
         ),
         new Scenario(
+            "re-read whose retry request the scheduler rejects keeps its observer subscribed",
+            RetryRequestRejectedBySchedulerKeepsObserverSubscribed
+        ),
+        new Scenario(
             "error raised in a multi-level dirty check reaches the reader and later walks stay correct",
             ErrorInMultiLevelDirtyCheckReachesReader
         ),
@@ -727,6 +731,51 @@ public static class ErrorScenarios
             readError is InvalidOperationException { Message: "First run fails." },
             "the disposed computed keeps its error"
         );
+    }
+
+    /// <summary>
+    /// The tracked re-read that queues a retry outside a flush requests a flush from a scheduler that
+    /// throws. The reader must still be subscribed to the errored computed, so the recovery the next
+    /// flush runs reaches it.
+    /// </summary>
+    private static void RetryRequestRejectedBySchedulerKeepsObserverSubscribed(IExpect expect)
+    {
+        var trigger = Reactivity.Signal(0);
+        var flaky = FailingOnFirstRun(42);
+
+        var reader = Reactivity.Computed(() =>
+        {
+            _ = trigger.Value;
+
+            return ReadOr(flaky, -1);
+        });
+
+        expect.Equal(-1, reader.Peek(), "the reader first sees the error");
+
+        // The commit leaves the reader pending in a later pass than the failure.
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        var previousScheduler = Reactivity.Scheduler;
+
+        Reactivity.UseScheduler(new CountingScheduler(failFirst: true));
+
+        try
+        {
+            expect.Equal(
+                -1,
+                reader.Peek(),
+                "the re-read whose flush request failed sees the error"
+            );
+        }
+        finally
+        {
+            Reactivity.UseScheduler(previousScheduler);
+        }
+
+        Reactivity.Flush();
+
+        expect.Equal(42, reader.Peek(), "the recovery reaches the reader");
     }
 
     /// <summary>
