@@ -145,7 +145,7 @@ export class Computed<T> extends OwnerNode {
   }
 
   private recomputeIfDependencyChanged(flags: ReactiveFlags): void {
-    if (DependencyGraph.checkDirty(this.deps!, this)) {
+    if (DependencyGraph.checkDirty(this.deps!, this) || (this.flags & ReactiveFlags.Dirty) !== 0) {
       this.recompute();
     } else {
       this.flags = flags & ~ReactiveFlags.Pending;

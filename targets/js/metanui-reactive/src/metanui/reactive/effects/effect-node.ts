@@ -40,7 +40,7 @@ export abstract class EffectNode extends OwnerNode {
 
     const flags = this.flags;
 
-    if ((flags & ReactiveFlags.Dirty) !== 0 || (flags & ReactiveFlags.Pending) !== 0 && DependencyGraph.checkDirty(this.deps!, this)) {
+    if ((flags & ReactiveFlags.Dirty) !== 0 || (flags & ReactiveFlags.Pending) !== 0 && DependencyGraph.checkDirty(this.deps!, this) || (this.flags & ReactiveFlags.Dirty) !== 0) {
       if (this.tryRunCompute()) {
         FlushLoop.enqueueApply(this);
       }

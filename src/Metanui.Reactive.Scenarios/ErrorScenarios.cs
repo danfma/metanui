@@ -21,6 +21,14 @@ public static class ErrorScenarios
             RetryThatRecoversUpdatesOtherObservers
         ),
         new Scenario(
+            "retry that recovers an errored computed updates an already pending sibling effect",
+            RetryRecoveryUpdatesAPendingSibling
+        ),
+        new Scenario(
+            "retry that recovers an errored computed updates an already pending sibling computed",
+            RetryRecoveryUpdatesAPendingSiblingComputed
+        ),
+        new Scenario(
             "error raised in a multi-level dirty check reaches the reader and later walks stay correct",
             ErrorInMultiLevelDirtyCheckReachesReader
         ),
@@ -232,6 +240,81 @@ public static class ErrorScenarios
         expect.Equal(42, sibling, "the sibling effect sees the recovered value");
         expect.Equal(43, derived.Value, "the computed sees the recovered value");
         expect.Equal(2, runs, "the function ran once more");
+    }
+
+    /// <summary>
+    /// The effect reads <c>flaky</c> before <c>C</c>, so a trigger change leaves it pending through
+    /// <c>C</c>. Its dirty check recomputes <c>C</c>, whose tracked re-read retries <c>flaky</c>; the
+    /// recovery turns the effect dirty in the middle of the check, which itself finds no change.
+    /// </summary>
+    private static void RetryRecoveryUpdatesAPendingSibling(IExpect expect)
+    {
+        var seen = 0;
+        var trigger = Reactivity.Signal(0);
+        var flaky = FailingOnFirstRun(42);
+
+        var c = Reactivity.Computed(() =>
+        {
+            _ = trigger.Value;
+            ReadOr(flaky, -1);
+
+            return 0;
+        });
+
+        Reactivity.Effect(
+            () =>
+            {
+                var f = ReadOr(flaky, -1);
+                _ = c.Value;
+
+                return f;
+            },
+            (value, previous) => seen = value
+        );
+
+        Reactivity.Flush();
+
+        expect.Equal(-1, seen, "the effect first sees the error");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(42, seen, "the effect sees the recovered value");
+    }
+
+    /// <summary>
+    /// The computed variant of <see cref="RetryRecoveryUpdatesAPendingSibling" />: <c>D</c> reads
+    /// <c>flaky</c> before <c>C</c>, has no subscriber, and is refreshed by an untracked read while
+    /// pending.
+    /// </summary>
+    private static void RetryRecoveryUpdatesAPendingSiblingComputed(IExpect expect)
+    {
+        var trigger = Reactivity.Signal(0);
+        var flaky = FailingOnFirstRun(42);
+
+        var c = Reactivity.Computed(() =>
+        {
+            _ = trigger.Value;
+            ReadOr(flaky, -1);
+
+            return 0;
+        });
+
+        var d = Reactivity.Computed(() =>
+        {
+            var f = ReadOr(flaky, -1);
+            _ = c.Value;
+
+            return f;
+        });
+
+        expect.Equal(-1, d.Peek(), "the computed first sees the error");
+
+        // The commit leaves C and D pending, in a later pass than the failure.
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(42, d.Peek(), "the computed sees the recovered value");
     }
 
     /// <summary>
@@ -1020,6 +1103,24 @@ public static class ErrorScenarios
         }
 
         return value;
+    }
+
+    /// <summary>A computed with no dependency that throws on its first run and returns <paramref name="value" /> after.</summary>
+    private static Computed<int> FailingOnFirstRun(int value)
+    {
+        var runs = 0;
+
+        return Reactivity.Computed(() =>
+        {
+            runs++;
+
+            if (runs == 1)
+            {
+                throw new InvalidOperationException("First run fails.");
+            }
+
+            return value;
+        });
     }
 
     private static T ReadOr<T>(Computed<T> computed, T fallback)
