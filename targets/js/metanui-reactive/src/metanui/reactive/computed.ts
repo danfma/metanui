@@ -206,11 +206,13 @@ export class Computed<T> extends ComputedNode {
       throw this._error!;
     }
 
-    if (this.isNextDependencyOf(observer) && this._errorPass !== Tracking.pass && !this.isDisposed) {
+    const retry = this.isNextDependencyOf(observer) && this._errorPass !== Tracking.pass && !this.isDisposed;
+    DependencyGraph.link(this, observer, Tracking.cycle);
+
+    if (retry) {
       FlushLoop.enqueueRetry(this);
     }
 
-    DependencyGraph.link(this, observer, Tracking.cycle);
     throw this._error!;
   }
 
