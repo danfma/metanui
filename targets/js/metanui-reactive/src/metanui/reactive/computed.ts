@@ -145,7 +145,7 @@ export class Computed<T> extends OwnerNode {
   }
 
   private recomputeIfDependencyChanged(flags: ReactiveFlags): void {
-    if (DependencyGraph.checkDirty(this.deps!, this) || (this.flags & ReactiveFlags.Dirty) !== 0) {
+    if (DependencyGraph.checkDirty(this.deps!, this)) {
       this.recompute();
     } else {
       this.flags = flags & ~ReactiveFlags.Pending;
@@ -213,6 +213,13 @@ export class Computed<T> extends OwnerNode {
 
   private retry(): void {
     this.update();
+
+    if ((this.flags & ReactiveFlags.Errored) === 0) {
+      FlushLoop.enqueueRecovered(this);
+
+      return;
+    }
+
     const subs = this.subs;
 
     if (!(subs == null)) {

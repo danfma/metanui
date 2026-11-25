@@ -51,12 +51,9 @@ internal abstract class EffectNode : OwnerNode
 
         var flags = Flags;
 
-        // The last test re-reads the flags: a dependency's retry (Computed.Retry) during the check
-        // can turn this effect dirty while the check itself finds no change.
         if (
             (flags & ReactiveFlags.Dirty) != 0
             || ((flags & ReactiveFlags.Pending) != 0 && DependencyGraph.CheckDirty(Deps!, this))
-            || (Flags & ReactiveFlags.Dirty) != 0
         )
         {
             if (TryRunCompute())

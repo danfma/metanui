@@ -29,6 +29,9 @@ export abstract class OwnerNode extends ReactiveNode {
   /** @internal */
   isDisposed: boolean = false;
 
+  /** @internal */
+  nextRecovered: OwnerNode | null = null;
+
   constructor() {
     super();
     const parent = Tracking.currentOwner;

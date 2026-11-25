@@ -173,14 +173,9 @@ public sealed class Computed<T> : OwnerNode
         }
     }
 
-    /// <summary>
-    /// Recomputes when the check finds a changed dependency, or when a dependency's retry
-    /// (<see cref="Retry" />) during the check turned this computed dirty while the check itself
-    /// found no change; otherwise only clears <see cref="ReactiveFlags.Pending" />.
-    /// </summary>
     private void RecomputeIfDependencyChanged(ReactiveFlags flags)
     {
-        if (DependencyGraph.CheckDirty(Deps!, this) || (Flags & ReactiveFlags.Dirty) != 0)
+        if (DependencyGraph.CheckDirty(Deps!, this))
         {
             Recompute();
         }
@@ -246,8 +241,8 @@ public sealed class Computed<T> : OwnerNode
     /// retries the function.
     /// </summary>
     /// <remarks>
-    /// The retry runs before the observer's link is confirmed, so the propagation it starts skips the
-    /// running observer (alien-signals <c>isValidLink</c>), which takes the result from this read.
+    /// The observer takes the retry's result from this read; <see cref="Retry" /> says when the other
+    /// subscribers get it.
     /// </remarks>
     private T ReadErrored(ReactiveNode? observer)
     {
@@ -277,14 +272,27 @@ public sealed class Computed<T> : OwnerNode
     }
 
     /// <summary>
-    /// Runs the function again after an error. The result (the value that replaces the error, or
-    /// another error) reaches every other subscriber like a signal commit: nothing marked them pending,
-    /// since no dependency changed. A read outside a flush requests one for the effects it queued.
+    /// Runs the function again after an error. Nothing marked the other subscribers pending, since no
+    /// dependency changed, so the result is propagated like a signal commit:
+    /// <list type="bullet">
+    /// <item>A recovered value reaches them in the next flush pass, like a signal write. Propagating it
+    /// here would run in the middle of a dirty check, whose walk takes the dependencies it already
+    /// visited as settled, and would leave a sibling on the walk path stale.</item>
+    /// <item>Another error reaches them at once, before the observer's link is confirmed, so the
+    /// running observer is skipped (alien-signals <c>isValidLink</c>). Deferring it would rerun that
+    /// observer in the next pass, which would retry again, on every pass.</item>
+    /// </list>
     /// </summary>
     private void Retry()
     {
-        // Always a change: the error is replaced by a value or by another error.
         Update();
+
+        if ((Flags & ReactiveFlags.Errored) == 0)
+        {
+            FlushLoop.EnqueueRecovered(this);
+
+            return;
+        }
 
         var subs = Subs;
 

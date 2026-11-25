@@ -1,8 +1,8 @@
 namespace Metanui.Reactive.Scheduling;
 
 /// <summary>
-/// Queues of pending work (signal writes, effect computes, effect applies), drained by
-/// <see cref="Run" /> in passes.
+/// Queues of pending work (signal writes, recovered computeds, effect computes, effect applies),
+/// drained by <see cref="Run" /> in passes.
 /// </summary>
 internal static class FlushLoop
 {
@@ -21,6 +21,8 @@ internal static class FlushLoop
 
     private static SignalNode? _head;
     private static SignalNode? _tail;
+    private static OwnerNode? _recoveredHead;
+    private static OwnerNode? _recoveredTail;
     private static EffectNode? _computeHead;
     private static EffectNode? _computeTail;
     private static EffectNode? _applyHead;
@@ -78,6 +80,30 @@ internal static class FlushLoop
         }
 
         _tail = node;
+    }
+
+    /// <summary>
+    /// Queues a computed whose retry replaced its error, once until the next pass propagates the change
+    /// to its subscribers, and requests a flush for it.
+    /// </summary>
+    public static void EnqueueRecovered(OwnerNode computed)
+    {
+        if (computed.NextRecovered is not null || computed == _recoveredTail)
+        {
+            return;
+        }
+
+        if (_recoveredTail is null)
+        {
+            _recoveredHead = computed;
+        }
+        else
+        {
+            _recoveredTail.NextRecovered = computed;
+        }
+
+        _recoveredTail = computed;
+        RequestFlush();
     }
 
     /// <summary>Queues a notified effect for the compute phase of the running pass.</summary>
@@ -150,8 +176,8 @@ internal static class FlushLoop
     public static bool IsRunning => _running;
 
     /// <summary>
-    /// Runs the flush (spec 4.7) in passes until no work is left: commit every pending write,
-    /// propagate from the signals that changed, run the queued effect computes in queue order, then
+    /// Runs the flush (spec 4.7) in passes until no work is left: propagate from the computeds a
+    /// retry recovered, commit every pending write, propagate from the signals that changed, run the queued effect computes in queue order, then
     /// the applies they produced. Writes made by the applies start another pass. Called while a flush
     /// is running, it returns at once and lets the running flush drain.
     /// </summary>
@@ -239,6 +265,7 @@ internal static class FlushLoop
 
             _passes++;
             Tracking.Pass++;
+            PropagateRecoveries();
             CommitAndPropagate();
             RunComputes();
             RunApplies();
@@ -273,7 +300,39 @@ internal static class FlushLoop
 
     // The compute queue is empty between passes unless an exception interrupted the last flush.
     private static bool HasWork() =>
-        _head is not null || _computeHead is not null || _applyHead is not null;
+        _head is not null
+        || _recoveredHead is not null
+        || _computeHead is not null
+        || _applyHead is not null;
+
+    /// <summary>
+    /// Marks the subscribers of each retried computed as a signal commit marks a changed signal's
+    /// (see <see cref="PropagateChanges" />). Each computed leaves the queue before its propagation,
+    /// so one that throws leaves the rest queued for the next flush.
+    /// </summary>
+    private static void PropagateRecoveries()
+    {
+        while (_recoveredHead is not null)
+        {
+            var computed = _recoveredHead;
+
+            _recoveredHead = computed.NextRecovered;
+            computed.NextRecovered = null;
+
+            if (_recoveredHead is null)
+            {
+                _recoveredTail = null;
+            }
+
+            var subs = computed.Subs;
+
+            if (subs is not null)
+            {
+                DependencyGraph.Propagate(subs);
+                DependencyGraph.ShallowPropagate(subs);
+            }
+        }
+    }
 
     /// <summary>
     /// Commits every queued write, then propagates from the signals that changed, so propagation

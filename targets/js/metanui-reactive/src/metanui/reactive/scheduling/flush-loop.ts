@@ -5,6 +5,7 @@ import { DependencyGraph } from "../graph/dependency-graph.js";
 import type { SignalNode } from "../graph/signal-node.js";
 import type { IFlushScheduler } from "../i-flush-scheduler.js";
 import { ManualFlushScheduler } from "../manual-flush-scheduler.js";
+import type { OwnerNode } from "../ownership/owner-node.js";
 import { Teardown } from "../ownership/teardown.js";
 import { Tracking } from "../tracking.js";
 
@@ -16,6 +17,8 @@ export class FlushLoop {
   private static _scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
   private static _head: SignalNode | null = null;
   private static _tail: SignalNode | null = null;
+  private static _recoveredHead: OwnerNode | null = null;
+  private static _recoveredTail: OwnerNode | null = null;
   private static _computeHead: EffectNode | null = null;
   private static _computeTail: EffectNode | null = null;
   private static _applyHead: EffectNode | null = null;
@@ -56,6 +59,21 @@ export class FlushLoop {
     }
 
     FlushLoop._tail = node;
+  }
+
+  static enqueueRecovered(computed: OwnerNode): void {
+    if (!(computed.nextRecovered == null) || computed === FlushLoop._recoveredTail) {
+      return;
+    }
+
+    if (FlushLoop._recoveredTail == null) {
+      FlushLoop._recoveredHead = computed;
+    } else {
+      FlushLoop._recoveredTail.nextRecovered = computed;
+    }
+
+    FlushLoop._recoveredTail = computed;
+    FlushLoop.requestFlush();
   }
 
   static enqueueCompute(effect: EffectNode): void {
@@ -153,6 +171,7 @@ export class FlushLoop {
 
       FlushLoop._passes = (FlushLoop._passes + 1) | 0;
       Tracking.pass = (Tracking.pass + 1) | 0;
+      FlushLoop.propagateRecoveries();
       FlushLoop.commitAndPropagate();
       FlushLoop.runComputes();
       FlushLoop.runApplies();
@@ -175,7 +194,26 @@ export class FlushLoop {
   }
 
   private static hasWork(): boolean {
-    return !(FlushLoop._head == null) || !(FlushLoop._computeHead == null) || !(FlushLoop._applyHead == null);
+    return !(FlushLoop._head == null) || !(FlushLoop._recoveredHead == null) || !(FlushLoop._computeHead == null) || !(FlushLoop._applyHead == null);
+  }
+
+  private static propagateRecoveries(): void {
+    while (!(FlushLoop._recoveredHead == null)) {
+      const computed = FlushLoop._recoveredHead;
+      FlushLoop._recoveredHead = computed.nextRecovered;
+      computed.nextRecovered = null;
+
+      if (FlushLoop._recoveredHead == null) {
+        FlushLoop._recoveredTail = null;
+      }
+
+      const subs = computed.subs;
+
+      if (!(subs == null)) {
+        DependencyGraph.propagate(subs);
+        DependencyGraph.shallowPropagate(subs);
+      }
+    }
   }
 
   private static commitAndPropagate(): void {

@@ -29,6 +29,14 @@ public static class ErrorScenarios
             RetryRecoveryUpdatesAPendingSiblingComputed
         ),
         new Scenario(
+            "retry that recovers an errored computed reaches an effect through a pending computed",
+            RetryRecoveryReachesAnEffectThroughAPendingComputed
+        ),
+        new Scenario(
+            "retry that fails again does not retry on every pass",
+            RetryThatFailsAgainDoesNotRetryOnEveryPass
+        ),
+        new Scenario(
             "error raised in a multi-level dirty check reaches the reader and later walks stay correct",
             ErrorInMultiLevelDirtyCheckReachesReader
         ),
@@ -285,7 +293,7 @@ public static class ErrorScenarios
     /// <summary>
     /// The computed variant of <see cref="RetryRecoveryUpdatesAPendingSibling" />: <c>D</c> reads
     /// <c>flaky</c> before <c>C</c>, has no subscriber, and is refreshed by an untracked read while
-    /// pending.
+    /// pending. The retry happens outside a flush, so the flush it requests carries the change to D.
     /// </summary>
     private static void RetryRecoveryUpdatesAPendingSiblingComputed(IExpect expect)
     {
@@ -314,7 +322,86 @@ public static class ErrorScenarios
         trigger.Value = 1;
         Reactivity.Flush();
 
-        expect.Equal(42, d.Peek(), "the computed sees the recovered value");
+        // Refreshing D recomputes C, whose tracked re-read retries flaky; D gets the change in the
+        // next pass, like a signal write.
+        _ = d.Peek();
+        Reactivity.Flush();
+
+        expect.Equal(42, d.Peek(), "the computed sees the recovered value after the next pass");
+    }
+
+    /// <summary>
+    /// <see cref="RetryRecoveryUpdatesAPendingSiblingComputed" /> observed by an effect: the
+    /// recovery turns <c>D</c> dirty inside the effect's dirty check, one level below the effect.
+    /// </summary>
+    private static void RetryRecoveryReachesAnEffectThroughAPendingComputed(IExpect expect)
+    {
+        var seen = 0;
+        var trigger = Reactivity.Signal(0);
+        var flaky = FailingOnFirstRun(42);
+
+        var c = Reactivity.Computed(() =>
+        {
+            _ = trigger.Value;
+            ReadOr(flaky, -1);
+
+            return 0;
+        });
+
+        var d = Reactivity.Computed(() =>
+        {
+            var f = ReadOr(flaky, -1);
+            _ = c.Value;
+
+            return f;
+        });
+
+        Reactivity.Effect(() => d.Value, (value, previous) => seen = value);
+        Reactivity.Flush();
+
+        expect.Equal(-1, seen, "the effect first sees the error");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(42, seen, "the effect sees the recovered value");
+    }
+
+    /// <summary>
+    /// A computed that always fails, re-read by an effect after a flush: the retry fails again, and
+    /// that second error must not rerun the reading effect into another retry on every pass.
+    /// </summary>
+    private static void RetryThatFailsAgainDoesNotRetryOnEveryPass(IExpect expect)
+    {
+        var runs = 0;
+        var seen = 0;
+        var trigger = Reactivity.Signal(0);
+
+        var broken = Reactivity.Computed<int>(() =>
+        {
+            runs++;
+
+            throw new InvalidOperationException("Always fails.");
+        });
+
+        Reactivity.Effect(
+            () =>
+            {
+                _ = trigger.Value;
+
+                return ReadOr(broken, -1);
+            },
+            (value, previous) => seen = value
+        );
+
+        Reactivity.Flush();
+        trigger.Value = 1;
+
+        var error = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.IsTrue(error is null, "the flush completes");
+        expect.Equal(-1, seen, "the effect sees the error");
+        expect.Equal(2, runs, "the function ran once more");
     }
 
     /// <summary>
