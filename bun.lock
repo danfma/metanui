@@ -8,7 +8,7 @@
     "bench/micro": {
       "name": "metanui-bench-micro",
       "dependencies": {
-        "metano-runtime": "^3.1.0",
+        "metano-runtime": "^3.2.0",
       },
     },
     "bench/reactivity": {
@@ -16,7 +16,7 @@
       "dependencies": {
         "@solidjs/signals": "2.0.4",
         "alien-signals": "3.2.1",
-        "metano-runtime": "^3.1.0",
+        "metano-runtime": "^3.2.0",
         "metanui-reactive": "workspace:*",
       },
     },
@@ -24,22 +24,23 @@
       "name": "metanui-reactive",
       "version": "1.0.0",
       "peerDependencies": {
-        "metano-runtime": "^3.1.0",
+        "metano-runtime": "^3.2.0",
       },
     },
     "targets/js/metanui-reactive-scenarios": {
       "name": "metanui-reactive-scenarios",
+      "version": "1.0.0",
       "dependencies": {
         "metanui-reactive": "^1.0.0",
       },
       "peerDependencies": {
-        "metano-runtime": "^3.1.0",
+        "metano-runtime": "^3.2.0",
       },
     },
     "tests/js/reactive": {
       "name": "metanui-reactive-tests",
       "dependencies": {
-        "metano-runtime": "^3.1.0",
+        "metano-runtime": "^3.2.0",
         "metanui-reactive": "workspace:*",
         "metanui-reactive-scenarios": "workspace:*",
       },
@@ -56,7 +57,7 @@
 
     "jsbi": ["jsbi@4.3.2", "", {}, "sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew=="],
 
-    "metano-runtime": ["metano-runtime@3.1.0", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-i2zoUBjsCdW7H0cOyVkXLmt4kTxUbSsNzKh7f0CdRUa6l8PDcbZEE9bcIFcaPkmdNz/p7iHLYFqQ5ebYnb3asQ=="],
+    "metano-runtime": ["metano-runtime@3.2.0", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-4tAEAiafYvgCONcJ3+jkSiY/X88hU0N80/0eLa9WtM1SH53TUfLj7xFAehRUg2d1yLJV785ZqbNSrH73RovCAQ=="],
 
     "metanui-bench-micro": ["metanui-bench-micro@workspace:bench/micro"],
 

@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "metano-runtime": "^3.1.0"
+    "metano-runtime": "^3.2.0"
   }
 }

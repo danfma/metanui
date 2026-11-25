@@ -48,16 +48,9 @@ export class Reactivity {
   }
 
   static root<T>(body: (arg: () => void) => T): T;
-  static root(body: (obj: () => void) => void): void;
   static root(...args: unknown[]): any {
-    if (args.length === 1 && typeof args[0] === "function" && args[0].length === 1) {
+    if (args.length === 1 && typeof args[0] === "function") {
       return Reactivity.rootFuncOfActionT(args[0] as any);
-    }
-
-    if (args.length === 1 && typeof args[0] === "function" && args[0].length === 1) {
-      Reactivity.rootActionOfAction(args[0] as (obj: () => void) => void);
-
-      return;
     }
 
     throw new Error("No matching overload for root");

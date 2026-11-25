@@ -66,7 +66,7 @@ export class Computed<T> extends OwnerNode {
   }
 
   /** @internal */
-  update(): boolean {
+  override update(): boolean {
     const compute = this._compute!;
     const comparer = this._comparer!;
     this.disposeOwned();
@@ -104,12 +104,12 @@ export class Computed<T> extends OwnerNode {
   }
 
   /** @internal */
-  notify(): void {
+  override notify(): void {
     throwError(new InvalidOperationException("A computed cannot be notified."));
   }
 
   /** @internal */
-  unwatched(): void {
+  override unwatched(): void {
     if (this.depsTail == null) {
       return;
     }
@@ -120,7 +120,7 @@ export class Computed<T> extends OwnerNode {
   }
 
   /** @internal */
-  onDisposed(): void {
+  override onDisposed(): void {
     this.depsTail = null;
     this.flags = ReactiveFlags.Mutable | this.flags & ReactiveFlags.Errored;
     DependencyGraph.purgeDeps(this);

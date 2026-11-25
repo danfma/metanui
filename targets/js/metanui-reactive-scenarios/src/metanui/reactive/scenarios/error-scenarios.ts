@@ -272,7 +272,7 @@ export class ErrorScenarios {
       Reactivity.useScheduler(previousScheduler);
     }
     expect.equal(101, flushes, "flushes until the pass limit");
-    expect.isTrue(!(last == null) && last.message === ExpectedMessages.passLimit, "the last flush stops at the pass limit");
+    expect.isTrue(!(last == null) && last!.message === ExpectedMessages.passLimit, "the last flush stops at the pass limit");
     other.value = 1;
     Reactivity.flush();
     expect.equal("0,1,", log, "the graph is usable afterwards");
@@ -402,7 +402,7 @@ export class ErrorScenarios {
     Reactivity.flush();
     source.value = 1;
     const error = ScenarioRunner.catch(Reactivity.flush);
-    expect.isTrue(!(error == null) && error.message === "cleanup failed", "the cleanup error escapes the flush");
+    expect.isTrue(!(error == null) && error!.message === "cleanup failed", "the cleanup error escapes the flush");
     expect.equal("apply0,second,", log, "the other cleanup ran first");
   }
 
