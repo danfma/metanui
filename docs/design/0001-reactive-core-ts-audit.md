@@ -4,9 +4,13 @@ Audit of the TypeScript that Metano emits for `src/Metanui.Reactive` (Phase 7 of
 `plans/reactive-core.md`), checked against the hot-path rules of spec 5.3
 (`docs/design/0001-reactive-core.md`).
 
+The audit was made on Metano 3.1.0. Section 9 re-checks every issue on Metano 3.2.0, which the
+code now uses; sections 1 to 8 keep the 3.1.0 findings as recorded, with the issue status updated in
+section 6.
+
 | Tool | Version |
 |---|---|
-| Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript, metano-runtime | 3.1.0 |
+| Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript, metano-runtime | 3.1.0 (audit), 3.2.0 (section 9) |
 | Bun (JavaScriptCore) | 1.4.2 |
 | tsc | 5.9.3 |
 | tsgo (`@typescript/native-preview`) | 7.0.0-dev.20260707.2 |
@@ -25,9 +29,9 @@ danfma/metano#785 (N10), #786 (N9), #787 (N1–N5, N7, N8), and as an addition t
 - Strict typecheck:
   - `tsc --strict` is clean on both generated packages.
   - `tsgo --strict` reports one diagnostic, and it is not in generated code: the declarations of `@js-temporal/polyfill`, which metano-runtime 3.1.0 depends on, clash with tsgo's built-in `esnext` Temporal types (N9, #786).
-- Metano warnings do not fail the build (N10, #785). Metano has no warnings-as-errors option, and it writes its up-to-date stamp even after a run that emitted warnings. So a gate added at the MSBuild level fails only the first build.
+- On 3.1.0, Metano warnings do not fail the build (N10, #785; fixed in 3.2.0, section 9). Metano has no warnings-as-errors option, and it writes its up-to-date stamp even after a run that emitted warnings. So a gate added at the MSBuild level fails only the first build.
 - The defensive `try/finally` in `DependencyGraph.Propagate`/`CheckDirty` is **kept**. Its cost is within noise on JavaScriptCore (Bun), and the per-call overhead is under 0.05 ns. V8 is not measured yet (Task 8). The scenario that was named after it is renamed, because it never exercised it (section 5).
-- The workarounds for #768, #772, #773, #774 and #775 are still needed on Metano 3.1.0: all five reproduce in minimal probes (section 6). They are fixed on Metano's wave-9 branch, which is not released yet, so the workarounds stay until that release. #776 and #779 were not re-probed.
+- On 3.2.0 the workarounds for #768, #772, #773, #774, #778, #779, #764/#765 and #770 are removed (section 9). On 3.1.0 the workarounds for #768, #772, #773, #774 and #775 were still needed: all five reproduce in minimal probes (section 6). They are fixed on Metano's wave-9 branch, which is not released yet, so the workarounds stay until that release. #776 and #779 were not re-probed.
 
 ## 2. Strict typecheck
 
@@ -216,21 +220,22 @@ XML doc now says so. No public API can reach that `finally`, so it stays uncover
 ## 6. Existing Metano issues and workarounds
 
 These were re-probed on Metano 3.1.0 with minimal C# in a scratch copy (section 7 gives the probe
-sources), except #776 and #779. #768, #772, #773, #774 and #775 are fixed on Metano's wave-9 branch,
-which is not released yet, so their workarounds stay until that release ships. Then each
-`// Metano #<issue>` comment marks a workaround to remove.
+sources), except #776 and #779. The last column is the status on Metano 3.2.0 (section 9).
 
-| Issue | What | Workaround in code | 3.1.0 |
-|---|---|---|---|
-| #768 | A type referenced only in a property setter body gets no import | `Signal.cs:53`, `:67` (private `Queue()` / `RejectWriteInsideComputation()` helpers) | Reproduces: `throw new ArgumentOutOfRangeException("value")` with no import, TS2304 |
-| #772 | Labeled statements are dropped: MS0001 warning plus a `/* TODO: unsupported IR statement LabeledStatement */` body | `DependencyGraph.cs:237`, `:306` | Reproduces. The loop and the code after it are lost, and the local becomes `const` |
-| #773 | Discard `_ = expr` is emitted verbatim | `ComputedScenarios.cs:161`, `OwnershipScenarios.cs:205`, `ErrorScenarios.cs:721` | Reproduces: `_ = read();`, TS2304 |
-| #774 | `T? x = nonNull;` loses `\| null` | `DependencyGraph.cs:364` | Reproduces: `let current = node;`, TS2322 |
-| #775 | `x!.A` does not narrow `x` for later uses | none (the site went away with LinkStack in 4db8b09) | Reproduces: `node!.id; … node.next`, TS18047 |
-| #776 | Import of a renamed type lost | none (did not reproduce in Task 5b) | Not re-probed |
-| #778 | Overload dispatcher with identical conditions (dead branch) | none needed for C# callers | Reproduces. See N6 for the runtime consequence |
-| #779 | Tuple deconstruction unsupported (MS0001) | `OwnershipScenarios.cs:102` | Not re-probed |
-| FR (filed after #780) | `@internal` for C# internal members | — | Partly visible in 3.1.0: internal *members* carry `/** @internal */`. Internal *types* (`Tracking`, `FlushLoop`, `DependencyGraph`, `LinkStack`, `Link`, `Teardown`) are still exported, unmarked, from the barrels and from `package.json` `exports`, so hand-written TS can mutate `Tracking.activeObserver` |
+| Issue | What | Workaround in code (3.1.0) | 3.1.0 | 3.2.0 |
+|---|---|---|---|---|
+| #768 | A type referenced only in a property setter body gets no import | `Signal.cs` private `Queue()` / `RejectWriteInsideComputation()` helpers | Reproduces: `throw new ArgumentOutOfRangeException("value")` with no import, TS2304 | **Fixed.** `Queue()` is inlined into the setter. `RejectWriteInsideComputation()` stays out of line on purpose (cold path) |
+| #772 | Labeled statements are dropped: MS0001 warning plus a `/* TODO: unsupported IR statement LabeledStatement */` body | `DependencyGraph` `PropagateAbove` / `CheckDirtyAbove` rewrites, `LinkStack.PopNonNull` | Reproduces. The loop and the code after it are lost, and the local becomes `const` | **Fixed.** The upstream `top: while (true) … continue top;` form is restored and emits a native TS label |
+| #773 | Discard `_ = expr` is emitted verbatim | `ComputedScenarios`, `OwnershipScenarios`, `ErrorScenarios.Read` | Reproduces: `_ = read();`, TS2304 | **Fixed.** Emitted as an expression statement (`writer.value;`) |
+| #774 | `T? x = nonNull;` loses `\| null` | `DependencyGraph.ShallowPropagate` | Reproduces: `let current = node;`, TS2322 | **Fixed** for an explicit `T?`. A `var` local still loses `\| null` (section 9, M1) |
+| #775 | `x!.A` does not narrow `x` for later uses | none (the site went away with LinkStack in 4db8b09) | Reproduces: `node!.id; … node.next`, TS18047 | **Fixed.** Later uses are emitted as `node!.next` |
+| #776 | Import of a renamed type lost | none (did not reproduce in Task 5b) | Not re-probed | Still open upstream; not re-probed, no workaround |
+| #778 | Overload dispatcher with identical conditions (dead branch) | `bench/reactivity` called `rootFuncOfActionT` directly | Reproduces. See N6 for the runtime consequence | **Fixed.** One branch, no `Function.length` test; MS0063 reports the shadowed overload (section 9) |
+| #779 | Tuple deconstruction unsupported (MS0001) | `OwnershipScenarios.ComputedOwnedByRootIsDisposed` | Not re-probed | **Fixed.** Emitted as an array destructuring |
+| #764/#765 | Package root resolves to the workspace `package.json`; `version` not written | `MetanoPackageRoot` in the scenarios project; seeded `version` | — | **Fixed.** Both removed; Metano recreates both `package.json` files in place, with `version` |
+| #770 | Internal types need `[Transpile]` | `[Transpile]` on every internal type | — | **Fixed.** Removed; the types are still emitted |
+| #794 | `null!`/`default!` of a non-generic reference type loses `!` | `FlushScenarios.Missing<T>` | — | Still open: `useScheduler(null)`, TS2345 |
+| FR (filed after #780) | `@internal` for C# internal members | — | Partly visible in 3.1.0: internal *members* carry `/** @internal */`. Internal *types* (`Tracking`, `FlushLoop`, `DependencyGraph`, `LinkStack`, `Link`, `Teardown`) are still exported, unmarked, from the barrels and from `package.json` `exports`, so hand-written TS can mutate `Tracking.activeObserver` | Internal types without an explicit `[Transpile]` are no longer exported from the barrels; the `effects` and `scheduling` subpath exports are gone |
 
 ## 7. New Metano findings (filed)
 
@@ -485,7 +490,8 @@ Expected, any of these:
 This also bears on the earlier policy "dropped-code placeholders become errors instead of MS0001
 warnings", which 3.1.0 does not apply yet.
 
-Metanui leaves `Directory.Build.props` unchanged. No supported Metano property exists, and the
+**Fixed in 3.2.0** (section 9): the build passes `--warn-as-error` and the project's warning lists to
+the CLI. On 3.1.0, Metanui left `Directory.Build.props` unchanged. No supported Metano property exists, and the
 MSBuild-level switch only protects a clean build. The stamp is gitignored, so that does include CI.
 
 ## 8. Probe sources
@@ -500,3 +506,63 @@ probes.ts(19,7):  error TS2322: Type 'ProbeNode | null' is not assignable…    
 probes.ts(28,19): error TS18047: 'node' is possibly 'null'.                    (#775)
 setter-only-import.ts(32,17): error TS2304: Cannot find name 'ArgumentOutOfRangeException'. (#768)
 ```
+
+## 9. Metano 3.2.0 re-check
+
+Toolchain: Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript and metano-runtime 3.2.0;
+`tsc` 5.9.3 and `tsgo` 7.0.0-dev.20260707.2 in `--strict` mode, with the scratch configs of section 2.
+
+- `dotnet build`: 0 warnings, 0 errors. Warnings now fail the build (#785). The only Metano warning the
+  upgrade raised is MS0063 (below), exempted with a commented `NoWarn` in `Metanui.Reactive.csproj`.
+- `tsc --strict`: 0 diagnostics on both packages. `tsgo --strict` still reports the
+  `@js-temporal/polyfill` TS2430 of N9 (#786, open).
+- Section 6 gives the status of each issue. #787 (N1–N5, N7, N8) is unchanged: `?? null` on `LinkStack`
+  reads, `(log ?? "") +`, `catch (_err)`, empty constructors, `const e0 = toException(e$)`, the
+  unfolded constant and nested `else { if }` are all still emitted.
+- Generated `package.json`: `metano-runtime` is `^3.2.0`; the unused `imports` (`#/*`) block of
+  `metanui-reactive` is no longer emitted; `override` is now emitted on overriding members.
+
+### MS0063: the `root` overloads
+
+`Reactivity.Root<T>(Func<Action, T>)` and `Reactivity.Root(Action<Action>)` differ only in the delegate's
+return type. 3.2.0 emits one dispatcher branch that forwards to `rootFuncOfActionT`, without the
+`Function.length` test, and reports MS0063 for the void overload. That is the TS surface the audit asked
+for (N6): the void overload only wraps the other one, and C# call sites bind to `rootActionOfAction`
+directly. `tests/js/reactive/root-dispatch.test.ts` covers `Reactivity.root(() => 42)` and the
+one-parameter form; with the 3.1.0 dispatcher the first test fails with `No matching overload for root`.
+
+### New findings
+
+**M1. `var` local loses `| null` when a later assignment is null (extends #774).**
+
+```csharp
+public static int Count(ProbeNode start)
+{
+    var current = start;
+    var n = 0;
+    while (current is not null) { n++; current = current.Next; }   // Next is ProbeNode?
+    return n;
+}
+```
+
+```ts
+let current = start;          // typed ProbeNode
+…
+current = current.next;       // TS2322: 'ProbeNode | null' is not assignable to 'ProbeNode'
+```
+
+On .NET, a `var` local of a reference type is nullable-annotated (`ProbeNode?`), so the assignment is
+valid and the loop counts the list. Expected: `let current: ProbeNode | null = start;` whenever a later
+assignment can be null. `DependencyGraph.ShallowPropagate` spells out `Link?` for this, with a
+`// Metano:` comment.
+
+**M2. Deleting a C# source file does not rerun the transpile.** After a build, delete a `.cs` file
+that declared a transpiled type and build again: the transpile is skipped as up to date, and the
+deleted type's `.ts` file and barrel export stay in the output (seen with a temporary probe file).
+Deleting `.metano-stamp` forces the rerun. Expected: track the input file list, not only timestamps.
+
+**M3. A redundant `!` after a null test (low priority).** In `ErrorScenarios`, `last is not null &&
+last.Message == …` (an `Exception?` local) and `error is not null && error.Message == …` now emit
+`!(last == null) && last!.message`. The same test on an `Exception?` parameter emits no `!`. The
+behaviour is correct; the `!` is noise, probably from the #775 fix.
+
