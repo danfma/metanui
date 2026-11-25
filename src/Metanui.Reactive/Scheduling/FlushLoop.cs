@@ -1,7 +1,7 @@
 namespace Metanui.Reactive.Scheduling;
 
 /// <summary>
-/// Queues of pending work (signal writes, recovered computeds, effect computes, effect applies),
+/// Queues of pending work (signal writes, computed retries, effect computes, effect applies),
 /// drained by <see cref="Run" /> in passes.
 /// </summary>
 internal static class FlushLoop
@@ -21,8 +21,8 @@ internal static class FlushLoop
 
     private static SignalNode? _head;
     private static SignalNode? _tail;
-    private static OwnerNode? _recoveredHead;
-    private static OwnerNode? _recoveredTail;
+    private static OwnerNode? _retryHead;
+    private static OwnerNode? _retryTail;
     private static EffectNode? _computeHead;
     private static EffectNode? _computeTail;
     private static EffectNode? _applyHead;
@@ -83,26 +83,26 @@ internal static class FlushLoop
     }
 
     /// <summary>
-    /// Queues a computed whose retry replaced its error, once until the next pass propagates the change
-    /// to its subscribers, and requests a flush for it.
+    /// Queues an errored computed for a retry (spec 4.2), once until the next pass invalidates it, and
+    /// requests a flush for it.
     /// </summary>
-    public static void EnqueueRecovered(OwnerNode computed)
+    public static void EnqueueRetry(OwnerNode computed)
     {
-        if (computed.NextRecovered is not null || computed == _recoveredTail)
+        if (computed.NextRetry is not null || computed == _retryTail)
         {
             return;
         }
 
-        if (_recoveredTail is null)
+        if (_retryTail is null)
         {
-            _recoveredHead = computed;
+            _retryHead = computed;
         }
         else
         {
-            _recoveredTail.NextRecovered = computed;
+            _retryTail.NextRetry = computed;
         }
 
-        _recoveredTail = computed;
+        _retryTail = computed;
         RequestFlush();
     }
 
@@ -176,10 +176,11 @@ internal static class FlushLoop
     public static bool IsRunning => _running;
 
     /// <summary>
-    /// Runs the flush (spec 4.7) in passes until no work is left: propagate from the computeds a
-    /// retry recovered, commit every pending write, propagate from the signals that changed, run the queued effect computes in queue order, then
-    /// the applies they produced. Writes made by the applies start another pass. Called while a flush
-    /// is running, it returns at once and lets the running flush drain.
+    /// Runs the flush (spec 4.7) in passes until no work is left: invalidate the computeds queued
+    /// for a retry, commit every pending write, propagate from the signals that changed, run the
+    /// queued effect computes in queue order, then the applies they produced. Writes made by the
+    /// applies, and retries queued by the computes, start another pass. Called while a flush is
+    /// running, it returns at once and lets the running flush drain.
     /// </summary>
     /// <remarks>
     /// An error no boundary handles leaves at once (Solid 2.0.4 ordering). The work still queued is
@@ -190,7 +191,8 @@ internal static class FlushLoop
     /// cleanup error raised during it is rethrown.
     /// </remarks>
     /// <exception cref="InvalidOperationException">
-    /// More than <see cref="MaxPasses" /> passes were needed; the pending writes are discarded.
+    /// More than <see cref="MaxPasses" /> passes were needed; the pending writes and retries are
+    /// discarded.
     /// </exception>
     public static void Run() => RunWithBudget(0);
 
@@ -265,7 +267,7 @@ internal static class FlushLoop
 
             _passes++;
             Tracking.Pass++;
-            PropagateRecoveries();
+            PropagateRetries();
             CommitAndPropagate();
             RunComputes();
             RunApplies();
@@ -301,28 +303,29 @@ internal static class FlushLoop
     // The compute queue is empty between passes unless an exception interrupted the last flush.
     private static bool HasWork() =>
         _head is not null
-        || _recoveredHead is not null
+        || _retryHead is not null
         || _computeHead is not null
         || _applyHead is not null;
 
     /// <summary>
-    /// Marks the subscribers of each retried computed as a signal commit marks a changed signal's
-    /// (see <see cref="PropagateChanges" />). Each computed leaves the queue before its propagation,
-    /// so one that throws leaves the rest queued for the next flush.
+    /// Invalidates each computed queued for a retry: marks it dirty, so its next read runs the function
+    /// again, and marks its subscribers as a signal commit marks a changed signal's (see
+    /// <see cref="PropagateChanges" />), since a retry always replaces the error. A computed disposed
+    /// since it was queued is skipped. Each one leaves the queue before its propagation, so one that
+    /// throws leaves the rest queued for the next flush.
     /// </summary>
-    private static void PropagateRecoveries()
+    private static void PropagateRetries()
     {
-        while (_recoveredHead is not null)
+        while (_retryHead is not null)
         {
-            var computed = _recoveredHead;
+            var computed = DequeueRetry();
 
-            _recoveredHead = computed.NextRecovered;
-            computed.NextRecovered = null;
-
-            if (_recoveredHead is null)
+            if (computed.IsDisposed)
             {
-                _recoveredTail = null;
+                continue;
             }
+
+            computed.Flags |= ReactiveFlags.Dirty;
 
             var subs = computed.Subs;
 
@@ -332,6 +335,21 @@ internal static class FlushLoop
                 DependencyGraph.ShallowPropagate(subs);
             }
         }
+    }
+
+    private static OwnerNode DequeueRetry()
+    {
+        var computed = _retryHead!;
+
+        _retryHead = computed.NextRetry;
+        computed.NextRetry = null;
+
+        if (_retryHead is null)
+        {
+            _retryTail = null;
+        }
+
+        return computed;
     }
 
     /// <summary>
@@ -472,14 +490,21 @@ internal static class FlushLoop
     }
 
     /// <summary>
-    /// Drops every queued write after the pass limit, so the graph is usable again. Computes and
-    /// applies a failed flush left queued stay, and run with the next flush.
+    /// Drops every queued write and every pending retry after the pass limit, so the graph is usable
+    /// again; a computed whose retry is dropped keeps its error until a dependency changes or a later
+    /// tracked re-read queues another retry. Computes and applies a failed flush left queued stay, and
+    /// run with the next flush.
     /// </summary>
     private static void DiscardPendingWrites()
     {
         while (_head is not null)
         {
             DequeuePendingWrite().DiscardPending();
+        }
+
+        while (_retryHead is not null)
+        {
+            DequeueRetry();
         }
     }
 }

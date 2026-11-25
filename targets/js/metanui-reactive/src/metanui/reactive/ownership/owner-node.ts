@@ -30,7 +30,7 @@ export abstract class OwnerNode extends ReactiveNode {
   isDisposed: boolean = false;
 
   /** @internal */
-  nextRecovered: OwnerNode | null = null;
+  nextRetry: OwnerNode | null = null;
 
   constructor() {
     super();

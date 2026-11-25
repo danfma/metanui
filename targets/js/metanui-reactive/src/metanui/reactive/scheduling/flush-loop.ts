@@ -2,6 +2,7 @@ import { ArgumentNullException } from "metano-runtime/system/exceptions/argument
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import type { EffectNode } from "../effects/effect-node.js";
 import { DependencyGraph } from "../graph/dependency-graph.js";
+import { ReactiveFlags } from "../graph/reactive-flags.js";
 import type { SignalNode } from "../graph/signal-node.js";
 import type { IFlushScheduler } from "../i-flush-scheduler.js";
 import { ManualFlushScheduler } from "../manual-flush-scheduler.js";
@@ -17,8 +18,8 @@ export class FlushLoop {
   private static _scheduler = /* @__PURE__ */ new ManualFlushScheduler() as IFlushScheduler;
   private static _head: SignalNode | null = null;
   private static _tail: SignalNode | null = null;
-  private static _recoveredHead: OwnerNode | null = null;
-  private static _recoveredTail: OwnerNode | null = null;
+  private static _retryHead: OwnerNode | null = null;
+  private static _retryTail: OwnerNode | null = null;
   private static _computeHead: EffectNode | null = null;
   private static _computeTail: EffectNode | null = null;
   private static _applyHead: EffectNode | null = null;
@@ -61,18 +62,18 @@ export class FlushLoop {
     FlushLoop._tail = node;
   }
 
-  static enqueueRecovered(computed: OwnerNode): void {
-    if (!(computed.nextRecovered == null) || computed === FlushLoop._recoveredTail) {
+  static enqueueRetry(computed: OwnerNode): void {
+    if (!(computed.nextRetry == null) || computed === FlushLoop._retryTail) {
       return;
     }
 
-    if (FlushLoop._recoveredTail == null) {
-      FlushLoop._recoveredHead = computed;
+    if (FlushLoop._retryTail == null) {
+      FlushLoop._retryHead = computed;
     } else {
-      FlushLoop._recoveredTail.nextRecovered = computed;
+      FlushLoop._retryTail.nextRetry = computed;
     }
 
-    FlushLoop._recoveredTail = computed;
+    FlushLoop._retryTail = computed;
     FlushLoop.requestFlush();
   }
 
@@ -171,7 +172,7 @@ export class FlushLoop {
 
       FlushLoop._passes = (FlushLoop._passes + 1) | 0;
       Tracking.pass = (Tracking.pass + 1) | 0;
-      FlushLoop.propagateRecoveries();
+      FlushLoop.propagateRetries();
       FlushLoop.commitAndPropagate();
       FlushLoop.runComputes();
       FlushLoop.runApplies();
@@ -194,19 +195,18 @@ export class FlushLoop {
   }
 
   private static hasWork(): boolean {
-    return !(FlushLoop._head == null) || !(FlushLoop._recoveredHead == null) || !(FlushLoop._computeHead == null) || !(FlushLoop._applyHead == null);
+    return !(FlushLoop._head == null) || !(FlushLoop._retryHead == null) || !(FlushLoop._computeHead == null) || !(FlushLoop._applyHead == null);
   }
 
-  private static propagateRecoveries(): void {
-    while (!(FlushLoop._recoveredHead == null)) {
-      const computed = FlushLoop._recoveredHead;
-      FlushLoop._recoveredHead = computed.nextRecovered;
-      computed.nextRecovered = null;
+  private static propagateRetries(): void {
+    while (!(FlushLoop._retryHead == null)) {
+      const computed = FlushLoop.dequeueRetry();
 
-      if (FlushLoop._recoveredHead == null) {
-        FlushLoop._recoveredTail = null;
+      if (computed.isDisposed) {
+        continue;
       }
 
+      computed.flags |= ReactiveFlags.Dirty;
       const subs = computed.subs;
 
       if (!(subs == null)) {
@@ -214,6 +214,18 @@ export class FlushLoop {
         DependencyGraph.shallowPropagate(subs);
       }
     }
+  }
+
+  private static dequeueRetry(): OwnerNode {
+    const computed = FlushLoop._retryHead!;
+    FlushLoop._retryHead = computed.nextRetry;
+    computed.nextRetry = null;
+
+    if (FlushLoop._retryHead == null) {
+      FlushLoop._retryTail = null;
+    }
+
+    return computed;
   }
 
   private static commitAndPropagate(): void {
@@ -311,6 +323,9 @@ export class FlushLoop {
   private static discardPendingWrites(): void {
     while (!(FlushLoop._head == null)) {
       FlushLoop.dequeuePendingWrite().discardPending();
+    }
+    while (!(FlushLoop._retryHead == null)) {
+      FlushLoop.dequeueRetry();
     }
   }
 }
