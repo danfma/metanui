@@ -324,7 +324,7 @@ Done in f8e6dcd and 3813613. 35/35 scenarios pass on .NET and Bun, and strict ts
 ---
 
 ## Task 5b: Unify the factories on Reactivity (Phase 5b)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 Maintainer decision (2026-11-25): one entry point, mirroring Solid's flat API. Signals and computeds are created through `Reactivity`, with the constructors internal. The first apply receives `previous = value`.
 
@@ -339,17 +339,21 @@ Maintainer decision (2026-11-25): one entry point, mirroring Solid's flat API. S
   - `Signal<T>` and `Computed<T>` constructors become `internal`.
   - `Reactivity.Effect`: the first apply receives `(value, value)` (previous equals the current value) instead of `(value, default)`.
 
-- [ ] **Step 1: Update the scenarios.** Every `new Signal<...>(...)` / `new Computed<...>(...)` becomes `Reactivity.Signal(...)` / `Reactivity.Computed(...)`. Change `ComputeRunsOnCreationApplyOnFlush` to expect `(value, value)` on the first apply, and add a value-type case (`int`) that asserts `previous == value` on both platforms.
-- [ ] **Step 2: Run both suites.** Expected: a compile error (the factories are missing) on .NET.
-- [ ] **Step 3: Implement** the factories, make the constructors internal, apply the first-apply change, and remove the static `Signal` class. Update the XML docs and spec sections 4.3 and 6.
-- [ ] **Step 4: Run both suites and strict tsc.** Expected: all pass. In the generated TS, check that `Reactivity.signal`/`Reactivity.computed` import `Signal`/`Computed` correctly. A method named like the type is a known risk area: the maintainer's earlier static `Signal` class lost its import. Any defect gets a repro in the report.
-- [ ] **Step 5: Commit** `refactor: create signals and computeds through Reactivity`.
+- [x] **Step 1: Update the scenarios.** Every `new Signal<...>(...)` / `new Computed<...>(...)` becomes `Reactivity.Signal(...)` / `Reactivity.Computed(...)`. Change `ComputeRunsOnCreationApplyOnFlush` to expect `(value, value)` on the first apply, and add a value-type case (`int`) that asserts `previous == value` on both platforms.
+- [x] **Step 2: Run both suites.** Expected: a compile error (the factories are missing) on .NET.
+- [x] **Step 3: Implement** the factories, make the constructors internal, apply the first-apply change, and remove the static `Signal` class. Update the XML docs and spec sections 4.3 and 6.
+- [x] **Step 4: Run both suites and strict tsc.** Expected: all pass. In the generated TS, check that `Reactivity.signal`/`Reactivity.computed` import `Signal`/`Computed` correctly. A method named like the type is a known risk area: the maintainer's earlier static `Signal` class lost its import. Any defect gets a repro in the report.
+- [x] **Step 5: Commit** `refactor: create signals and computeds through Reactivity`.
 
 ### Verification Plan
 - Both suites are green. A grep for `new Signal<` / `new Computed<` outside `src/Metanui.Reactive` finds nothing. The int first-apply scenario passes on .NET and on Bun.
 
 ### Phase Summary
-_(write when phase completes)_
+Done in f81025c, 36e51d5 and a9a7847. 36/36 scenarios pass on .NET and Bun, and strict tsc is clean. The review needed one fix round, for the wrong output in the spec 6 example; it was fixed and the re-review approved it.
+- The factories are `Reactivity.Signal(...)` and `Reactivity.Computed(...)`. The `Signal<T>` and `Computed<T>` constructors are internal, and the maintainer's static `Signal.Create` class was removed. Metano #776 did not reproduce: `reactivity.ts` imports and constructs both types correctly, and calls them through plain static methods.
+- The apply delegate is `Action<T, T>`. The first apply receives `previous = value` (the `_hasApplied` flag on `SplitEffect`); later applies receive the last applied value. This behaves the same on .NET and TS, and a value-type scenario covers it.
+- Spec 4.3 now describes the apply cleanups registered with `OnCleanup`, and the spec 6 example shows `0 -> 0` and then `0 -> 10`. `.idea/` is gitignored.
+- The TS constructors stay public, because Metano emits no visibility for `internal`. A feature request for `@internal` is filed for a later Metano wave.
 
 ---
 
