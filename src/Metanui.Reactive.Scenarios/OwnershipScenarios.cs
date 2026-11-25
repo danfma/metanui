@@ -53,6 +53,10 @@ public static class OwnershipScenarios
             EffectDisposedDuringItsComputeDisposesWhatTheComputeCreated
         ),
         new Scenario(
+            "computed that loses its last observer unlinks and reruns on the next read",
+            ComputedLosingItsLastObserverUnlinksAndRerunsOnTheNextRead
+        ),
+        new Scenario(
             "computed without dependencies that loses its last observer disposes what it created",
             ComputedWithoutDepsLosingItsLastObserverDisposesWhatItCreated
         ),
@@ -495,6 +499,54 @@ public static class OwnershipScenarios
         Reactivity.Flush();
 
         ExpectLateChildrenGone(expect, late);
+    }
+
+    /// <summary>
+    /// Spec 4.2 (Solid <c>unobserved</c>): a computed whose owner lives but whose last subscriber is
+    /// disposed unlinks its dependencies and disposes the cleanups of its last run; a write no longer
+    /// runs it, the next read runs it again, and a new observer is updated as before.
+    /// </summary>
+    private static void ComputedLosingItsLastObserverUnlinksAndRerunsOnTheNextRead(IExpect expect)
+    {
+        var runs = 0;
+        var cleanups = 0;
+        var seen = 0;
+        var source = Reactivity.Signal(1);
+
+        var doubled = Reactivity.Computed(() =>
+        {
+            runs++;
+            Reactivity.OnCleanup(() => cleanups++);
+
+            return source.Value * 2;
+        });
+
+        var dispose = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.Effect(() => doubled.Value, (value, previous) => { });
+
+            return disposeRoot;
+        });
+
+        Reactivity.Flush();
+        dispose();
+
+        expect.Equal(1, cleanups, "losing its last observer runs the cleanup of its last run");
+
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal(1, runs, "a write to its old dependency no longer runs it");
+        expect.Equal(4, doubled.Value, "the next read runs it again");
+        expect.Equal(2, runs, "runs after the read");
+
+        Reactivity.Effect(() => doubled.Value, (value, previous) => seen = value);
+        Reactivity.Flush();
+        source.Value = 3;
+        Reactivity.Flush();
+
+        expect.Equal(6, seen, "a new observer is updated");
+        expect.Equal(2, cleanups, "the rerun disposed the cleanup of the read's run");
     }
 
     /// <summary>
