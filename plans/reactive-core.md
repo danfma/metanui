@@ -23,6 +23,7 @@ Execution: subagent-driven (`superpowers:subagent-driven-development`), one impl
 - No C# 15 `union` declarations in transpiled projects (MS0038). `closed` hierarchies are allowed.
 - Bun only for JS. Never edit `targets/js/*/src` by hand.
 - Semantics contract: `@solidjs/signals` **2.0.4**. Engine reference: alien-signals **3.2.1** (`stackblitz/alien-signals@8734d386d925025d0e99419bd9161c17b112c5ee`, `src/system.ts`, `src/index.ts`); record this commit in a header comment of the ported file.
+- Create signals and computeds only through `Reactivity.Signal(...)` / `Reactivity.Computed(...)`; their constructors are internal (maintainer decision, Task 5b).
 - No `implicit operator T`, no combining operators on `Signal<T>`/`Computed<T>` (spec 6.1).
 - Hot path (reads, `link`, `propagate`, `checkDirty`): no lambda, no allocation, no interface dispatch, no `List<T>`.
 - Metano emits something wrong or slow → visible workaround with `// Metano #<issue>` and an issue reported (through the maintainer or the Metano session); never silent.
@@ -275,7 +276,7 @@ Done in 9782894 and e221a20. 26/26 scenarios pass on .NET and Bun, and strict ts
 ---
 
 ## Task 5: Ownership, cleanup and untrack (Phase 5)
-Status: Not started   <!-- Not started | In progress | Complete -->
+Status: Complete   <!-- Not started | In progress | Complete -->
 
 
 **Files:**
@@ -290,19 +291,62 @@ Status: Not started   <!-- Not started | In progress | Complete -->
   - `OwnerNode`: `Parent`, `FirstChild`, `NextSibling`, `CleanupEntry? Cleanups` (prepend, so iterating runs them in reverse registration order), `void Dispose()` (depth-first over the children, then its own cleanups, then unlink deps, and mark disposed so queued work is skipped).
   - `ScenarioRunner.Run` now sets `Reactivity.Scheduler = new ManualFlushScheduler()`, runs the scenario inside `Reactivity.Root`, flushes, and disposes, so every scenario starts from a clean graph.
 
-- [ ] **Step 1: Write the scenarios** in `OwnershipScenarios`:
+- [x] **Step 1: Write the scenarios** in `OwnershipScenarios`:
   - `RootDisposeRunsCleanupsInReverse`: cleanups 1, 2, 3 → log `3,2,1`.
   - `ChildrenDisposedOnRerun`: an effect whose compute creates an inner effect; after a re-run, the first inner effect's cleanup has run and only one inner effect is still alive.
   - `ComputedOwnedByRootIsDisposed`: after the root disposes, writing its dependency and flushing does not re-run the computed.
   - `UntrackDoesNotSubscribe`: a compute that reads `a` inside `Untrack` does not re-run when `a` changes.
   - `DisposeDuringFlushSkipsQueuedEffects` (Review Focus 2): effect A's apply disposes root R; effect B in R is queued by the same write; B's apply never runs.
-- [ ] **Step 2: Run both suites.** Expected: the new scenarios fail.
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run both suites.** Expected: all pass, including every earlier scenario under the new `ScenarioRunner`.
-- [ ] **Step 5: Commit** `feat: add ownership, cleanup and untrack`.
+- [x] **Step 2: Run both suites.** Expected: the new scenarios fail.
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run both suites.** Expected: all pass, including every earlier scenario under the new `ScenarioRunner`.
+- [x] **Step 5: Commit** `feat: add ownership, cleanup and untrack`.
 
 ### Verification Plan
 - Both suites green; every earlier scenario still passes under the root-wrapping `ScenarioRunner`
+
+### Phase Summary
+Done in f8e6dcd and 3813613. 35/35 scenarios pass on .NET and Bun, and strict tsc is clean. The review needed one fix round: a Root nested in a computation could bypass the write check, and every write paid for a hot-path call. Both are fixed, and the re-review approved them.
+- **Owner tree:** `OwnerNode` (parent, first child, siblings, a LIFO cleanup chain) sits under `Computed`, `EffectNode` and `RootNode`. Disposal is depth-first and newest child first, then the node's own cleanups in reverse order. A disposed node is skipped by the flush queues. Re-runs dispose what the previous run created, for both Computed and Effect compute.
+- **Option B (Solid 2.0.4):** an apply runs with no owner. Creating a Computed, Effect or Root inside an apply throws. Apply cleanups are a chain on `EffectNode`. `OnCleanup` goes to the current owner, otherwise to the running apply, otherwise nowhere.
+- **Write check, owner-based:** a write throws inside a computation, inside Untrack within a computation, and inside a Root created under a computation. `RootNode.UnderComputation` is computed once. A write directly in a top-level Root, or in a Root nested only in Roots, is allowed; this is a documented deviation from Solid. On the hot path, a write with no owner costs one null test.
+- **Spec edits:** 4.2 now describes the real lifetime of an unowned computed. 4.5 states that a root created under an owner is owned by it.
+- **Deferred to Phase 6:**
+  - a throwing cleanup aborts the walk (Solid continues and rethrows the first error);
+  - a write from a cleanup during disposal throws (Solid exempts disposal);
+  - an unowned effect produces no warning;
+  - disposed siblings keep their sibling pointers;
+  - a computation that disposes itself mid-run re-links its dependencies;
+  - `ScenarioRunner` can mask the scenario's own error.
+- **Deferred to the final review:** a disposed computed that was never read returns `default` forever; spec wording; missing scenarios (multi-level disposal order, a disposed grandchild's queued apply, a root under an effect compute, a root under a root under a computed).
+- **Metano:** #778 (dead branch in the overload dispatcher), #779 (deconstruction; the workaround is commented), #776 (renamed type import).
+
+---
+
+## Task 5b: Unify the factories on Reactivity (Phase 5b)
+Status: Not started   <!-- Not started | In progress | Complete -->
+
+Maintainer decision (2026-11-25): one entry point, mirroring Solid's flat API. Signals and computeds are created through `Reactivity`, with the constructors internal. The first apply receives `previous = value`.
+
+**Files:**
+- Modify: `src/Metanui.Reactive/{Reactivity.cs,Signal.cs,Computed.cs}`, every `src/Metanui.Reactive.Scenarios/*.cs` that constructs a signal or computed, `docs/design/0001-reactive-core.md` (section 6 example and 4.3 first-apply text), `.gitignore` (add `.idea/`)
+- Delete: the maintainer's `public static class Signal { Create<T> }` in `Signal.cs` (uncommitted working-tree hunk; it is replaced by this task)
+
+**Interfaces:**
+- Produces:
+  - `public static Signal<T> Reactivity.Signal<T>(T initialValue, IEqualityComparer<T>? comparer = null)`
+  - `public static Computed<T> Reactivity.Computed<T>(Func<T> compute, IEqualityComparer<T>? comparer = null)`
+  - `Signal<T>` and `Computed<T>` constructors become `internal`.
+  - `Reactivity.Effect`: the first apply receives `(value, value)` (previous equals the current value) instead of `(value, default)`.
+
+- [ ] **Step 1: Update the scenarios.** Every `new Signal<...>(...)` / `new Computed<...>(...)` becomes `Reactivity.Signal(...)` / `Reactivity.Computed(...)`. Change `ComputeRunsOnCreationApplyOnFlush` to expect `(value, value)` on the first apply, and add a value-type case (`int`) that asserts `previous == value` on both platforms.
+- [ ] **Step 2: Run both suites.** Expected: a compile error (the factories are missing) on .NET.
+- [ ] **Step 3: Implement** the factories, make the constructors internal, apply the first-apply change, and remove the static `Signal` class. Update the XML docs and spec sections 4.3 and 6.
+- [ ] **Step 4: Run both suites and strict tsc.** Expected: all pass. In the generated TS, check that `Reactivity.signal`/`Reactivity.computed` import `Signal`/`Computed` correctly. A method named like the type is a known risk area: the maintainer's earlier static `Signal` class lost its import. Any defect gets a repro in the report.
+- [ ] **Step 5: Commit** `refactor: create signals and computeds through Reactivity`.
+
+### Verification Plan
+- Both suites are green. A grep for `new Signal<` / `new Computed<` outside `src/Metanui.Reactive` finds nothing. The int first-apply scenario passes on .NET and on Bun.
 
 ### Phase Summary
 _(write when phase completes)_
