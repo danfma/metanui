@@ -1,0 +1,9 @@
+load:  15:28:37 up 45 min,  2 users,  load average: 0,99, 1,16, 1,14
+Alien Signals | update1to1 | 41.81
+Alien Signals | update2to1 | 24.92
+Alien Signals | update4to1 | 17.22
+Alien Signals | update1000to1 | 9.79
+Alien Signals | update1to2 | 16.16
+Alien Signals | update1to4 | 28.85
+Alien Signals | update1to1000 | 568.01
+Alien Signals | updateSignals (sum) | 706.75

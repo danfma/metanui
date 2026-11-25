@@ -1,0 +1,10 @@
+load:  15:33:32 up 50 min,  3 users,  load average: 0,93, 1,07, 1,10
+node: v26.8.2
+Metanui | update1to1 | 70.16
+Metanui | update2to1 | 44.02
+Metanui | update4to1 | 30.07
+Metanui | update1000to1 | 7.40
+Metanui | update1to2 | 34.86
+Metanui | update1to4 | 52.97
+Metanui | update1to1000 | 1072.66
+Metanui | updateSignals (sum) | 1312.15

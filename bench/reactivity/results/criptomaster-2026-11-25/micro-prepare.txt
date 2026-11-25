@@ -1,0 +1,5 @@
+A: shipped: wrapper call, try/finally, truncate
+B: wrapper call and truncate, no try/finally
+C: walk bodies inlined: no wrapper, no try/finally, no truncate
+D: shipped, with every ReactiveFlags.X replaced by its literal
+E: shipped, without `?? null` on LinkStack indexed reads

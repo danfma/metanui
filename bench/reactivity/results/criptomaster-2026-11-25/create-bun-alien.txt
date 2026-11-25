@@ -1,0 +1,3 @@
+load:  15:34:19 up 50 min,  2 users,  load average: 0,97, 1,07, 1,10
+alien signal x100k: min 5.68 ms, median 6.26 ms
+alien withBuild + signal x100k + cleanup: min 4.45 ms, median 5.17 ms

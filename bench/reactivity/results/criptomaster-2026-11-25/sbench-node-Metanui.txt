@@ -1,0 +1,7 @@
+load:  15:35:28 up 51 min,  2 users,  load average: 0,94, 1,06, 1,09
+node: v26.8.2
+Metanui | createSignals | 18.10
+Metanui | createComputations | 406.84
+Metanui | updateSignals | 1164.92
+Metanui | cellx1000 | 42.85
+Metanui | cellx2500 | 115.31
