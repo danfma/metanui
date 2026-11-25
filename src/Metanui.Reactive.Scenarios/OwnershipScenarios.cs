@@ -53,6 +53,10 @@ public static class OwnershipScenarios
             EffectDisposedDuringItsComputeDisposesWhatTheComputeCreated
         ),
         new Scenario(
+            "computed without dependencies that loses its last observer disposes what it created",
+            ComputedWithoutDepsLosingItsLastObserverDisposesWhatItCreated
+        ),
+        new Scenario(
             "root disposed by its own body disposes what the body created next",
             RootDisposedByItsBodyDisposesWhatTheBodyCreated
         ),
@@ -491,6 +495,41 @@ public static class OwnershipScenarios
         Reactivity.Flush();
 
         ExpectLateChildrenGone(expect, late);
+    }
+
+    /// <summary>
+    /// Spec 4.2 (Solid <c>unobserved</c>): a computed that loses its last subscriber disposes the
+    /// cleanups of its last run even while its owner lives, and the next read runs it again. Having
+    /// no dependency to drop does not exempt it.
+    /// </summary>
+    private static void ComputedWithoutDepsLosingItsLastObserverDisposesWhatItCreated(
+        IExpect expect
+    )
+    {
+        var runs = 0;
+        var cleanups = 0;
+
+        var constant = Reactivity.Computed(() =>
+        {
+            runs++;
+            Reactivity.OnCleanup(() => cleanups++);
+
+            return 1;
+        });
+
+        var dispose = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.Effect(() => constant.Value, (value, previous) => { });
+
+            return disposeRoot;
+        });
+
+        Reactivity.Flush();
+        dispose();
+
+        expect.Equal(1, cleanups, "losing its last observer runs the cleanup of its last run");
+        expect.Equal(1, constant.Value, "value read again");
+        expect.Equal(2, runs, "the next read runs it again");
     }
 
     private static void RootDisposedByItsBodyDisposesWhatTheBodyCreated(IExpect expect)

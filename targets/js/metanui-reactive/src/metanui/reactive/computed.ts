@@ -134,13 +134,19 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override unwatched(): void {
-    if (this.depsTail == null) {
-      return;
-    }
+    if (!(this.depsTail == null)) {
+      this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+      DependencyGraph.disposeAllDepsInReverse(this);
+      this.disposeOwned();
+    } else {
+      if (!(this.firstChild == null) || !(this.cleanups == null)) {
+        if ((this.flags & ReactiveFlags.Errored) === 0) {
+          this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+        }
 
-    this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
-    DependencyGraph.disposeAllDepsInReverse(this);
-    this.disposeOwned();
+        this.disposeOwned();
+      }
+    }
   }
 
   /** @internal */
