@@ -39,8 +39,18 @@ metanui-reactive exports TS sources only, and `NODE_ENV=production`, because oth
 picks the dev build of `@solidjs/signals`. The script fails if the bundle contains that dev build.
 Node is used only as a runtime: no npm, no npx.
 
-Run on an idle machine. The script prints `uptime` first. The numbers below were taken only when the
-1-minute load average was below 4.
+Run on an idle machine. The script prints `uptime` first. Each run in the tables below *started* when
+the 1-minute load average was below 4, but the machine is shared, so the load rose during some runs.
+The 5-minute average was still 9–12 at the start, because the load had only just dropped:
+
+| Run | 1-min load at start | 5-min load at start | 1-min load at end | 5-min load at end |
+|---|---:|---:|---:|---:|
+| Bun, run 1 | 3.91 | 11.11 | 6.06 | 9.00 |
+| Bun, run 2 | 3.65 | 9.21 | 4.66 | 7.45 |
+| Node v26.8.2 | 3.79 | 12.35 | 3.65 | 9.21 |
+
+The harness runs the frameworks in a fixed order: alien-signals, then Solid 2.0, then Metanui. Metanui
+runs last, on the heap the other two leave behind. That order is probably not in Metanui's favour.
 
 ## Adapters
 
@@ -72,9 +82,13 @@ Both adapters make the same calls, so both pay the same adapter cost:
   them for Solid 2.0: Solid 2.0 memos compute when they are created and recompute on flush even when
   nothing reads them. Its count for `static graph, read 2/3 of leaves` is 51, not 41.
 
-The harness's correctness tests (`frameworks.test.ts`) pass for all three adapters (12 of 12). The
-benchmark run printed no `Assertion failed`. That confirms that the harness reads values only after
-`withBatch`, which flushes.
+The harness's correctness tests (`frameworks.test.ts`) pass for all three adapters (12 of 12). They
+show that the adapters compute the expected values. That the harness reads values only after
+`withBatch`, which flushes, comes from reading the harness code: every bench writes inside
+`withBatch` and reads after it. The benchmark's own `console.assert` checks agree. The criterion for
+every measured run was that its output held only the `load:` line, the `node:` version line, the
+header and result rows, with no other line. A bare comparison is not enough, because Bun prints a
+failed `console.assert` that has a message as the message alone, without `Assertion failed`.
 
 ## Machine and versions
 
@@ -96,8 +110,8 @@ fastest of several repetitions, except `cellx`, which is a sum of 10 runs. "vs" 
 
 ### Bun (JavaScriptCore), primary
 
-Mean of two runs. Load average before the runs: 3.91 and 3.65 (1-minute). A third run started at a
-load of 11.4. It is left out of the table. It leads to the same conclusions; its largest deviation is Metanui's
+Mean of two runs (the loads are in the table under Run). A third run started at a 1-minute load of
+11.4. It is left out of the table. It leads to the same conclusions; its largest deviation is Metanui's
 `cellx2500` (31.3 ms, against 22.96 and 24.37).
 
 | Test | alien-signals 3.2.1 | Solid 2.0.4 | Metanui | Metanui vs Solid 2.0 | Metanui vs alien |
@@ -123,14 +137,26 @@ load of 11.4. It is left out of the table. It leads to the same conclusions; its
 | 3-5x500 | 113.42 | 305.48 | 98.62 | -68% | -13% |
 | 6-100x15 - dyn50% | 238.61 | 466.00 | 217.18 | -53% | -9% |
 
-**Budget on Bun: met on every test.** Metanui is 24–86% faster than Solid 2.0. Against alien-signals,
-the engine it ports, it is within about ±20% on every test except `4-1000x12` (27% faster). It is
-slower only in `createComputations` (+9%) and `cellx1000` (+16%, a 7 ms total where one run moved by
-11%).
+**Budget on Bun: met on every test.** Two qualifications apply.
+
+- **Against Solid 2.0 (24–86% faster), the comparison is biased against Solid.** Solid 2.0 memos are
+  eager: they compute when created and recompute on every flush, even when nothing reads them (see
+  Adapters). In the `lazy80%` tests only 20% of the leaves are read, so Solid computes nodes that
+  alien-signals and Metanui skip. The largest gaps (-86% and -71%) are partly that, not codegen.
+- **Against alien-signals, the lead holds only for JavaScriptCore, through this harness's adapters
+  and its aggregate figures.** It reverses on V8 (next table). The aggregates can also hide shapes
+  where Metanui is slower. `updateSignals` sums seven sub-tests. A review measured one of them,
+  `update1to1` (one write, a flush, one effect), at 11.3–11.7 ms for Metanui against 6.1–6.8 ms for
+  alien-signals on Bun. That number is provisional: it was taken at a load of about 10. **No lead over
+  alien-signals is claimed for `updateSignals`**, because the harness does not report the sub-tests
+  separately. The other aggregate rows can hide shapes in the same way.
+
+Metanui is slower than alien-signals in `createComputations` (+9%) and in `cellx1000` (+16%, a 7 ms
+total where Metanui's two runs differ by 11%).
 
 ### Node (V8), secondary
 
-One run, at a load average of 3.79 before and 3.65 after.
+One run (the loads are in the table under Run).
 
 | Test | alien-signals 3.2.1 | Solid 2.0.4 | Metanui | Metanui vs Solid 2.0 | Metanui vs alien |
 |---|---:|---:|---:|---:|---:|
@@ -158,8 +184,9 @@ One run, at a load average of 3.79 before and 3.65 after.
 **Budget on V8: missed on two tests, `createSignals` (+52%) and `cellx1000` (+18%).**
 `createComputations` is at +10%, inside the budget. On V8, Metanui is much further behind
 alien-signals than on Bun: 2–5× on creation and `cellx`, 1.5–2× on `updateSignals`, `broad` and
-`deep`. The three probes in F2 and F3 reproduce the gaps with each framework alone in its own
-process, so neither run order nor a shared heap explains them.
+`deep`. The F2 and F3 probes reproduce the gaps with each framework alone in its own process, so the
+fixed run order and the shared heap do not explain them. Those probe runs are provisional (see
+Probes).
 
 ## Misses and findings
 
@@ -170,15 +197,17 @@ owning root does not take the effect out of the queue. Under `ManualFlushSchedul
 until the next `Reactivity.flush()`, so every disposed effect is kept alive, with its whole graph,
 until then. A minimal TS repro on the generated package: 20 roots of 100,000 effects each, disposed
 without a flush, leave 898 MB on the heap after a full GC. With one `flush()` after each root, 2 MB
-remain. In the harness, `sBench`'s creation tests never flush. The V8 heap reaches its 4 GB limit in
+remain (`probes/retain.ts`). In the harness, `sBench`'s creation tests never flush. The V8 heap reaches its 4 GB limit in
 `createComputations`, which is why `cleanup` flushes (see Adapters). Not fixed here: whether
 disposal should unlink queued effects is a core decision.
 
 ### F2. Node creation is slower on V8 (new; V8 only)
 
-`createSignals` is 100,000 `signal()` calls plus a cleanup. Measured alone on Node v26.8.2:
+`createSignals` is 100,000 `signal()` calls plus a cleanup. Measured alone. **Provisional:** the
+class-shape rows (`probes/node-shape.ts`, min of 30) ran at a 1-minute load of about 9, and the
+adapter rows (`probes/harness-create.ts`, min of 15) at about 4.3.
 
-| Probe (100,000 signals, min of 15) | V8 | JSC |
+| Probe (100,000 signals) | V8 (Node v26.8.2) | JSC (Bun 1.4.2) |
 |---|---:|---:|
 | `Reactivity.signal(i)` | 3.27 ms | 1.22 ms |
 | Hand-written class, same three-level shape, class fields | 3.59 ms | 1.01 ms |
@@ -189,8 +218,10 @@ disposal should unlink queued effects is a core decision.
 
 The class Metano emits for `Signal` costs as much to build as a hand-written class of the same shape.
 So the gap is not codegen: it is the node's layout (ten fields across `ReactiveNode` → `SignalNode` →
-`Signal`, plus the comparer), which V8 builds about 3× slower than JSC. Why the harness then measures
-12 ms, about twice the isolated probe, is not isolated yet. The likely candidate is scavenger cost on
+`Signal`, plus the comparer), which V8 builds about 3× slower than JSC. Run alone through
+`probes/harness-sbench.ts` (provisional, load 5–7), Metanui's `createSignals` still takes 12.13 ms,
+against 5.81 ms for Solid 2.0 and 2.59 ms for alien-signals. Why the harness measures about twice the
+isolated adapter probe is not isolated yet. The likely candidate is scavenger cost on
 the larger objects that the `sources` array keeps alive. No audit item covers this.
 
 ### F3. A deep graph flush is slower on V8 (new; V8 only), with the audit's `try/finally` now measured
@@ -201,8 +232,9 @@ as alien-signals.
 
 The audit (docs/design/0001-reactive-core-ts-audit.md, section 4) kept the defensive `try/finally`
 around `DependencyGraph.propagate`/`checkDirty` because its cost was within noise on Bun, and left V8
-to this task. The per-call loop of `bench/micro`, bundled for Node v26.8.2, shows a cost on V8.
-Median ns per call over two process runs:
+to this task. The per-call loop of `bench/micro`, ported to Node as `probes/per-call-v8.ts`, shows a
+cost on V8. Median ns per call over two process runs. **Provisional:** taken at a 1-minute load of
+about 4.2:
 
 | | A (shipped) | B (no `try/finally`) | C (inlined walk) |
 |---|---:|---:|---:|
@@ -210,7 +242,8 @@ Median ns per call over two process runs:
 | `propagate` | 8.50–8.63 | 6.42 | 6.79–6.80 |
 
 That is about 2 ns per call on V8, against under 0.05 ns on JSC. It is real, but far too small to
-explain a 150 ns per node gap in `cellx`. A CPU profile of `cellx` alone spreads the time over
+explain a 150 ns per node gap in `cellx`. A CPU profile of `cellx` alone (`probes/harness-cellx.ts`
+under `node --cpu-prof`, provisional, load about 5) spreads the time over
 `propagateAbove`, `disposeOwned`, `get value`, `link`, `runCompute` and the `OwnerNode` constructor,
 with 31% in GC (that includes untimed graph building). There is no single hot spot, and the cause is
 not isolated yet. The same pattern shows on V8 in `updateSignals`, `broadPropagation` and
@@ -219,3 +252,27 @@ not isolated yet. The same pattern shows on V8 in `updateSignals`, `broadPropaga
 No Metano issue is implicated so far. The F2 probe shows emitted and hand-written code of the same
 shape are equally fast. F3's cause is still open, so it does not rule out codegen. Optimisations are
 left to a separate decision, as the task requires.
+
+## Probes
+
+The probes behind F1–F3 live in `probes/`. `scripts/bench-reactivity.sh probe <name> [args...]`
+prepares the harness and runs `probes/<name>.ts` under Bun with `--expose-gc`. With
+`PROBE_RUNTIME=node` (and optionally `NODE_BIN`), it bundles the probe the same way as the `node` mode
+and runs it on Node.
+
+| Probe | Finding | Arguments | Notes |
+|---|---|---|---|
+| `retain` | F1 | `[flush]` | heap after 20 roots of 100,000 disposed effects |
+| `node-shape` | F2 | — | `Reactivity.signal` against hand-written classes of the same shape |
+| `harness-create` | F2 | `metanui`, `solid2` or `alien` | 100,000 signals through one harness adapter |
+| `harness-sbench` | F2, F3 | `"Alien Signals"`, `"Solid 2.0"` or `Metanui` | harness `sBench` and `cellx` for one framework alone |
+| `harness-cellx` | F3 | the same names | five rounds of `cellx`, for `node --cpu-prof` |
+| `per-call-v8` | F3 | `A`, `B` or `C` | `bench/micro`'s per-call loop. Run `bun prepare.ts` in `bench/micro` first |
+
+```sh
+scripts/bench-reactivity.sh probe retain                     # then: probe retain flush
+PROBE_RUNTIME=node NODE_BIN=/path/to/node scripts/bench-reactivity.sh probe per-call-v8 A
+```
+
+The `harness-*` probes import the adapters and benches from the prepared clone in `.cache/`. Like
+the benchmark, run them on an idle machine.
