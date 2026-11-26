@@ -73,6 +73,10 @@ public static class OwnershipScenarios
             BoundaryDisposedByItsBodyDisposesWhatItCreatedBeforeItsHandler
         ),
         new Scenario(
+            "computed whose last observer is disposed during its run keeps that run",
+            ComputedWhoseLastObserverIsDisposedDuringItsRunKeepsThatRun
+        ),
+        new Scenario(
             "pending computed disposed during its own dirty check keeps its last value",
             PendingComputedDisposedDuringItsCheckKeepsItsLastValue
         ),
@@ -658,6 +662,55 @@ public static class OwnershipScenarios
         );
 
         expect.Equal("cleanup,handler,", log, "order");
+    }
+
+    /// <summary>
+    /// <c>counted</c> is read directly while dirty, and its run disposes <c>reader</c>, its only
+    /// subscriber, after registering a cleanup and before reading any dependency. That unwatch must
+    /// leave the run in progress alone: its cleanup stays registered and the computed is not marked
+    /// for another run.
+    /// </summary>
+    private static void ComputedWhoseLastObserverIsDisposedDuringItsRunKeepsThatRun(IExpect expect)
+    {
+        var runs = 0;
+        var cleanups = 0;
+        var disposeOnRun = false;
+        var disposeReader = () => { };
+        var source = Reactivity.Signal(0);
+
+        var counted = Reactivity.Computed(() =>
+        {
+            runs++;
+            Reactivity.OnCleanup(() => cleanups++);
+
+            if (disposeOnRun)
+            {
+                disposeReader();
+            }
+
+            return source.Value;
+        });
+
+        var reader = Reactivity.Root(disposeRoot =>
+        {
+            disposeReader = disposeRoot;
+
+            return Reactivity.Computed(() => counted.Value + 1);
+        });
+
+        expect.Equal(1, reader.Peek(), "initial value");
+
+        disposeOnRun = true;
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, counted.Peek(), "value of the run that disposed its subscriber");
+
+        disposeOnRun = false;
+
+        expect.Equal(1, cleanups, "only the cleanup of the previous run ran");
+        expect.Equal(1, counted.Peek(), "value read again");
+        expect.Equal(2, runs, "the unwatch did not mark it for another run");
     }
 
     /// <summary>

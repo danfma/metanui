@@ -170,9 +170,16 @@ public sealed class Computed<T> : ComputedNode
     /// running it again gives the same value. When its last run created children or registered
     /// cleanups, those are still disposed, and it recomputes on the next read to create them again;
     /// an errored one keeps its error instead, as its retry rule (F-9) expects.
+    /// A computed whose run is in progress (its function disposed its last subscriber) is left alone:
+    /// the run finishes and keeps what it creates and reads, like a run read with no observer.
     /// </remarks>
     internal override void Unwatched()
     {
+        if ((Flags & ReactiveFlags.RecursedCheck) != 0)
+        {
+            return;
+        }
+
         if (DepsTail is not null)
         {
             Flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
