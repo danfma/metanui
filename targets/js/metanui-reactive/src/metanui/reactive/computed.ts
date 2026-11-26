@@ -12,14 +12,19 @@ import type { IEqualityComparer } from "metano-runtime/system/collections";
 let Computed$rt: ClassType<Computed<unknown>> | undefined;
 
 export class Computed<T> extends ComputedNode {
-  private _compute: (() => T) | null = null;
-  private _comparer: IEqualityComparer<T> | null = null;
-  private _value: T = null!;
-  private _error: Exception | null = null;
-  private _failedInPass: number = 0;
+  declare private _compute: (() => T) | null;
+  declare private _comparer: IEqualityComparer<T> | null;
+  declare private _value: T;
+  declare private _error: Exception | null;
+  declare private _failedInPass: number;
 
   constructor(compute: () => T, comparer: IEqualityComparer<T> | null = null) {
     super();
+    this._compute = null;
+    this._comparer = null;
+    this._value = null!;
+    this._error = null;
+    this._failedInPass = 0;
     this._compute = compute;
     this._comparer = comparer ?? defaultEqualityComparerFor();
   }
@@ -48,7 +53,7 @@ export class Computed<T> extends ComputedNode {
       return this.readErrored(observer);
     }
 
-    if (!(observer == null)) {
+    if (observer != null) {
       DependencyGraph.link(this, observer, Tracking.cycle);
     }
 
@@ -96,8 +101,7 @@ export class Computed<T> extends ComputedNode {
 
       return true;
     } catch (e$) {
-      const e0 = toException(e$);
-      const error = e0;
+      const error = toException(e$);
       this.cacheError(error);
 
       return true;
@@ -131,18 +135,16 @@ export class Computed<T> extends ComputedNode {
       return;
     }
 
-    if (!(this.depsTail == null)) {
+    if (this.depsTail != null) {
       this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
       DependencyGraph.disposeAllDepsInReverse(this);
       this.disposeOwned();
-    } else {
-      if (!(this.firstChild == null) || !(this.cleanups == null)) {
-        if ((this.flags & ReactiveFlags.Errored) === 0) {
-          this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
-        }
-
-        this.disposeOwned();
+    } else if (this.firstChild != null || this.cleanups != null) {
+      if ((this.flags & ReactiveFlags.Errored) === 0) {
+        this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
       }
+
+      this.disposeOwned();
     }
   }
 
@@ -160,14 +162,10 @@ export class Computed<T> extends ComputedNode {
 
     if ((flags & ReactiveFlags.Dirty) !== 0) {
       this.recompute();
-    } else {
-      if ((flags & ReactiveFlags.Pending) !== 0) {
-        this.recomputeIfDependencyChanged();
-      } else {
-        if (flags === ReactiveFlags.None) {
-          this.runFirst();
-        }
-      }
+    } else if ((flags & ReactiveFlags.Pending) !== 0) {
+      this.recomputeIfDependencyChanged();
+    } else if (flags === ReactiveFlags.None) {
+      this.runFirst();
     }
   }
 
@@ -198,7 +196,7 @@ export class Computed<T> extends ComputedNode {
 
     const subs = this.subs;
 
-    if (!(subs == null)) {
+    if (subs != null) {
       DependencyGraph.shallowPropagate(subs);
     }
   }
@@ -216,8 +214,7 @@ export class Computed<T> extends ComputedNode {
     try {
       this._value = this._compute!();
     } catch (e$) {
-      const e0 = toException(e$);
-      const error = e0;
+      const error = toException(e$);
       this.cacheError(error);
     } finally {
       Tracking.activeObserver = previousObserver;
@@ -258,8 +255,8 @@ export class Computed<T> extends ComputedNode {
 
   private isNextDependencyOf(observer: ReactiveNode): boolean {
     const tail = observer.depsTail;
-    const next = !(tail == null) ? tail.nextDep : observer.deps;
+    const next = tail != null ? tail.nextDep : observer.deps;
 
-    return !(next == null) && next.dep === this;
+    return next != null && next.dep === this;
   }
 }

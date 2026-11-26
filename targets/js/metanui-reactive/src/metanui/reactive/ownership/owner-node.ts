@@ -10,41 +10,46 @@ import { Teardown } from "./teardown.js";
 let OwnerNode$rt: ClassType<OwnerNode> | undefined;
 
 export abstract class OwnerNode extends ReactiveNode {
-  private static readonly creationInsideApplyMessage: string = "Cannot create a computed, effect or root inside an effect's apply: the apply has no owner, so " + "nothing would ever dispose it. Create it in the compute instead.";
+  private static readonly creationInsideApplyMessage: string = "Cannot create a computed, effect or root inside an effect's apply: the apply has no owner, so nothing would ever dispose it. Create it in the compute instead.";
 
   /** @internal */
-  parent: OwnerNode | null = null;
+  declare parent: OwnerNode | null;
 
   /** @internal */
-  firstChild: OwnerNode | null = null;
+  declare firstChild: OwnerNode | null;
 
   /** @internal */
-  nextSibling: OwnerNode | null = null;
+  declare nextSibling: OwnerNode | null;
 
   /** @internal */
-  prevSibling: OwnerNode | null = null;
+  declare prevSibling: OwnerNode | null;
 
   /** @internal */
-  cleanups: CleanupEntry | null = null;
+  declare cleanups: CleanupEntry | null;
 
   /** @internal */
-  isDisposed: boolean = false;
+  declare isDisposed: boolean;
 
   /** @internal */
-  nextDeferredUnlink: OwnerNode | null = null;
+  declare nextDeferredUnlink: OwnerNode | null;
 
   private static _deferredUnlinks: OwnerNode | null = null;
 
   constructor() {
     super();
+    this.parent = null;
+    this.firstChild = null;
+    this.nextSibling = null;
+    this.prevSibling = null;
+    this.cleanups = null;
+    this.isDisposed = false;
+    this.nextDeferredUnlink = null;
     const parent = Tracking.currentOwner;
 
-    if (!(parent == null)) {
+    if (parent != null) {
       this.attachTo(parent);
-    } else {
-      if (!(Tracking.activeApply == null)) {
-        throw new InvalidOperationException(OwnerNode.creationInsideApplyMessage);
-      }
+    } else if (Tracking.activeApply != null) {
+      throw new InvalidOperationException(OwnerNode.creationInsideApplyMessage);
     }
   }
 
@@ -95,9 +100,9 @@ export abstract class OwnerNode extends ReactiveNode {
 
   /** @internal */
   disposeOwned(): void {
-    let child = this.firstChild;
+    let child: OwnerNode | null = this.firstChild;
     this.firstChild = null;
-    while (!(child == null)) {
+    while (child != null) {
       child.parent = null;
       child.prevSibling = null;
       child.dispose();
@@ -134,7 +139,7 @@ export abstract class OwnerNode extends ReactiveNode {
     } finally {
       Tracking.dirtyCheckDepth = (Tracking.dirtyCheckDepth - 1) | 0;
 
-      if (Tracking.dirtyCheckDepth === 0 && !(OwnerNode._deferredUnlinks == null)) {
+      if (Tracking.dirtyCheckDepth === 0 && OwnerNode._deferredUnlinks != null) {
         OwnerNode.unlinkDeferredDependencies();
       }
     }
@@ -153,7 +158,7 @@ export abstract class OwnerNode extends ReactiveNode {
   }
 
   private static unlinkDeferredDependencies(): void {
-    while (!(OwnerNode._deferredUnlinks == null)) {
+    while (OwnerNode._deferredUnlinks != null) {
       const node = OwnerNode._deferredUnlinks;
       OwnerNode._deferredUnlinks = node.nextDeferredUnlink;
       node.nextDeferredUnlink = null;
@@ -162,7 +167,7 @@ export abstract class OwnerNode extends ReactiveNode {
   }
 
   private static isCaughtByOwner(owner: OwnerNode | null): boolean {
-    while (!(owner == null)) {
+    while (owner != null) {
       if (owner.catchesErrors) {
         return true;
       }
@@ -185,7 +190,7 @@ export abstract class OwnerNode extends ReactiveNode {
     this.parent = parent;
     this.nextSibling = head;
 
-    if (!(head == null)) {
+    if (head != null) {
       head.prevSibling = this;
     }
 
@@ -211,7 +216,7 @@ export abstract class OwnerNode extends ReactiveNode {
       previous.nextSibling = next;
     }
 
-    if (!(next == null)) {
+    if (next != null) {
       next.prevSibling = previous;
     }
   }

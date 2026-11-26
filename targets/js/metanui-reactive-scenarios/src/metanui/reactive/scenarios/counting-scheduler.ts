@@ -2,10 +2,11 @@ import { InvalidOperationException } from "metano-runtime/system/exceptions/inva
 import type { IFlushScheduler } from "metanui-reactive/metanui/reactive";
 
 export class CountingScheduler implements IFlushScheduler {
-  requests: number = 0;
-  private readonly _failFirst: boolean;
+  declare requests: number;
+  declare private readonly _failFirst: boolean;
 
   constructor(failFirst: boolean = false) {
+    this.requests = 0;
     this._failFirst = failFirst;
   }
 

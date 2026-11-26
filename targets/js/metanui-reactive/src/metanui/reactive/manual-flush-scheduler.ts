@@ -4,8 +4,6 @@ import { IFlushScheduler$runtimeType, type IFlushScheduler } from "./i-flush-sch
 let ManualFlushScheduler$rt: ClassType<ManualFlushScheduler> | undefined;
 
 export class ManualFlushScheduler implements IFlushScheduler {
-  constructor() { }
-
   static get $runtimeType(): ClassType<ManualFlushScheduler> {
     return (ManualFlushScheduler$rt ??= {
       kind: "class",

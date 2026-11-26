@@ -6,21 +6,27 @@ let ReactiveNode$rt: ClassType<ReactiveNode> | undefined;
 
 export abstract class ReactiveNode {
   /** @internal */
-  deps: Link | null = null;
+  declare deps: Link | null;
 
   /** @internal */
-  depsTail: Link | null = null;
+  declare depsTail: Link | null;
 
   /** @internal */
-  subs: Link | null = null;
+  declare subs: Link | null;
 
   /** @internal */
-  subsTail: Link | null = null;
+  declare subsTail: Link | null;
 
   /** @internal */
-  flags: ReactiveFlags = ReactiveFlags.None;
+  declare flags: ReactiveFlags;
 
-  constructor() { }
+  constructor() {
+    this.deps = null;
+    this.depsTail = null;
+    this.subs = null;
+    this.subsTail = null;
+    this.flags = ReactiveFlags.None;
+  }
 
   static get $runtimeType(): ClassType<ReactiveNode> {
     return (ReactiveNode$rt ??= {

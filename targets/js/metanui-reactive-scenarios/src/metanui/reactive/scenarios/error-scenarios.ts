@@ -9,10 +9,13 @@ import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
 class ErrorScenarios$RecordingScheduler implements IFlushScheduler {
-  private _first: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
-  private _last: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
+  declare private _first: ErrorScenarios$RecordingScheduler$RequestedFlush | null;
+  declare private _last: ErrorScenarios$RecordingScheduler$RequestedFlush | null;
 
-  constructor() { }
+  constructor() {
+    this._first = null;
+    this._last = null;
+  }
 
   schedule(flush: () => void): void {
     const requested = new ErrorScenarios$RecordingScheduler$RequestedFlush(flush);
@@ -44,13 +47,25 @@ class ErrorScenarios$RecordingScheduler implements IFlushScheduler {
 }
 
 class ErrorScenarios$RecordingScheduler$RequestedFlush {
-  next: ErrorScenarios$RecordingScheduler$RequestedFlush | null = null;
+  declare readonly flush: () => void;
+  declare next: ErrorScenarios$RecordingScheduler$RequestedFlush | null;
 
-  constructor(readonly flush: () => void) { }
+  constructor(flush: () => void) {
+    this.flush = flush;
+    this.next = null;
+  }
 }
 
 class ErrorScenarios$OwnedRetryGraph {
-  constructor(readonly flaky: Computed<number>, readonly reader: Computed<number>, readonly dispose: () => void) { }
+  declare readonly flaky: Computed<number>;
+  declare readonly reader: Computed<number>;
+  declare readonly dispose: () => void;
+
+  constructor(flaky: Computed<number>, reader: Computed<number>, dispose: () => void) {
+    this.flaky = flaky;
+    this.reader = reader;
+    this.dispose = dispose;
+  }
 
   equals(other: any): boolean {
     return other != null && Object.getPrototypeOf(other) === Object.getPrototypeOf(this) && defaultEquals(this.flaky, other.flaky) && defaultEquals(this.reader, other.reader) && this.dispose === other.dispose;
@@ -77,7 +92,7 @@ class ErrorScenarios$OwnedRetryGraph {
 export class ErrorScenarios {
   static readonly all: Scenario[] = [new Scenario("computed rethrows its error until a dependency changes", ErrorScenarios.computedRethrowsUntilDependencyChanges), new Scenario("errored computed without dependencies retries on a tracked re-read after a flush", ErrorScenarios.erroredComputedWithoutDepsRetriesOnTrackedReread), new Scenario("retry that recovers an errored computed updates its other observers", ErrorScenarios.retryThatRecoversUpdatesOtherObservers), new Scenario("retry that recovers an errored computed updates an already pending sibling effect", ErrorScenarios.retryRecoveryUpdatesAPendingSibling), new Scenario("retry that recovers an errored computed updates an already pending sibling computed", ErrorScenarios.retryRecoveryUpdatesAPendingSiblingComputed), new Scenario("retry that recovers an errored computed reaches an effect through a pending computed", ErrorScenarios.retryRecoveryReachesAnEffectThroughAPendingComputed), new Scenario("retry that fails again does not retry on every pass", ErrorScenarios.retryThatFailsAgainDoesNotRetryOnEveryPass), new Scenario("retry never shows an observer a mix of the recovered and the old value", ErrorScenarios.retryNeverShowsAMixOfRecoveredAndOldValue), new Scenario("retry that fails again leaves an already pending sibling on the first error", ErrorScenarios.retryThatFailsAgainKeepsThePendingSiblingOnTheFirstError), new Scenario("always failing computed runs its observer and its boundary once per change", ErrorScenarios.alwaysFailingComputedRunsObserverAndBoundaryOncePerChange), new Scenario("retry of a computed whose error an unwatch cleared does not run", ErrorScenarios.retryOfComputedClearedByUnwatchDoesNotRun), new Scenario("retry of a computed without dependencies that lost its last observer does not run", ErrorScenarios.retryOfUnobservedComputedWithoutDepsDoesNotRun), new Scenario("errored computed re-read by several observers is retried once", ErrorScenarios.erroredComputedReReadBySeveralObserversIsRetriedOnce), new Scenario("computed disposed while its retry is pending is not retried", ErrorScenarios.computedDisposedWhileItsRetryIsPendingIsNotRetried), new Scenario("re-read whose retry request the scheduler rejects keeps its observer subscribed", ErrorScenarios.retryRequestRejectedBySchedulerKeepsObserverSubscribed), new Scenario("error raised in a multi-level dirty check reaches the reader and later walks stay correct", ErrorScenarios.errorInMultiLevelDirtyCheckReachesReader), new Scenario("boundary receives an effect apply error", ErrorScenarios.boundaryReceivesEffectError), new Scenario("boundary receives an effect compute error", ErrorScenarios.boundaryReceivesEffectComputeError), new Scenario("unhandled effect error escapes the flush", ErrorScenarios.unhandledEffectErrorEscapesFlush), new Scenario("throwing effect defers the others to the next flush", ErrorScenarios.throwingEffectDefersOthersToNextFlush), new Scenario("work left by a failed compute runs on the next flush", ErrorScenarios.workLeftByFailedComputeRunsOnNextFlush), new Scenario("throwing effect that writes what it reads stops at the pass limit", ErrorScenarios.throwingSelfWritingEffectStopsAtPassLimit), new Scenario("flush stopped at the pass limit leaves no cleanup error to the next flush", ErrorScenarios.passLimitLeavesNoCleanupErrorToTheNextFlush), new Scenario("compute left by a flush that stopped at the pass limit runs on the next flush", ErrorScenarios.computeLeftByAPassLimitedFlushRunsOnTheNextFlush), new Scenario("effect that throws on every change never hits the pass limit", ErrorScenarios.effectThrowingOnEveryChangeNeverHitsPassLimit), new Scenario("resume made stale by a direct flush spends no pass budget", ErrorScenarios.staleResumeSpendsNoPassBudget), new Scenario("write made while a resume is pending runs with a fresh pass budget", ErrorScenarios.writeWhileAResumeIsPendingRunsWithAFreshBudget), new Scenario("apply after a skipped apply receives the last applied value", ErrorScenarios.applyAfterSkippedApplyReceivesLastApplied), new Scenario("throwing apply cleanup still runs the others and reaches the boundary", ErrorScenarios.throwingApplyCleanupReachesBoundary), new Scenario("unhandled apply cleanup error escapes after the others ran", ErrorScenarios.unhandledApplyCleanupErrorEscapes), new Scenario("apply cleanup that disposes its effect and throws reaches the boundary", ErrorScenarios.selfDisposingApplyCleanupErrorReachesBoundary), new Scenario("effect compute that disposes its effect and throws reaches the boundary", ErrorScenarios.selfDisposingComputeErrorReachesBoundary), new Scenario("throwing cleanup does not abort the disposal", ErrorScenarios.throwingCleanupDoesNotAbortDisposal), new Scenario("throwing cleanup in a rerun is rethrown after the flush", ErrorScenarios.throwingCleanupInRerunIsRethrownAfterFlush), new Scenario("disposer called in a computed defers its cleanup error to the flush", ErrorScenarios.disposerInComputedDefersCleanupError), new Scenario("disposer called in an effect compute keeps its cleanup error from the boundary", ErrorScenarios.disposerInEffectComputeKeepsCleanupErrorFromBoundary), new Scenario("disposer called in a boundary body keeps its cleanup error from the boundary", ErrorScenarios.disposerInBoundaryBodyKeepsCleanupErrorFromBoundary), new Scenario("disposer called in a boundary handler keeps its cleanup error from the outer boundary", ErrorScenarios.disposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary), new Scenario("flush called in a boundary handler keeps a deferred cleanup error from the outer boundary", ErrorScenarios.flushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary), new Scenario("flush called in a boundary body keeps a deferred cleanup error from the boundary", ErrorScenarios.flushInBoundaryBodyKeepsCleanupErrorFromTheBoundary), new Scenario("flush called in a computed keeps a deferred cleanup error out of its cached error", ErrorScenarios.flushInComputedKeepsCleanupErrorOutOfItsCachedError), new Scenario("flush called in an effect's first compute keeps a deferred cleanup error from the boundary", ErrorScenarios.flushInEffectFirstComputeKeepsCleanupErrorFromTheBoundary), new Scenario("write from a cleanup during disposal is allowed", ErrorScenarios.writeFromCleanupDuringDisposalIsAllowed), new Scenario("computed that disposes itself mid-run keeps no dependency", ErrorScenarios.selfDisposingComputedKeepsNoDependency), new Scenario("runner keeps the scenario error and drains leftover writes", ErrorScenarios.runnerKeepsScenarioErrorAndDrainsLeftovers)];
 
-  constructor() { }
+  private constructor() { }
 
   private static computedRethrowsUntilDependencyChanges(expect: IExpect): void {
     let runs = 0;
@@ -126,7 +141,7 @@ export class ErrorScenarios {
     const second = ScenarioRunner.catch(() => {
       flaky.value;
     });
-    expect.isTrue(!(first == null) && first === second, "untracked reads rethrow the error");
+    expect.isTrue(first != null && first === second, "untracked reads rethrow the error");
     expect.equal(1, runs, "untracked reads do not retry");
     Reactivity.effect(() => {
       trigger.value;
@@ -375,7 +390,7 @@ export class ErrorScenarios {
       computes = (computes + 1) | 0;
 
       return flaky.value;
-    }, (value: number, previous: number) => applies = (applies ?? "") + (value + ","));
+    }, (value: number, previous: number) => applies += value + ",");
     expect.equal(2, runs, "the read after the unwatch ran the function again");
     Reactivity.flush();
     expect.equal(2, runs, "the flush skips the retry");
@@ -528,7 +543,7 @@ export class ErrorScenarios {
   private static boundaryReceivesEffectComputeError(expect: IExpect): void {
     let log = "";
     const source = Reactivity.signal(0);
-    Reactivity.errorBoundary(() => Reactivity.effect(() => (ErrorScenarios.failWhenOne((source.value + 1) | 0, "compute failed") - 1) | 0, (value: number, previous: number) => log = (log ?? "") + ("apply" + value + ",")), (error: Exception) => log = (log ?? "") + (error.message + ","));
+    Reactivity.errorBoundary(() => Reactivity.effect(() => (ErrorScenarios.failWhenOne((source.value + 1) | 0, "compute failed") - 1) | 0, (value: number, previous: number) => log += "apply" + value + ","), (error: Exception) => log += error.message + ",");
     Reactivity.flush();
     expect.equal("compute failed,", log, "a creation-time compute error reaches the boundary");
     source.value = 1;
@@ -559,7 +574,7 @@ export class ErrorScenarios {
         throw thrown;
       }
     });
-    Reactivity.effect(() => source.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
+    Reactivity.effect(() => source.value, (value: number, previous: number) => log += "b" + value + ",");
     Reactivity.flush();
     source.value = 1;
     const error = ScenarioRunner.catch(Reactivity.flush);
@@ -575,7 +590,7 @@ export class ErrorScenarios {
     const source = Reactivity.signal(0);
     Reactivity.effect(() => ErrorScenarios.failWhenOne(source.value, "compute failed"), (value: number, previous: number) => {
     });
-    Reactivity.effect(() => source.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
+    Reactivity.effect(() => source.value, (value: number, previous: number) => log += "b" + value + ",");
     Reactivity.flush();
     const previousScheduler = Reactivity.scheduler;
     Reactivity.useScheduler(scheduler);
@@ -603,7 +618,7 @@ export class ErrorScenarios {
         throw new InvalidOperationException("apply failed");
       }
     });
-    Reactivity.effect(() => other.value, (value: number, previous: number) => log = (log ?? "") + (value + ","));
+    Reactivity.effect(() => other.value, (value: number, previous: number) => log += value + ",");
     Reactivity.flush();
     const previousScheduler = Reactivity.scheduler;
     let flushes = 0;
@@ -611,8 +626,8 @@ export class ErrorScenarios {
     Reactivity.useScheduler(scheduler);
     try {
       source.value = 1;
-      let flush = scheduler.take();
-      while (!(flush == null) && flushes < 1000) {
+      let flush: (() => void) | null = scheduler.take();
+      while (flush != null && flushes < 1000) {
         flushes = (flushes + 1) | 0;
         last = ScenarioRunner.catch(flush);
         flush = scheduler.take();
@@ -621,7 +636,7 @@ export class ErrorScenarios {
       Reactivity.useScheduler(previousScheduler);
     }
     expect.equal(101, flushes, "flushes until the pass limit");
-    expect.isTrue(!(last == null) && last!.message === ExpectedMessages.passLimit, "the last flush stops at the pass limit");
+    expect.isTrue(last != null && last!.message === ExpectedMessages.passLimit, "the last flush stops at the pass limit");
     other.value = 1;
     Reactivity.flush();
     expect.equal("0,1,", log, "the graph is usable afterwards");
@@ -646,7 +661,7 @@ export class ErrorScenarios {
     source.value = 1;
     const limit = ScenarioRunner.catch(Reactivity.flush);
     const next = ScenarioRunner.catch(Reactivity.flush);
-    expect.isTrue(!(limit == null) && limit!.message === ExpectedMessages.passLimit, "the looping flush stops at the pass limit");
+    expect.isTrue(limit != null && limit!.message === ExpectedMessages.passLimit, "the looping flush stops at the pass limit");
     expect.isTrue(next == null, "the next flush does not rethrow the cleanup error");
   }
 
@@ -668,15 +683,15 @@ export class ErrorScenarios {
     Reactivity.useScheduler(scheduler);
     try {
       loop.value = 1;
-      let flush = scheduler.take();
-      while (!(flush == null)) {
+      let flush: (() => void) | null = scheduler.take();
+      while (flush != null) {
         last = ScenarioRunner.catch(flush);
         flush = scheduler.take();
       }
     } finally {
       Reactivity.useScheduler(previousScheduler);
     }
-    expect.isTrue(!(last == null) && last!.message === ExpectedMessages.passLimit, "the resume stops at the pass limit");
+    expect.isTrue(last != null && last!.message === ExpectedMessages.passLimit, "the resume stops at the pass limit");
     other.value = 1000;
     Reactivity.flush();
     expect.equal(1100, applied, "the reader runs again and sees the later write");
@@ -700,12 +715,10 @@ export class ErrorScenarios {
       source.value = write;
       const error = ScenarioRunner.catch(Reactivity.flush);
 
-      if (!(error == null) && error.message === "apply failed") {
+      if (error != null && error.message === "apply failed") {
         failures = (failures + 1) | 0;
-      } else {
-        if (!(error == null)) {
-          passLimitErrors = (passLimitErrors + 1) | 0;
-        }
+      } else if (error != null) {
+        passLimitErrors = (passLimitErrors + 1) | 0;
       }
     }
     expect.equal(150, failures, "every flush failed with the effect's own error");
@@ -735,9 +748,9 @@ export class ErrorScenarios {
       counter.value = 1;
       Reactivity.flush();
       counter.value = 1;
-      let flush = scheduler.take();
-      while (!(flush == null)) {
-        if (!(ScenarioRunner.catch(flush) == null)) {
+      let flush: (() => void) | null = scheduler.take();
+      while (flush != null) {
+        if (ScenarioRunner.catch(flush) != null) {
           failures = (failures + 1) | 0;
         }
 
@@ -772,9 +785,9 @@ export class ErrorScenarios {
       counter.value = 1;
       ScenarioRunner.catch(scheduler.take()!);
       other.value = 1;
-      let flush = scheduler.take();
-      while (!(flush == null)) {
-        if (!(ScenarioRunner.catch(flush) == null)) {
+      let flush: (() => void) | null = scheduler.take();
+      while (flush != null) {
+        if (ScenarioRunner.catch(flush) != null) {
           failures = (failures + 1) | 0;
         }
 
@@ -799,7 +812,7 @@ export class ErrorScenarios {
     let caught = 0;
     const source = Reactivity.signal(0);
     Reactivity.errorBoundary(() => Reactivity.effect(() => source.value, (value: number, previous: number) => {
-      log = (log ?? "") + (value + ":" + previous + ",");
+      log += value + ":" + previous + ",";
 
       if (value === 0) {
         Reactivity.onCleanup(() => throwError(new InvalidOperationException("cleanup failed")));
@@ -820,10 +833,10 @@ export class ErrorScenarios {
     let caught = "";
     const source = Reactivity.signal(0);
     Reactivity.errorBoundary(() => Reactivity.effect(() => source.value, (value: number, previous: number) => {
-      log = (log ?? "") + ("apply" + value + ",");
+      log += "apply" + value + ",";
 
       if (value === 0) {
-        ErrorScenarios.registerFailingCleanups(() => log = (log ?? "") + "second,");
+        ErrorScenarios.registerFailingCleanups(() => log += "second,");
       }
     }), (error: Exception) => caught = error.message);
     Reactivity.flush();
@@ -838,16 +851,16 @@ export class ErrorScenarios {
     let log = "";
     const source = Reactivity.signal(0);
     Reactivity.effect(() => source.value, (value: number, previous: number) => {
-      log = (log ?? "") + ("apply" + value + ",");
+      log += "apply" + value + ",";
 
       if (value === 0) {
-        ErrorScenarios.registerFailingCleanups(() => log = (log ?? "") + "second,");
+        ErrorScenarios.registerFailingCleanups(() => log += "second,");
       }
     });
     Reactivity.flush();
     source.value = 1;
     const error = ScenarioRunner.catch(Reactivity.flush);
-    expect.isTrue(!(error == null) && error!.message === "cleanup failed", "the cleanup error escapes the flush");
+    expect.isTrue(error != null && error!.message === "cleanup failed", "the cleanup error escapes the flush");
     expect.equal("apply0,second,", log, "the other cleanup ran first");
   }
 
@@ -903,15 +916,15 @@ export class ErrorScenarios {
     Reactivity.errorBoundary(() => Reactivity.rootActionOfAction((disposeRoot: () => void) => {
       dispose = disposeRoot;
       Reactivity.effect(() => {
-        Reactivity.onCleanup(() => log = (log ?? "") + "child,");
+        Reactivity.onCleanup(() => log += "child,");
 
         return 0;
       }, (value: number, previous: number) => {
       });
-      Reactivity.onCleanup(() => log = (log ?? "") + "1,");
+      Reactivity.onCleanup(() => log += "1,");
       Reactivity.onCleanup(() => throwError(new InvalidOperationException("second")));
       Reactivity.onCleanup(() => throwError(thrown));
-      Reactivity.onCleanup(() => log = (log ?? "") + "4,");
+      Reactivity.onCleanup(() => log += "4,");
     }), (error: Exception) => caught = error.message);
     const error = ScenarioRunner.catch(dispose);
     expect.equal("child,4,1,", log, "every cleanup and child ran");
@@ -931,7 +944,7 @@ export class ErrorScenarios {
       });
 
       return value;
-    }, (value: number, previous: number) => log = (log ?? "") + ("a" + value + ","));
+    }, (value: number, previous: number) => log += "a" + value + ",");
     Reactivity.flush();
     source.value = 1;
     const error = ScenarioRunner.catch(Reactivity.flush);
@@ -1043,10 +1056,10 @@ export class ErrorScenarios {
 
       return disposeRoot;
     });
-    Reactivity.errorBoundary(() => Reactivity.errorBoundary(() => throwError(new InvalidOperationException("body failed")), (error: Exception) => disposeOther()), (error: Exception) => outerErrors = (outerErrors ?? "") + (error.message + ","));
+    Reactivity.errorBoundary(() => Reactivity.errorBoundary(() => throwError(new InvalidOperationException("body failed")), (error: Exception) => disposeOther()), (error: Exception) => outerErrors += error.message + ",");
     const next = ScenarioRunner.catch(Reactivity.flush);
     expect.equal("", outerErrors, "the outer boundary receives no cleanup error");
-    expect.isTrue(!(next == null) && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
+    expect.isTrue(next != null && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
   }
 
   private static flushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary(expect: IExpect): void {
@@ -1059,10 +1072,10 @@ export class ErrorScenarios {
     Reactivity.errorBoundary(() => Reactivity.errorBoundary(() => throwError(new InvalidOperationException("body failed")), (error: Exception) => {
       disposeOther();
       Reactivity.flush();
-    }), (error: Exception) => outerErrors = (outerErrors ?? "") + (error.message + ","));
+    }), (error: Exception) => outerErrors += error.message + ",");
     const next = ScenarioRunner.catch(Reactivity.flush);
     expect.equal("", outerErrors, "the outer boundary receives no cleanup error");
-    expect.isTrue(!(next == null) && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
+    expect.isTrue(next != null && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
   }
 
   private static flushInBoundaryBodyKeepsCleanupErrorFromTheBoundary(expect: IExpect): void {
@@ -1071,7 +1084,7 @@ export class ErrorScenarios {
     Reactivity.errorBoundary(() => {
       disposeOther();
       Reactivity.flush();
-    }, (error: Exception) => handled = (handled ?? "") + (error.message + ","));
+    }, (error: Exception) => handled += error.message + ",");
     ErrorScenarios.expectCleanupErrorLeftToTheNextFlush(expect, handled);
   }
 
@@ -1099,14 +1112,14 @@ export class ErrorScenarios {
 
       return 1;
     }, (value: number, previous: number) => {
-    }), (error: Exception) => handled = (handled ?? "") + (error.message + ","));
+    }), (error: Exception) => handled += error.message + ",");
     ErrorScenarios.expectCleanupErrorLeftToTheNextFlush(expect, handled);
   }
 
   private static expectCleanupErrorLeftToTheNextFlush(expect: IExpect, handled: string): void {
     const next = ScenarioRunner.catch(Reactivity.flush);
     expect.equal("", handled, "no error handler receives the cleanup error");
-    expect.isTrue(!(next == null) && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
+    expect.isTrue(next != null && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
   }
 
   private static selfDisposingComputedKeepsNoDependency(expect: IExpect): void {

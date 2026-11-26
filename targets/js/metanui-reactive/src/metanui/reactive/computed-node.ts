@@ -5,10 +5,11 @@ let ComputedNode$rt: ClassType<ComputedNode> | undefined;
 
 export abstract class ComputedNode extends OwnerNode {
   /** @internal */
-  nextRetry: ComputedNode | null = null;
+  declare nextRetry: ComputedNode | null;
 
   constructor() {
     super();
+    this.nextRetry = null;
   }
 
   static override get $runtimeType(): ClassType<ComputedNode> {

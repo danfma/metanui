@@ -4,7 +4,13 @@ import type { IExpect } from "./i-expect.js";
 let Scenario$rt: ClassType<Scenario> | undefined;
 
 export class Scenario {
-  constructor(readonly name: string, readonly run: (obj: IExpect) => void) { }
+  declare readonly name: string;
+  declare readonly run: (obj: IExpect) => void;
+
+  constructor(name: string, run: (obj: IExpect) => void) {
+    this.name = name;
+    this.run = run;
+  }
 
   static get $runtimeType(): ClassType<Scenario> {
     return (Scenario$rt ??= {

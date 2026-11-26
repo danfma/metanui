@@ -13,13 +13,17 @@ let Signal$rt: ClassType<Signal<unknown>> | undefined;
 
 export class Signal<T> extends SignalNode {
   private static readonly writeInsideComputationMessage: string = "Writing to a signal inside a computation is not allowed; move the write outside.";
-  private readonly _comparer: IEqualityComparer<T>;
-  private _value: T;
-  private _pending: T;
-  private _hasPending: boolean = false;
+  declare private readonly _comparer: IEqualityComparer<T>;
+  declare private _value: T;
+  declare private _pending: T;
+  declare private _hasPending: boolean;
 
   constructor(initialValue: T, comparer: IEqualityComparer<T> | null = null) {
     super();
+    this._comparer = undefined!;
+    this._value = undefined!;
+    this._pending = undefined!;
+    this._hasPending = false;
     this._comparer = comparer ?? defaultEqualityComparerFor();
     this._value = initialValue;
     this._pending = initialValue;
@@ -45,7 +49,7 @@ export class Signal<T> extends SignalNode {
   get value(): T {
     const observer = Tracking.activeObserver;
 
-    if (!(observer == null)) {
+    if (observer != null) {
       DependencyGraph.link(this, observer, Tracking.cycle);
     }
 
@@ -53,7 +57,7 @@ export class Signal<T> extends SignalNode {
   }
 
   set value(value: T) {
-    if (!(Tracking.currentOwner == null)) {
+    if (Tracking.currentOwner != null) {
       Signal.rejectWriteInsideComputation();
     }
 

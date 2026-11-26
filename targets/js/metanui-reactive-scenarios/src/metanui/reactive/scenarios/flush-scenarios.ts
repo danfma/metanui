@@ -9,8 +9,6 @@ import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
 class FlushScenarios$ThrowingComparer {
-  constructor() { }
-
   equals(x: number, y: number): boolean {
     return throwError(new InvalidOperationException("Comparer failed."));
   }
@@ -23,7 +21,7 @@ class FlushScenarios$ThrowingComparer {
 export class FlushScenarios {
   static readonly all: Scenario[] = [new Scenario("write during a flush schedules no extra flush", FlushScenarios.writeDuringFlushSchedulesNoExtraFlush), new Scenario("flush inside an apply is a no-op", FlushScenarios.flushInsideApplyIsNoOp), new Scenario("throwing scheduler does not block later writes", FlushScenarios.throwingSchedulerDoesNotBlockLaterWrites), new Scenario("throwing comparer still propagates committed signals", FlushScenarios.throwingComparerStillPropagates), new Scenario("write before the scheduler is configured is flushed by the new scheduler", FlushScenarios.writeBeforeSchedulerIsConfiguredIsFlushedByNewScheduler), new Scenario("using a null scheduler throws", FlushScenarios.usingNullSchedulerThrows), new Scenario("nested scenario runner restores the outer scheduler", FlushScenarios.nestedRunnerRestoresOuterScheduler), new Scenario("flush nested in a dirty check leaves the checked computed up to date", FlushScenarios.flushNestedInADirtyCheckLeavesTheCheckedComputedUpToDate)];
 
-  constructor() { }
+  private constructor() { }
 
   private static flushNestedInADirtyCheckLeavesTheCheckedComputedUpToDate(expect: IExpect): void {
     const trigger = Reactivity.signal(0);
@@ -65,9 +63,9 @@ export class FlushScenarios {
     Reactivity.effect(() => source.value, (value: number, previous: number) => {
       relayed.value = (value + 1) | 0;
       Reactivity.flush();
-      log = (log ?? "") + ("a" + relayed.value + ",");
+      log += "a" + relayed.value + ",";
     });
-    Reactivity.effect(() => relayed.value, (value: number, previous: number) => log = (log ?? "") + ("b" + value + ","));
+    Reactivity.effect(() => relayed.value, (value: number, previous: number) => log += "b" + value + ",");
     Reactivity.flush();
     expect.equal("a0,b0,b1,", log, "the nested flush neither commits nor runs applies early");
   }

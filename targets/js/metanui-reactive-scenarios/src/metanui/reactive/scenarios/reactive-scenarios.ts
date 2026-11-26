@@ -9,5 +9,5 @@ import { SignalScenarios } from "./signal-scenarios.js";
 export class ReactiveScenarios {
   static readonly all: Scenario[] = [...SignalScenarios.all, ...ComputedScenarios.all, ...EffectScenarios.all, ...FlushScenarios.all, ...OwnershipScenarios.all, ...ErrorScenarios.all];
 
-  constructor() { }
+  private constructor() { }
 }

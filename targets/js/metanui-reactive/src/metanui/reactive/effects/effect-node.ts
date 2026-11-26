@@ -10,18 +10,22 @@ import { Tracking } from "../tracking.js";
 
 export abstract class EffectNode extends OwnerNode {
   /** @internal */
-  nextQueued: EffectNode | null = null;
+  declare nextQueued: EffectNode | null;
 
   /** @internal */
-  nextApply: EffectNode | null = null;
+  declare nextApply: EffectNode | null;
 
   /** @internal */
-  hasPendingApply: boolean = false;
+  declare hasPendingApply: boolean;
 
-  private _applyCleanups: CleanupEntry | null = null;
+  declare private _applyCleanups: CleanupEntry | null;
 
   constructor() {
     super();
+    this.nextQueued = null;
+    this.nextApply = null;
+    this.hasPendingApply = false;
+    this._applyCleanups = null;
   }
 
   /** @internal */
@@ -43,10 +47,8 @@ export abstract class EffectNode extends OwnerNode {
       if (this.tryRunCompute()) {
         FlushLoop.enqueueApply(this);
       }
-    } else {
-      if (!this.isDisposed && !(this.deps == null)) {
-        this.flags = ReactiveFlags.Watching;
-      }
+    } else if (!this.isDisposed && this.deps != null) {
+      this.flags = ReactiveFlags.Watching;
     }
   }
 
@@ -60,8 +62,7 @@ export abstract class EffectNode extends OwnerNode {
     try {
       this.runApplyUnowned();
     } catch (e$) {
-      const e0 = toException(e$);
-      const error = e0;
+      const error = toException(e$);
 
       if (!RootNode.tryRouteError(owner, error)) {
         throw e$;
@@ -131,8 +132,7 @@ export abstract class EffectNode extends OwnerNode {
 
       return !this.isDisposed;
     } catch (e$) {
-      const e0 = toException(e$);
-      const error = e0;
+      const error = toException(e$);
 
       if (!RootNode.tryRouteError(owner, error)) {
         throw e$;
@@ -171,7 +171,7 @@ export abstract class EffectNode extends OwnerNode {
     this._applyCleanups = null;
     const error = Teardown.runChain(entry);
 
-    if (!(error == null)) {
+    if (error != null) {
       throw error;
     }
   }

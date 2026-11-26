@@ -22,6 +22,6 @@
     }
   },
   "peerDependencies": {
-    "metano-runtime": "^3.2.0"
+    "metano-runtime": "^3.3.0"
   }
 }

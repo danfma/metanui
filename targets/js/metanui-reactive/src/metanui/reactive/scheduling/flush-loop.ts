@@ -30,7 +30,7 @@ export class FlushLoop {
   private static _resumeContinuesBudget: boolean = false;
   private static _passes: number = 0;
 
-  constructor() { }
+  private constructor() { }
 
   static get scheduler(): IFlushScheduler {
     return FlushLoop._scheduler;
@@ -79,7 +79,7 @@ export class FlushLoop {
   }
 
   private static isQueuedForRetry(computed: ComputedNode): boolean {
-    return !(computed.nextRetry == null) || computed === FlushLoop._retryTail;
+    return computed.nextRetry != null || computed === FlushLoop._retryTail;
   }
 
   static enqueueCompute(effect: EffectNode): void {
@@ -201,18 +201,18 @@ export class FlushLoop {
     FlushLoop._resumeContinuesBudget = true;
     try {
       FlushLoop.request(FlushLoop.resumeFlush);
-    } catch (_err) {
+    } catch {
       FlushLoop._resumePending = false;
       FlushLoop._resumeContinuesBudget = false;
     }
   }
 
   private static hasWork(): boolean {
-    return !(FlushLoop._head == null) || !(FlushLoop._retryHead == null) || !(FlushLoop._computeHead == null) || !(FlushLoop._applyHead == null);
+    return FlushLoop._head != null || FlushLoop._retryHead != null || FlushLoop._computeHead != null || FlushLoop._applyHead != null;
   }
 
   private static propagateRetries(): void {
-    while (!(FlushLoop._retryHead == null)) {
+    while (FlushLoop._retryHead != null) {
       const computed = FlushLoop.dequeueRetry();
 
       if (!computed.retryAtPassStart()) {
@@ -221,7 +221,7 @@ export class FlushLoop {
 
       const subs = computed.subs;
 
-      if (!(subs == null)) {
+      if (subs != null) {
         DependencyGraph.propagate(subs);
         DependencyGraph.shallowPropagate(subs);
       }
@@ -244,7 +244,7 @@ export class FlushLoop {
     let changedHead = null as SignalNode | null;
     let changedTail = null as SignalNode | null;
     try {
-      while (!(FlushLoop._head == null)) {
+      while (FlushLoop._head != null) {
         const node = FlushLoop.dequeuePendingWrite();
 
         if (!node.update()) {
@@ -277,12 +277,12 @@ export class FlushLoop {
   }
 
   private static propagateChanges(changed: SignalNode | null): void {
-    let node = changed;
+    let node: SignalNode | null = changed;
     try {
-      while (!(node == null)) {
+      while (node != null) {
         const subs = node.subs;
 
-        if (!(subs == null)) {
+        if (subs != null) {
           DependencyGraph.propagate(subs);
           DependencyGraph.shallowPropagate(subs);
         }
@@ -290,7 +290,7 @@ export class FlushLoop {
         node = FlushLoop.unchain(node);
       }
     } finally {
-      while (!(node == null)) {
+      while (node != null) {
         node = FlushLoop.unchain(node);
       }
     }
@@ -304,7 +304,7 @@ export class FlushLoop {
   }
 
   private static runComputes(): void {
-    while (!(FlushLoop._computeHead == null)) {
+    while (FlushLoop._computeHead != null) {
       const effect = FlushLoop._computeHead;
       FlushLoop._computeHead = effect.nextQueued;
       effect.nextQueued = null;
@@ -318,7 +318,7 @@ export class FlushLoop {
   }
 
   private static runApplies(): void {
-    while (!(FlushLoop._applyHead == null)) {
+    while (FlushLoop._applyHead != null) {
       const effect = FlushLoop._applyHead;
       FlushLoop._applyHead = effect.nextApply;
       effect.nextApply = null;
@@ -333,10 +333,10 @@ export class FlushLoop {
   }
 
   private static discardPendingWritesAndRetries(): void {
-    while (!(FlushLoop._head == null)) {
+    while (FlushLoop._head != null) {
       FlushLoop.dequeuePendingWrite().discardPending();
     }
-    while (!(FlushLoop._retryHead == null)) {
+    while (FlushLoop._retryHead != null) {
       FlushLoop.dequeueRetry();
     }
   }

@@ -11,5 +11,5 @@ export class Tracking {
   static dirtyCheckDepth: number = 0;
   static errorHandlerDepth: number = 0;
 
-  constructor() { }
+  private constructor() { }
 }
