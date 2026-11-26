@@ -11,10 +11,12 @@ grep -ohE '"Metano(\.Build\.TypeScript)?/[0-9.]+"' src/*/obj/project.assets.json
 dotnet tool list | grep -i metano
 
 version="$(dotnet tool list | awk 'tolower($1) == "metano.compiler.typescript" { print $2 }')"
+[[ -n "$version" ]] || { echo "Metano.Compiler.TypeScript is not in the tool manifest" >&2; exit 1; }
 
 for manifest in tests/js/*/package.json bench/*/package.json; do
-  sed -i.bak -E "s/\"metano-runtime\": \"\\^[0-9.]+\"/\"metano-runtime\": \"^${version}\"/" "$manifest"
+  sed -i.bak -E "s/\"metano-runtime\": \"\\^[^\"]+\"/\"metano-runtime\": \"^${version}\"/" "$manifest"
   rm "$manifest.bak"
 done
 
 grep -H '"metano-runtime"' tests/js/*/package.json bench/*/package.json
+echo "Run 'bun install' to refresh bun.lock."
