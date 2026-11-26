@@ -158,7 +158,9 @@ export class FlushLoop {
       throw new InvalidOperationException(FlushLoop.passLimitMessage);
     }
 
-    Teardown.rethrowFirstError();
+    if (Tracking.errorHandlerDepth === 0) {
+      Teardown.rethrowFirstError();
+    }
   }
 
   private static runPassesOrRequestResume(): boolean {

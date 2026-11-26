@@ -9,6 +9,7 @@ export class Tracking {
   static cycle: number = 0;
   static pass: number = 0;
   static dirtyCheckDepth: number = 0;
+  static errorHandlerDepth: number = 0;
 
   constructor() { }
 }

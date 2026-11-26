@@ -17,12 +17,6 @@ internal sealed class RootNode : OwnerNode
     /// <summary>The error boundary's handler; null for a plain root.</summary>
     private readonly Action<Exception>? _errorHandler;
 
-    /// <summary>
-    /// Nesting depth of running error handlers. A handler runs with no owner, yet an exception it
-    /// throws goes to the next boundary up, so a disposer called there defers its cleanup error.
-    /// </summary>
-    private static int _handlerDepth;
-
     internal RootNode(Action<Exception>? errorHandler = null)
     {
         UnderComputation = IsUnderComputation(Parent);
@@ -128,7 +122,11 @@ internal sealed class RootNode : OwnerNode
     {
         Dispose();
 
-        if (!FlushLoop.IsRunning && _handlerDepth == 0 && !IsCaughtByOwner(Tracking.CurrentOwner))
+        if (
+            !FlushLoop.IsRunning
+            && Tracking.ErrorHandlerDepth == 0
+            && !IsCaughtByOwner(Tracking.CurrentOwner)
+        )
         {
             Teardown.RethrowFirstError();
         }
@@ -147,7 +145,7 @@ internal sealed class RootNode : OwnerNode
         Tracking.CurrentOwner = null;
         Tracking.ActiveObserver = null;
         Tracking.ActiveApply = null;
-        _handlerDepth++;
+        Tracking.ErrorHandlerDepth++;
 
         try
         {
@@ -162,7 +160,7 @@ internal sealed class RootNode : OwnerNode
         }
         finally
         {
-            _handlerDepth--;
+            Tracking.ErrorHandlerDepth--;
             Tracking.CurrentOwner = previousOwner;
             Tracking.ActiveObserver = previousObserver;
             Tracking.ActiveApply = previousApply;
