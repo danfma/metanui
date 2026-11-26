@@ -111,7 +111,7 @@ export class FlushScenarios {
   }
 
   private static usingNullSchedulerThrows(expect: IExpect): void {
-    const error = ScenarioRunner.catch(() => Reactivity.useScheduler(FlushScenarios.missing<IFlushScheduler>()));
+    const error = ScenarioRunner.catch(() => Reactivity.useScheduler(null!));
     expect.isTrue(error instanceof ArgumentNullException, "a null scheduler is rejected");
   }
 
@@ -125,10 +125,6 @@ export class FlushScenarios {
       restored = Reactivity.scheduler === scheduler;
     });
     expect.isTrue(restored, "the outer scheduler is in use after the nested run");
-  }
-
-  private static missing<T>(): T {
-    return null!;
   }
 
   private static withScheduler(scheduler: IFlushScheduler, action: () => void): void {
