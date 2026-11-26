@@ -85,6 +85,11 @@ export abstract class EffectNode extends OwnerNode implements IDisposable {
 
       Tracking.activeApply = this;
       this.apply();
+      Tracking.activeApply = previousApply;
+
+      if (this.isDisposed) {
+        this.runApplyCleanups();
+      }
     } finally {
       Tracking.activeObserver = previousObserver;
       Tracking.currentOwner = previousOwner;
