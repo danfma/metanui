@@ -104,7 +104,7 @@ export abstract class OwnerNode extends ReactiveNode {
 
   /** @internal */
   unlinkDependenciesOnDisposal(): void {
-    if (Tracking.updatesInDirtyCheck === 0) {
+    if (Tracking.dirtyCheckDepth === 0) {
       DependencyGraph.purgeDeps(this);
 
       return;
@@ -116,13 +116,16 @@ export abstract class OwnerNode extends ReactiveNode {
 
   /** @internal */
   isAnyDependencyDirty(): boolean {
-    const dirty = DependencyGraph.checkDirty(this.deps!, this);
+    Tracking.dirtyCheckDepth = (Tracking.dirtyCheckDepth + 1) | 0;
+    try {
+      return DependencyGraph.checkDirty(this.deps!, this);
+    } finally {
+      Tracking.dirtyCheckDepth = (Tracking.dirtyCheckDepth - 1) | 0;
 
-    if (!(OwnerNode._deferredUnlinks == null) && Tracking.updatesInDirtyCheck === 0) {
-      OwnerNode.unlinkDeferredDependencies();
+      if (Tracking.dirtyCheckDepth === 0 && !(OwnerNode._deferredUnlinks == null)) {
+        OwnerNode.unlinkDeferredDependencies();
+      }
     }
-
-    return dirty;
   }
 
   /** @internal */

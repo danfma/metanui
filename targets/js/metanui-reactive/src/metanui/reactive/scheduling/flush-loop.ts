@@ -109,7 +109,10 @@ export class FlushLoop {
   }
 
   static requestFlush(): void {
-    FlushLoop._resumeContinuesBudget = false;
+    if (FlushLoop._resumePending) {
+      FlushLoop._resumeContinuesBudget = false;
+    }
+
     FlushLoop.request(FlushLoop.runFlush);
   }
 

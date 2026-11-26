@@ -68,25 +68,6 @@ public sealed class Computed<T> : ComputedNode
     }
 
     /// <summary>
-    /// The update a dirty check asks for (<see cref="Rerun" />). Only the walk calls it; the update is
-    /// counted so that a node it disposes keeps its dependency links until the check ends
-    /// (<see cref="OwnerNode.UnlinkDependenciesOnDisposal" />).
-    /// </summary>
-    internal override bool Update()
-    {
-        Tracking.UpdatesInDirtyCheck++;
-
-        try
-        {
-            return Rerun();
-        }
-        finally
-        {
-            Tracking.UpdatesInDirtyCheck--;
-        }
-    }
-
-    /// <summary>
     /// Disposes what the previous run created, runs the function again and reports whether the
     /// result differs from the cached one. A run that throws caches the error and reports a change, and
     /// so does the first good run after an error. The function and the comparer are read first: a
@@ -100,7 +81,7 @@ public sealed class Computed<T> : ComputedNode
     /// does, which would let the walk's own <c>sub.Flags != None</c> test skip it: a computed with no
     /// flags is one that never ran, and the next read would run its released function.
     /// </remarks>
-    private bool Rerun()
+    internal override bool Update()
     {
         if (IsDisposed)
         {
@@ -171,7 +152,7 @@ public sealed class Computed<T> : ComputedNode
             return false;
         }
 
-        Rerun();
+        Update();
 
         return (Flags & ReactiveFlags.Errored) == 0;
     }
@@ -268,7 +249,7 @@ public sealed class Computed<T> : ComputedNode
 
     private void Recompute()
     {
-        if (!Rerun())
+        if (!Update())
         {
             return;
         }

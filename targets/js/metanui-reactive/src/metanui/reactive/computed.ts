@@ -67,15 +67,6 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override update(): boolean {
-    Tracking.updatesInDirtyCheck = (Tracking.updatesInDirtyCheck + 1) | 0;
-    try {
-      return this.rerun();
-    } finally {
-      Tracking.updatesInDirtyCheck = (Tracking.updatesInDirtyCheck - 1) | 0;
-    }
-  }
-
-  private rerun(): boolean {
     if (this.isDisposed) {
       return false;
     }
@@ -122,7 +113,7 @@ export class Computed<T> extends ComputedNode {
       return false;
     }
 
-    this.rerun();
+    this.update();
 
     return (this.flags & ReactiveFlags.Errored) === 0;
   }
@@ -189,7 +180,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   private recompute(): void {
-    if (!this.rerun()) {
+    if (!this.update()) {
       return;
     }
 

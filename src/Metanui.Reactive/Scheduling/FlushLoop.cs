@@ -168,7 +168,11 @@ internal static class FlushLoop
     /// </summary>
     public static void RequestFlush()
     {
-        _resumeContinuesBudget = false;
+        if (_resumePending)
+        {
+            _resumeContinuesBudget = false;
+        }
+
         Request(RunFlush);
     }
 

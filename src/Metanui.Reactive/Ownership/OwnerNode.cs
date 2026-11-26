@@ -107,7 +107,7 @@ public abstract class OwnerNode : ReactiveNode
 
     /// <summary>
     /// Unlinks every dependency of a node being disposed, whose dependency tail the caller already
-    /// cleared. When a dirty check is updating a computed, the links wait until that check ends.
+    /// cleared. While a dirty check runs, the links wait until the outermost check ends.
     /// </summary>
     /// <remarks>
     /// Metanui: alien-signals never disposes a node during <c>checkDirty</c>; here a cleanup or a run
@@ -119,7 +119,7 @@ public abstract class OwnerNode : ReactiveNode
     /// </remarks>
     internal void UnlinkDependenciesOnDisposal()
     {
-        if (Tracking.UpdatesInDirtyCheck == 0)
+        if (Tracking.DirtyCheckDepth == 0)
         {
             DependencyGraph.PurgeDeps(this);
 
@@ -131,19 +131,27 @@ public abstract class OwnerNode : ReactiveNode
     }
 
     /// <summary>
-    /// Runs the dirty check of this pending node (alien-signals <c>checkDirty</c>), then, once no
-    /// outer check is still walking, unlinks the nodes the check disposed.
+    /// Runs the dirty check of this pending node (alien-signals <c>checkDirty</c>), counted once per
+    /// check, then, when it was the outermost one, unlinks the nodes disposed meanwhile, even when the
+    /// check ends with an exception.
     /// </summary>
     internal bool IsAnyDependencyDirty()
     {
-        var dirty = DependencyGraph.CheckDirty(Deps!, this);
+        Tracking.DirtyCheckDepth++;
 
-        if (_deferredUnlinks is not null && Tracking.UpdatesInDirtyCheck == 0)
+        try
         {
-            UnlinkDeferredDependencies();
+            return DependencyGraph.CheckDirty(Deps!, this);
         }
+        finally
+        {
+            Tracking.DirtyCheckDepth--;
 
-        return dirty;
+            if (Tracking.DirtyCheckDepth == 0 && _deferredUnlinks is not null)
+            {
+                UnlinkDeferredDependencies();
+            }
+        }
     }
 
     /// <summary>
