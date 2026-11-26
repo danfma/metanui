@@ -63,20 +63,20 @@ Done in ec928dc..a24116b. Verified with 0 warnings, 72/72 on .NET, 74/74 on Bun 
 ---
 
 ## Task 2: Give Effect an IDisposable handle (Phase 2)
-Status: Blocked (Metano IDisposable support)
+Status: Complete
 
 Maintainer decision (2026-11-25): an effect still belongs to its owner, as in Solid. `Reactivity.Effect` also returns an `IDisposable` handle for early disposal. Ignoring the return value gives exactly Solid's semantics.
 
 **Interfaces:** `public static IDisposable Reactivity.Effect<T>(Func<T> compute, Action<T, T> apply)`. The handle is the effect node itself, so no delegate or wrapper is allocated. `Dispose()` is idempotent and equivalent to the owner disposing the effect: it runs the cleanups, purges the deps, skips queued work, and detaches the effect from its owner.
 
-- [ ] Scenarios:
+- [x] Scenarios:
   - `EffectHandleDisposesEarly`: after `handle.Dispose()` and a write followed by a flush, there is no compute, no apply, and the cleanup has run once.
   - `EffectHandleDisposeIsIdempotent`.
   - `OwnerDisposeAfterHandleDisposeRunsNothingTwice`.
   - `EffectHandleDisposedDuringFlushSkipsQueuedApply`.
-- [ ] Implement the handle. The node must not expose any other member through the public surface. In TS, check that the emitted `dispose()` does not collide with internal names, and that the handle type is usable from TS (the `Symbol.dispose` mapping is welcome if Metano 3.2.0 emits it).
-- [ ] Spec §4.3: document the handle and that it is optional. Record in the deviations that Solid's `createEffect` returns `void`.
-- [ ] Measure: run `createComputations` on Bun locally, before and after the change, with the load recorded. A regression above noise needs a justification.
+- [x] Implement the handle. The node must not expose any other member through the public surface. In TS, check that the emitted `dispose()` does not collide with internal names, and that the handle type is usable from TS (the `Symbol.dispose` mapping is welcome if Metano 3.2.0 emits it).
+- [x] Spec §4.3: document the handle and that it is optional. Record in the deviations that Solid's `createEffect` returns `void`.
+- [x] Measure: run `createComputations` on Bun locally, before and after the change, with the load recorded. A regression above noise needs a justification.
 
 ### Verification Plan
 - Both suites pass, strict tsc is clean, and the generated `effect-node.ts`/`reactivity.ts` add no allocation to effect creation.
@@ -89,6 +89,16 @@ Maintainer decision (2026-11-25): an effect still belongs to its owner, as in So
 - an interface-typed `null!` loses its annotation.
 
 All four were reported to the Metano session. The MS0063 comment fix landed in 0ce49cb. The working implementation and its five scenarios (77/77 on .NET, 79/79 on Bun, strict tsc failing only on `IDisposable`) are saved on branch `wip/effect-handle` (2d7f3dd). Resume from there once Metano maps `IDisposable`. Note for the resume: `Root(d => Reactivity.Effect(...))` binds to `Root<IDisposable>` once Effect returns a value.
+
+**Complete, 2026-11-26, on Metano 3.3.0** (branch `feat/metano-3.3-effect-handle`, commits 8636c1a..HEAD; `wip/effect-handle` was cherry-picked onto `main`).
+- **Upgrade:** Metano 3.3.0 everywhere; `scripts/update-metano.sh` now also moves `metano-runtime` in the hand-written workspaces (tests, benchmarks). The #794 (`Missing<T>`) and #796 (`Link?`) workarounds are gone; the emitted hot path is unchanged.
+- **MS0063:** the `NoWarn` is gone. `[Name("void")]` pins the void `Root` overload (TS `rootVoid`); `Root<T>` is `rootBody`, and `root` is a typed forwarder.
+- **Handle:** `EffectNode : OwnerNode, IDisposable` with an explicit forwarder; TS emits `implements IDisposable` and reuses the inherited `dispose()`, with no extra allocation. Ten scenarios cover it: the four planned, self-disposal in the apply, disposal before the first flush, handle after owner, and the late cleanups below.
+- **Review fixes:** a cleanup that an apply registers after disposing its own effect used to be lost; it now runs when the apply returns or throws (the apply's error wins), matching the late cleanups of computations (spec 4.5). `Effect` gained `<returns>` and an accurate lifetime doc.
+- **Known limitation, Metano #819:** the handle passes no nominal `IDisposable` check in TS (internal classes emit no `$runtimeType`), and the inherited `dispose()` is tagged `@internal`. Documented in spec 4.3 and the handoff; no local workaround.
+- **Found upstream during the upgrade:** #818 (a consumer is not transpiled again when only a referenced project changes; touch the consumer or delete its `.metano-stamp`).
+- **Measure:** Bun, local host under load (load average 9 to 20, other sessions running), `main` and the branch interleaved, three runs each; raw outputs and loads in `bench/reactivity/results/local-2026-11-26-metano-3.3/`. On the final HEAD run, Metanui `createComputations` is 78.00 ms vs 80.87 ms on `main` (-3.5%); across all runs the Metanui deltas stay within -15%..+6% while unchanged Solid moves -24%..+32%. No regression above noise.
+- **Verified:** `dotnet build` 0 warnings, 121/121 on .NET, 123/123 on Bun, strict tsc clean on both generated packages, bench harness tests 12/12. Reviewers: compiler-man, bob, backend-reviewer and architecture-reviewer approved with notes, all addressed or reported upstream; the scoped re-review of the fixes approved with notes, also addressed.
 
 ---
 
@@ -147,21 +157,16 @@ Done in the docs commit. `docs/design/0002-dsl-binding.md` is a stub with the de
 
 ## Final Recap
 
-Tasks 1, 3 and 4 are done; Task 2 is blocked on Metano #800 (`IDisposable` mapping, due in 3.3.0), with its work in progress on branch `wip/effect-handle` (2d7f3dd). **The plan stays open for Task 2.**
+All four tasks are complete.
 
-- **Task 1:** Metano 3.2.0 everywhere; the 3.1.0 workarounds are gone except #796 (`Link?` in `ShallowPropagate`) and #794 (`Missing<T>`); MS0063 is exempted with a temporary, commented `NoWarn` (#799).
+- **Task 1:** Metano 3.2.0 everywhere, with the 3.1.0 workarounds removed.
+- **Task 2:** on Metano 3.3.0, `Reactivity.Effect` returns an `IDisposable` handle (the effect node itself); the MS0063 `NoWarn` and the #794/#796 workarounds are gone; late apply cleanups after self-disposal now run.
 - **Task 3:** the F-9 retry of an errored computed is deferred to the next flush pass, which removed the stale-sibling bug and the in-flush glitch without touching the DependencyGraph walks.
 - **Task 4:** `docs/design/0002-dsl-binding.md` stub and refreshed handoff.
-- **Final review fix wave:**
-  - The retry runs eagerly at the start of the next pass (`ComputedNode.RetryAtPassStart`), before the commit. A recovery propagates like a signal commit; a run that fails again keeps its error silently, so an always-failing computed costs one observer run and one boundary call per change (before, it cost two); a computed whose error an unwatch cleared is skipped. Spec 4.2 records the rule and its trade-off (an observer keeps the first error instance until it runs again for another reason).
-  - The retry queue link moved from `OwnerNode` to a new `ComputedNode` base, so effects and roots carry no scheduling state.
-  - An errored computed's reader is linked before the retry is queued, so a throwing scheduler no longer drops the subscription.
-  - Readability fixes, spec 4.4/4.5 notes on pending retries, audit markers for the 3.1.0 rows, and the 0002/handoff updates (root scope blocked on #800, re-entrant `Run` rules, layering).
-- **Open Metano issues:** #776, #781, #786, #787, #794, #796, #797, #798, #799, #800 (see the handoff and the audit).
+- **Open Metano issues:** #781, #786, #797, #818, #819 (see the handoff and the audit, section 10).
 
 ## Deployment Plan
 
-- From a clean clone on Metano 3.2.0: `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet test tests/Metanui.Reactive.Tests`, `bun install`, `bun test tests/js/reactive`, `scripts/bench-reactivity.sh test`, and strict tsc on both generated packages.
-- After removing or renaming a `.cs` file, delete every `.metano-stamp` under `targets/js` before building, or the stale `.ts` stays (#797).
-- The PR targets `feat/reactive-core` (PR #1). Benchmarks were not re-measured on 3.2.0; re-measure before quoting numbers.
-- Task 2 resumes from `wip/effect-handle` once Metano 3.3.0 ships #800.
+- From a clean clone on Metano 3.3.0: `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet test --project tests/Metanui.Reactive.Tests`, `bun install`, `bun test tests/js/reactive`, `scripts/bench-reactivity.sh test`, and strict tsc on both generated packages.
+- After removing or renaming a `.cs` file, or changing the public surface of `Metanui.Reactive`, delete the affected `.metano-stamp` under `targets/js` (or touch a `.cs` file of the consumer) before building (#797, #818).
+- Merge `feat/metano-3.3-effect-handle` into `main` through its PR; `wip/effect-handle` can then be deleted.

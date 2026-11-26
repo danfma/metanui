@@ -1,0 +1,62 @@
+load: 10:03  up 3 days,  9:30, 7 users, load averages: 9.54 9.49 6.02
+framework                        , test                                                         , time    
+Alien Signals                    , createSignals                                                , 4.13    
+Alien Signals                    , createComputations                                           , 82.62   
+Alien Signals                    , updateSignals                                                , 461.24  
+Solid 2.0                        , createSignals                                                , 5.47    
+Solid 2.0                        , createComputations                                           , 147.94  
+Solid 2.0                        , updateSignals                                                , 1446.86 
+Metanui                          , createSignals                                                , 2.11    
+Metanui                          , createComputations                                           , 86.19   
+Metanui                          , updateSignals                                                , 382.97  
+Alien Signals                    , avoidablePropagation                                         , 87.42   
+Solid 2.0                        , avoidablePropagation                                         , 295.44  
+Metanui                          , avoidablePropagation                                         , 78.95   
+Alien Signals                    , broadPropagation                                             , 143.29  
+Solid 2.0                        , broadPropagation                                             , 486.74  
+Metanui                          , broadPropagation                                             , 128.11  
+Alien Signals                    , deepPropagation                                              , 46.18   
+Solid 2.0                        , deepPropagation                                              , 208.24  
+Metanui                          , deepPropagation                                              , 44.61   
+Alien Signals                    , diamond                                                      , 100.85  
+Solid 2.0                        , diamond                                                      , 342.84  
+Metanui                          , diamond                                                      , 96.87   
+Alien Signals                    , mux                                                          , 78.14   
+Solid 2.0                        , mux                                                          , 168.27  
+Metanui                          , mux                                                          , 71.21   
+Alien Signals                    , repeatedObservers                                            , 19.44   
+Solid 2.0                        , repeatedObservers                                            , 62.93   
+Metanui                          , repeatedObservers                                            , 16.71   
+Alien Signals                    , triangle                                                     , 31.60   
+Solid 2.0                        , triangle                                                     , 139.78  
+Metanui                          , triangle                                                     , 30.94   
+Alien Signals                    , unstable                                                     , 30.50   
+Solid 2.0                        , unstable                                                     , 111.76  
+Metanui                          , unstable                                                     , 32.25   
+Alien Signals                    , molBench                                                     , 13.12   
+Solid 2.0                        , molBench                                                     , 17.69   
+Metanui                          , molBench                                                     , 13.14   
+Alien Signals                    , cellx1000                                                    , 6.50    
+Alien Signals                    , cellx2500                                                    , 32.58   
+Solid 2.0                        , cellx1000                                                    , 19.41   
+Solid 2.0                        , cellx2500                                                    , 56.44   
+Metanui                          , cellx1000                                                    , 6.19    
+Metanui                          , cellx2500                                                    , 23.98   
+Alien Signals                    , 2-10x5 - lazy80%                                             , 354.95  
+Solid 2.0                        , 2-10x5 - lazy80%                                             , 1757.28 
+Metanui                          , 2-10x5 - lazy80%                                             , 243.01  
+Alien Signals                    , 6-10x10 - dyn25% - lazy80%                                   , 179.02  
+Solid 2.0                        , 6-10x10 - dyn25% - lazy80%                                   , 508.89  
+Metanui                          , 6-10x10 - dyn25% - lazy80%                                   , 138.04  
+Alien Signals                    , 4-1000x12 - dyn5%                                            , 447.03  
+Solid 2.0                        , 4-1000x12 - dyn5%                                            , 806.64  
+Metanui                          , 4-1000x12 - dyn5%                                            , 296.59  
+Alien Signals                    , 25-1000x5                                                    , 613.18  
+Solid 2.0                        , 25-1000x5                                                    , 1094.58 
+Metanui                          , 25-1000x5                                                    , 419.31  
+Alien Signals                    , 3-5x500                                                      , 121.33  
+Solid 2.0                        , 3-5x500                                                      , 307.67  
+Metanui                          , 3-5x500                                                      , 102.84  
+Alien Signals                    , 6-100x15 - dyn50%                                            , 248.25  
+Solid 2.0                        , 6-100x15 - dyn50%                                            , 482.50  
+Metanui                          , 6-100x15 - dyn50%                                            , 211.48  
