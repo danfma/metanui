@@ -10,7 +10,7 @@ section 6.
 
 | Tool | Version |
 |---|---|
-| Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript, metano-runtime | 3.1.0 (audit), 3.2.0 (section 9) |
+| Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript, metano-runtime | 3.1.0 (audit), 3.2.0 (section 9), 3.3.0 (section 10), 4.0.0 (section 11) |
 | Bun (JavaScriptCore) | 1.4.2 |
 | tsc | 5.9.3 |
 | tsgo (`@typescript/native-preview`) | 7.0.0-dev.20260707.2 |
@@ -604,7 +604,8 @@ with `lib: ["ES2022", "ESNext.Disposable"]` on both packages: 0 diagnostics. `do
 
 - **#819 (fixed).** `EffectNode`, `SplitEffect` and `RootNode` now emit their own lazy `$runtimeType`;
   `EffectNode`'s lists `IDisposable`, so `IDisposable$runtimeType.test(handle)` is true. `OwnerNode.dispose`
-  lost its `@internal` tag.
+  lost its `@internal` tag. Side effect, reported upstream: `Computed<T>` inherits that `dispose()` through
+  `ComputedNode`, so the public TS surface of a computed now includes a member .NET keeps internal.
 - **#817.** `EffectNode` gains `[Symbol.dispose]() { disposeResource(this, this.dispose); }`; the runtime
   helper installs `Symbol.dispose` on engines without it. Metanui's C# has no `using` statement, so the
   generated packages need no `tslib`.

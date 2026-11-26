@@ -44,7 +44,7 @@ The core ships no `implicit operator T` and no combining operators. `.Value` sta
 - **Props to custom components.** A signal passed to a child is read, and therefore bound, in the child. Is that acceptable, or must the parent bind?
 - **Element API.** Generated from WebIDL/webref and Avalonia metadata, or hand-written per platform?
 - **Analyzers.** How are reactive reads outside a tracking scope, and missing keys in `For`, reported?
-- **Effect handle.** Once `Effect` returns an `IDisposable` (Metano 3.3.0), does the DSL use it, or does it rely on owners only?
+- **Effect handle.** `Effect` returns an `IDisposable` (since Metano 3.3.0); does the DSL use it, or does it rely on owners only?
 
 ### Re-entrant `Run`
 
