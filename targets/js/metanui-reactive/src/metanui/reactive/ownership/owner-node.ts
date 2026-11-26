@@ -65,6 +65,18 @@ export abstract class OwnerNode extends ReactiveNode {
   }
 
   /** @internal */
+  get catchesErrors(): boolean {
+    return true;
+  }
+
+  /** @internal */
+  static rethrowCleanupErrorUnlessCaught(): void {
+    if (Tracking.errorHandlerDepth === 0 && !OwnerNode.isCaughtByOwner(Tracking.currentOwner)) {
+      Teardown.rethrowFirstError();
+    }
+  }
+
+  /** @internal */
   addCleanup(cleanup: () => void): void {
     this.cleanups = new CleanupEntry(cleanup, this.cleanups);
   }
@@ -148,6 +160,18 @@ export abstract class OwnerNode extends ReactiveNode {
       node.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
       DependencyGraph.purgeDeps(node);
     }
+  }
+
+  private static isCaughtByOwner(owner: OwnerNode | null): boolean {
+    while (!(owner == null)) {
+      if (owner.catchesErrors) {
+        return true;
+      }
+
+      owner = owner.parent;
+    }
+
+    return false;
   }
 
   private attachTo(parent: OwnerNode): void {

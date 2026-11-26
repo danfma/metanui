@@ -49,6 +49,27 @@ public abstract class OwnerNode : ReactiveNode
         }
     }
 
+    /// <summary>
+    /// Whether an exception thrown while this node is the current owner is caught here: a computation
+    /// caches it (computed) or hands it to a boundary (effect compute); a root lets it through unless
+    /// it is an error boundary.
+    /// </summary>
+    internal virtual bool CatchesErrors => true;
+
+    /// <summary>
+    /// Rethrows the first cleanup error kept by a disposal, unless something on the way out would
+    /// catch it: an error handler that is running, or a computation or error boundary among the current
+    /// owners. Such an error stays kept for the end of the running flush, or the next flush or root
+    /// disposal (spec 4.5: cleanup errors never go to an error handler).
+    /// </summary>
+    internal static void RethrowCleanupErrorUnlessCaught()
+    {
+        if (Tracking.ErrorHandlerDepth == 0 && !IsCaughtByOwner(Tracking.CurrentOwner))
+        {
+            Teardown.RethrowFirstError();
+        }
+    }
+
     /// <summary>Registers <paramref name="cleanup" />; cleanups run last registered first.</summary>
     internal void AddCleanup(Action cleanup) => Cleanups = new CleanupEntry(cleanup, Cleanups);
 
@@ -194,6 +215,25 @@ public abstract class OwnerNode : ReactiveNode
             node.Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
             DependencyGraph.PurgeDeps(node);
         }
+    }
+
+    /// <summary>
+    /// Whether an exception thrown now under <paramref name="owner" /> would be caught before it
+    /// reaches the caller: by a computation or by an error boundary among the owners.
+    /// </summary>
+    private static bool IsCaughtByOwner(OwnerNode? owner)
+    {
+        while (owner is not null)
+        {
+            if (owner.CatchesErrors)
+            {
+                return true;
+            }
+
+            owner = owner.Parent;
+        }
+
+        return false;
     }
 
     private void AttachTo(OwnerNode parent)

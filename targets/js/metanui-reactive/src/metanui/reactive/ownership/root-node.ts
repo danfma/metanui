@@ -5,7 +5,6 @@ import type { ReactiveNode } from "../graph/reactive-node.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
 import { OwnerNode } from "./owner-node.js";
-import { Teardown } from "./teardown.js";
 
 export class RootNode extends OwnerNode {
   /** @internal */
@@ -17,6 +16,11 @@ export class RootNode extends OwnerNode {
     super();
     this.underComputation = RootNode.isUnderComputation(this.parent);
     this._errorHandler = errorHandler;
+  }
+
+  /** @internal */
+  override get catchesErrors(): boolean {
+    return !(this._errorHandler == null);
   }
 
   /** @internal */
@@ -82,8 +86,8 @@ export class RootNode extends OwnerNode {
   private disposeFromCaller(): void {
     this.dispose();
 
-    if (!FlushLoop.isRunning && Tracking.errorHandlerDepth === 0 && !RootNode.isCaughtByOwner(Tracking.currentOwner)) {
-      Teardown.rethrowFirstError();
+    if (!FlushLoop.isRunning) {
+      OwnerNode.rethrowCleanupErrorUnlessCaught();
     }
   }
 
@@ -120,20 +124,6 @@ export class RootNode extends OwnerNode {
       if (owner instanceof RootNode && (root = owner, true) && !(root._errorHandler == null)) {
         root.handleError(error);
 
-        return true;
-      }
-
-      owner = owner.parent;
-    }
-
-    return false;
-  }
-
-  private static isCaughtByOwner(owner: OwnerNode | null): boolean {
-    while (!(owner == null)) {
-      let root: RootNode;
-
-      if (!(owner instanceof RootNode && (root = owner, true)) || !(root._errorHandler == null)) {
         return true;
       }
 

@@ -122,13 +122,9 @@ internal sealed class RootNode : OwnerNode
     {
         Dispose();
 
-        if (
-            !FlushLoop.IsRunning
-            && Tracking.ErrorHandlerDepth == 0
-            && !IsCaughtByOwner(Tracking.CurrentOwner)
-        )
+        if (!FlushLoop.IsRunning)
         {
-            Teardown.RethrowFirstError();
+            RethrowCleanupErrorUnlessCaught();
         }
     }
 
@@ -193,24 +189,8 @@ internal sealed class RootNode : OwnerNode
         return false;
     }
 
-    /// <summary>
-    /// Whether an exception thrown now under <paramref name="owner" /> would be caught before it
-    /// reaches the caller: by a computation or by an error boundary among the owners.
-    /// </summary>
-    private static bool IsCaughtByOwner(OwnerNode? owner)
-    {
-        while (owner is not null)
-        {
-            if (owner is not RootNode root || root._errorHandler is not null)
-            {
-                return true;
-            }
-
-            owner = owner.Parent;
-        }
-
-        return false;
-    }
+    /// <summary>A plain root lets an exception through; an error boundary catches it.</summary>
+    internal override bool CatchesErrors => _errorHandler is not null;
 
     private static bool IsUnderComputation(OwnerNode? parent) =>
         parent is not null && (parent is not RootNode root || root.UnderComputation);

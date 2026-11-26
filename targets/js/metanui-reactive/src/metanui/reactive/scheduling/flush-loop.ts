@@ -6,6 +6,7 @@ import { DependencyGraph } from "../graph/dependency-graph.js";
 import type { SignalNode } from "../graph/signal-node.js";
 import type { IFlushScheduler } from "../i-flush-scheduler.js";
 import { ManualFlushScheduler } from "../manual-flush-scheduler.js";
+import { OwnerNode } from "../ownership/owner-node.js";
 import { Teardown } from "../ownership/teardown.js";
 import { Tracking } from "../tracking.js";
 
@@ -158,9 +159,7 @@ export class FlushLoop {
       throw new InvalidOperationException(FlushLoop.passLimitMessage);
     }
 
-    if (Tracking.errorHandlerDepth === 0) {
-      Teardown.rethrowFirstError();
-    }
+    OwnerNode.rethrowCleanupErrorUnlessCaught();
   }
 
   private static runPassesOrRequestResume(): boolean {

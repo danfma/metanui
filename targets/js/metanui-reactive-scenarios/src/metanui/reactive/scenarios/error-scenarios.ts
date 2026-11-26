@@ -75,7 +75,7 @@ class ErrorScenarios$OwnedRetryGraph {
 }
 
 export class ErrorScenarios {
-  static readonly all: Scenario[] = [new Scenario("computed rethrows its error until a dependency changes", ErrorScenarios.computedRethrowsUntilDependencyChanges), new Scenario("errored computed without dependencies retries on a tracked re-read after a flush", ErrorScenarios.erroredComputedWithoutDepsRetriesOnTrackedReread), new Scenario("retry that recovers an errored computed updates its other observers", ErrorScenarios.retryThatRecoversUpdatesOtherObservers), new Scenario("retry that recovers an errored computed updates an already pending sibling effect", ErrorScenarios.retryRecoveryUpdatesAPendingSibling), new Scenario("retry that recovers an errored computed updates an already pending sibling computed", ErrorScenarios.retryRecoveryUpdatesAPendingSiblingComputed), new Scenario("retry that recovers an errored computed reaches an effect through a pending computed", ErrorScenarios.retryRecoveryReachesAnEffectThroughAPendingComputed), new Scenario("retry that fails again does not retry on every pass", ErrorScenarios.retryThatFailsAgainDoesNotRetryOnEveryPass), new Scenario("retry never shows an observer a mix of the recovered and the old value", ErrorScenarios.retryNeverShowsAMixOfRecoveredAndOldValue), new Scenario("retry that fails again leaves an already pending sibling on the first error", ErrorScenarios.retryThatFailsAgainKeepsThePendingSiblingOnTheFirstError), new Scenario("always failing computed runs its observer and its boundary once per change", ErrorScenarios.alwaysFailingComputedRunsObserverAndBoundaryOncePerChange), new Scenario("retry of a computed whose error an unwatch cleared does not run", ErrorScenarios.retryOfComputedClearedByUnwatchDoesNotRun), new Scenario("retry of a computed without dependencies that lost its last observer does not run", ErrorScenarios.retryOfUnobservedComputedWithoutDepsDoesNotRun), new Scenario("errored computed re-read by several observers is retried once", ErrorScenarios.erroredComputedReReadBySeveralObserversIsRetriedOnce), new Scenario("computed disposed while its retry is pending is not retried", ErrorScenarios.computedDisposedWhileItsRetryIsPendingIsNotRetried), new Scenario("re-read whose retry request the scheduler rejects keeps its observer subscribed", ErrorScenarios.retryRequestRejectedBySchedulerKeepsObserverSubscribed), new Scenario("error raised in a multi-level dirty check reaches the reader and later walks stay correct", ErrorScenarios.errorInMultiLevelDirtyCheckReachesReader), new Scenario("boundary receives an effect apply error", ErrorScenarios.boundaryReceivesEffectError), new Scenario("boundary receives an effect compute error", ErrorScenarios.boundaryReceivesEffectComputeError), new Scenario("unhandled effect error escapes the flush", ErrorScenarios.unhandledEffectErrorEscapesFlush), new Scenario("throwing effect defers the others to the next flush", ErrorScenarios.throwingEffectDefersOthersToNextFlush), new Scenario("work left by a failed compute runs on the next flush", ErrorScenarios.workLeftByFailedComputeRunsOnNextFlush), new Scenario("throwing effect that writes what it reads stops at the pass limit", ErrorScenarios.throwingSelfWritingEffectStopsAtPassLimit), new Scenario("flush stopped at the pass limit leaves no cleanup error to the next flush", ErrorScenarios.passLimitLeavesNoCleanupErrorToTheNextFlush), new Scenario("compute left by a flush that stopped at the pass limit runs on the next flush", ErrorScenarios.computeLeftByAPassLimitedFlushRunsOnTheNextFlush), new Scenario("effect that throws on every change never hits the pass limit", ErrorScenarios.effectThrowingOnEveryChangeNeverHitsPassLimit), new Scenario("resume made stale by a direct flush spends no pass budget", ErrorScenarios.staleResumeSpendsNoPassBudget), new Scenario("write made while a resume is pending runs with a fresh pass budget", ErrorScenarios.writeWhileAResumeIsPendingRunsWithAFreshBudget), new Scenario("apply after a skipped apply receives the last applied value", ErrorScenarios.applyAfterSkippedApplyReceivesLastApplied), new Scenario("throwing apply cleanup still runs the others and reaches the boundary", ErrorScenarios.throwingApplyCleanupReachesBoundary), new Scenario("unhandled apply cleanup error escapes after the others ran", ErrorScenarios.unhandledApplyCleanupErrorEscapes), new Scenario("apply cleanup that disposes its effect and throws reaches the boundary", ErrorScenarios.selfDisposingApplyCleanupErrorReachesBoundary), new Scenario("effect compute that disposes its effect and throws reaches the boundary", ErrorScenarios.selfDisposingComputeErrorReachesBoundary), new Scenario("throwing cleanup does not abort the disposal", ErrorScenarios.throwingCleanupDoesNotAbortDisposal), new Scenario("throwing cleanup in a rerun is rethrown after the flush", ErrorScenarios.throwingCleanupInRerunIsRethrownAfterFlush), new Scenario("disposer called in a computed defers its cleanup error to the flush", ErrorScenarios.disposerInComputedDefersCleanupError), new Scenario("disposer called in an effect compute keeps its cleanup error from the boundary", ErrorScenarios.disposerInEffectComputeKeepsCleanupErrorFromBoundary), new Scenario("disposer called in a boundary body keeps its cleanup error from the boundary", ErrorScenarios.disposerInBoundaryBodyKeepsCleanupErrorFromBoundary), new Scenario("disposer called in a boundary handler keeps its cleanup error from the outer boundary", ErrorScenarios.disposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary), new Scenario("flush called in a boundary handler keeps a deferred cleanup error from the outer boundary", ErrorScenarios.flushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary), new Scenario("write from a cleanup during disposal is allowed", ErrorScenarios.writeFromCleanupDuringDisposalIsAllowed), new Scenario("computed that disposes itself mid-run keeps no dependency", ErrorScenarios.selfDisposingComputedKeepsNoDependency), new Scenario("runner keeps the scenario error and drains leftover writes", ErrorScenarios.runnerKeepsScenarioErrorAndDrainsLeftovers)];
+  static readonly all: Scenario[] = [new Scenario("computed rethrows its error until a dependency changes", ErrorScenarios.computedRethrowsUntilDependencyChanges), new Scenario("errored computed without dependencies retries on a tracked re-read after a flush", ErrorScenarios.erroredComputedWithoutDepsRetriesOnTrackedReread), new Scenario("retry that recovers an errored computed updates its other observers", ErrorScenarios.retryThatRecoversUpdatesOtherObservers), new Scenario("retry that recovers an errored computed updates an already pending sibling effect", ErrorScenarios.retryRecoveryUpdatesAPendingSibling), new Scenario("retry that recovers an errored computed updates an already pending sibling computed", ErrorScenarios.retryRecoveryUpdatesAPendingSiblingComputed), new Scenario("retry that recovers an errored computed reaches an effect through a pending computed", ErrorScenarios.retryRecoveryReachesAnEffectThroughAPendingComputed), new Scenario("retry that fails again does not retry on every pass", ErrorScenarios.retryThatFailsAgainDoesNotRetryOnEveryPass), new Scenario("retry never shows an observer a mix of the recovered and the old value", ErrorScenarios.retryNeverShowsAMixOfRecoveredAndOldValue), new Scenario("retry that fails again leaves an already pending sibling on the first error", ErrorScenarios.retryThatFailsAgainKeepsThePendingSiblingOnTheFirstError), new Scenario("always failing computed runs its observer and its boundary once per change", ErrorScenarios.alwaysFailingComputedRunsObserverAndBoundaryOncePerChange), new Scenario("retry of a computed whose error an unwatch cleared does not run", ErrorScenarios.retryOfComputedClearedByUnwatchDoesNotRun), new Scenario("retry of a computed without dependencies that lost its last observer does not run", ErrorScenarios.retryOfUnobservedComputedWithoutDepsDoesNotRun), new Scenario("errored computed re-read by several observers is retried once", ErrorScenarios.erroredComputedReReadBySeveralObserversIsRetriedOnce), new Scenario("computed disposed while its retry is pending is not retried", ErrorScenarios.computedDisposedWhileItsRetryIsPendingIsNotRetried), new Scenario("re-read whose retry request the scheduler rejects keeps its observer subscribed", ErrorScenarios.retryRequestRejectedBySchedulerKeepsObserverSubscribed), new Scenario("error raised in a multi-level dirty check reaches the reader and later walks stay correct", ErrorScenarios.errorInMultiLevelDirtyCheckReachesReader), new Scenario("boundary receives an effect apply error", ErrorScenarios.boundaryReceivesEffectError), new Scenario("boundary receives an effect compute error", ErrorScenarios.boundaryReceivesEffectComputeError), new Scenario("unhandled effect error escapes the flush", ErrorScenarios.unhandledEffectErrorEscapesFlush), new Scenario("throwing effect defers the others to the next flush", ErrorScenarios.throwingEffectDefersOthersToNextFlush), new Scenario("work left by a failed compute runs on the next flush", ErrorScenarios.workLeftByFailedComputeRunsOnNextFlush), new Scenario("throwing effect that writes what it reads stops at the pass limit", ErrorScenarios.throwingSelfWritingEffectStopsAtPassLimit), new Scenario("flush stopped at the pass limit leaves no cleanup error to the next flush", ErrorScenarios.passLimitLeavesNoCleanupErrorToTheNextFlush), new Scenario("compute left by a flush that stopped at the pass limit runs on the next flush", ErrorScenarios.computeLeftByAPassLimitedFlushRunsOnTheNextFlush), new Scenario("effect that throws on every change never hits the pass limit", ErrorScenarios.effectThrowingOnEveryChangeNeverHitsPassLimit), new Scenario("resume made stale by a direct flush spends no pass budget", ErrorScenarios.staleResumeSpendsNoPassBudget), new Scenario("write made while a resume is pending runs with a fresh pass budget", ErrorScenarios.writeWhileAResumeIsPendingRunsWithAFreshBudget), new Scenario("apply after a skipped apply receives the last applied value", ErrorScenarios.applyAfterSkippedApplyReceivesLastApplied), new Scenario("throwing apply cleanup still runs the others and reaches the boundary", ErrorScenarios.throwingApplyCleanupReachesBoundary), new Scenario("unhandled apply cleanup error escapes after the others ran", ErrorScenarios.unhandledApplyCleanupErrorEscapes), new Scenario("apply cleanup that disposes its effect and throws reaches the boundary", ErrorScenarios.selfDisposingApplyCleanupErrorReachesBoundary), new Scenario("effect compute that disposes its effect and throws reaches the boundary", ErrorScenarios.selfDisposingComputeErrorReachesBoundary), new Scenario("throwing cleanup does not abort the disposal", ErrorScenarios.throwingCleanupDoesNotAbortDisposal), new Scenario("throwing cleanup in a rerun is rethrown after the flush", ErrorScenarios.throwingCleanupInRerunIsRethrownAfterFlush), new Scenario("disposer called in a computed defers its cleanup error to the flush", ErrorScenarios.disposerInComputedDefersCleanupError), new Scenario("disposer called in an effect compute keeps its cleanup error from the boundary", ErrorScenarios.disposerInEffectComputeKeepsCleanupErrorFromBoundary), new Scenario("disposer called in a boundary body keeps its cleanup error from the boundary", ErrorScenarios.disposerInBoundaryBodyKeepsCleanupErrorFromBoundary), new Scenario("disposer called in a boundary handler keeps its cleanup error from the outer boundary", ErrorScenarios.disposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary), new Scenario("flush called in a boundary handler keeps a deferred cleanup error from the outer boundary", ErrorScenarios.flushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary), new Scenario("flush called in a boundary body keeps a deferred cleanup error from the boundary", ErrorScenarios.flushInBoundaryBodyKeepsCleanupErrorFromTheBoundary), new Scenario("flush called in a computed keeps a deferred cleanup error out of its cached error", ErrorScenarios.flushInComputedKeepsCleanupErrorOutOfItsCachedError), new Scenario("flush called in an effect's first compute keeps a deferred cleanup error from the boundary", ErrorScenarios.flushInEffectFirstComputeKeepsCleanupErrorFromTheBoundary), new Scenario("write from a cleanup during disposal is allowed", ErrorScenarios.writeFromCleanupDuringDisposalIsAllowed), new Scenario("computed that disposes itself mid-run keeps no dependency", ErrorScenarios.selfDisposingComputedKeepsNoDependency), new Scenario("runner keeps the scenario error and drains leftover writes", ErrorScenarios.runnerKeepsScenarioErrorAndDrainsLeftovers)];
 
   constructor() { }
 
@@ -942,7 +942,7 @@ export class ErrorScenarios {
 
   private static disposerInComputedDefersCleanupError(expect: IExpect): void {
     const thrown = new InvalidOperationException("cleanup failed");
-    const dispose = ErrorScenarios.rootWithThrowingCleanup(thrown);
+    const dispose = ErrorScenarios.rootWithThrowingCleanupThrown(thrown);
     const computed = Reactivity.computed(() => {
       dispose();
 
@@ -960,7 +960,7 @@ export class ErrorScenarios {
   private static disposerInEffectComputeKeepsCleanupErrorFromBoundary(expect: IExpect): void {
     const thrown = new InvalidOperationException("cleanup failed");
     let caught = "";
-    const dispose = ErrorScenarios.rootWithThrowingCleanup(thrown);
+    const dispose = ErrorScenarios.rootWithThrowingCleanupThrown(thrown);
     Reactivity.errorBoundary(() => Reactivity.effect(() => {
       dispose();
 
@@ -975,19 +975,41 @@ export class ErrorScenarios {
   private static disposerInBoundaryBodyKeepsCleanupErrorFromBoundary(expect: IExpect): void {
     const thrown = new InvalidOperationException("cleanup failed");
     let caught = "";
-    const dispose = ErrorScenarios.rootWithThrowingCleanup(thrown);
+    const dispose = ErrorScenarios.rootWithThrowingCleanupThrown(thrown);
     Reactivity.errorBoundary(() => dispose(), (error: Exception) => caught = error.message);
     const flushError = ScenarioRunner.catch(Reactivity.flush);
     expect.equal("", caught, "the cleanup error does not go to the boundary");
     expect.isTrue(flushError === thrown, "the next flush rethrows the cleanup error");
   }
 
-  private static rootWithThrowingCleanup(thrown: Exception): () => void {
+  private static rootWithThrowingCleanupThrown(thrown: Exception): () => void {
     return Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => throwError(thrown));
 
       return disposeRoot;
     });
+  }
+
+  private static rootWithThrowingCleanupDefault(): () => void {
+    return Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+      Reactivity.onCleanup(() => throwError(new InvalidOperationException("cleanup failed")));
+
+      return disposeRoot;
+    });
+  }
+
+  private static rootWithThrowingCleanup(thrown: Exception): () => void;
+  private static rootWithThrowingCleanup(): () => void;
+  private static rootWithThrowingCleanup(...args: unknown[]): () => void {
+    if (args.length === 1 && args[0] instanceof Error) {
+      return ErrorScenarios.rootWithThrowingCleanupThrown(args[0] as Exception);
+    }
+
+    if (args.length === 0) {
+      return ErrorScenarios.rootWithThrowingCleanupDefault();
+    }
+
+    throw new Error("No matching overload for rootWithThrowingCleanup");
   }
 
   private static writeFromCleanupDuringDisposalIsAllowed(expect: IExpect): void {
@@ -1040,6 +1062,50 @@ export class ErrorScenarios {
     }), (error: Exception) => outerErrors = (outerErrors ?? "") + (error.message + ","));
     const next = ScenarioRunner.catch(Reactivity.flush);
     expect.equal("", outerErrors, "the outer boundary receives no cleanup error");
+    expect.isTrue(!(next == null) && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
+  }
+
+  private static flushInBoundaryBodyKeepsCleanupErrorFromTheBoundary(expect: IExpect): void {
+    let handled = "";
+    const disposeOther = ErrorScenarios.rootWithThrowingCleanupDefault();
+    Reactivity.errorBoundary(() => {
+      disposeOther();
+      Reactivity.flush();
+    }, (error: Exception) => handled = (handled ?? "") + (error.message + ","));
+    ErrorScenarios.expectCleanupErrorLeftToTheNextFlush(expect, handled);
+  }
+
+  private static flushInComputedKeepsCleanupErrorOutOfItsCachedError(expect: IExpect): void {
+    const disposeOther = ErrorScenarios.rootWithThrowingCleanupDefault();
+    const computed = Reactivity.computed(() => {
+      disposeOther();
+      Reactivity.flush();
+
+      return 1;
+    });
+    const read = ScenarioRunner.catch(() => {
+      computed.peek();
+    });
+    expect.isTrue(read == null, "the computed does not cache the cleanup error");
+    ErrorScenarios.expectCleanupErrorLeftToTheNextFlush(expect, "");
+  }
+
+  private static flushInEffectFirstComputeKeepsCleanupErrorFromTheBoundary(expect: IExpect): void {
+    let handled = "";
+    const disposeOther = ErrorScenarios.rootWithThrowingCleanupDefault();
+    Reactivity.errorBoundary(() => Reactivity.effect(() => {
+      disposeOther();
+      Reactivity.flush();
+
+      return 1;
+    }, (value: number, previous: number) => {
+    }), (error: Exception) => handled = (handled ?? "") + (error.message + ","));
+    ErrorScenarios.expectCleanupErrorLeftToTheNextFlush(expect, handled);
+  }
+
+  private static expectCleanupErrorLeftToTheNextFlush(expect: IExpect, handled: string): void {
+    const next = ScenarioRunner.catch(Reactivity.flush);
+    expect.equal("", handled, "no error handler receives the cleanup error");
     expect.isTrue(!(next == null) && next!.message === "cleanup failed", "the next flush rethrows the cleanup error");
   }
 
