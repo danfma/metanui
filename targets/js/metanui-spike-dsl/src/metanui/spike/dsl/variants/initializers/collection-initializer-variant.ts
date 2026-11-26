@@ -11,37 +11,16 @@ export class CollectionInitializerVariant {
   private constructor() { }
 
   static counter(): Part {
+    let receiver$temp$1, receiver$temp$2, receiver$temp$3, receiver$temp$4, receiver$temp$5;
     const count = Reactivity.signal(0);
+    const receiver$temp$0 = new Section(Attributes.classString("variant"));
+    receiver$temp$0.add((receiver$temp$1 = new H2(), receiver$temp$1.add(Part.__implicitFromString("D. Collection initializer")), receiver$temp$1));
+    receiver$temp$0.add((receiver$temp$2 = new P(), receiver$temp$2.add(Attributes.text(() => `Count: ${count.value}`)), receiver$temp$2));
+    receiver$temp$0.add((receiver$temp$3 = new P(Attributes.classFuncOfString(() => count.value % 2 === 0 ? "even" : "odd")), receiver$temp$3.add(Part.__implicitFromString("parity")), receiver$temp$3));
+    receiver$temp$0.add((receiver$temp$4 = new Button(Attributes.onClick(() => count.value = (count.value - 1) | 0)), receiver$temp$4.add(Part.__implicitFromString("-1")), receiver$temp$4));
+    receiver$temp$0.add((receiver$temp$5 = new Button(Attributes.onClick(() => count.value = (count.value + 1) | 0)), receiver$temp$5.add(Part.__implicitFromString("+1")), receiver$temp$5));
+    receiver$temp$0.add(new Badge(() => count.value > 5 ? "big" : "small"));
 
-    return ((receiver$temp$0) => {
-      receiver$temp$0.add(((receiver$temp$1) => {
-        receiver$temp$1.add(Part.__implicitFromString("D. Collection initializer"));
-
-        return receiver$temp$1;
-      })(new H2()));
-      receiver$temp$0.add(((receiver$temp$2) => {
-        receiver$temp$2.add(Attributes.text(() => `Count: ${count.value}`));
-
-        return receiver$temp$2;
-      })(new P()));
-      receiver$temp$0.add(((receiver$temp$3) => {
-        receiver$temp$3.add(Part.__implicitFromString("parity"));
-
-        return receiver$temp$3;
-      })(new P(Attributes.classFuncOfString(() => count.value % 2 === 0 ? "even" : "odd"))));
-      receiver$temp$0.add(((receiver$temp$4) => {
-        receiver$temp$4.add(Part.__implicitFromString("-1"));
-
-        return receiver$temp$4;
-      })(new Button(Attributes.onClick(() => count.value = (count.value - 1) | 0))));
-      receiver$temp$0.add(((receiver$temp$5) => {
-        receiver$temp$5.add(Part.__implicitFromString("+1"));
-
-        return receiver$temp$5;
-      })(new Button(Attributes.onClick(() => count.value = (count.value + 1) | 0))));
-      receiver$temp$0.add(new Badge(() => count.value > 5 ? "big" : "small"));
-
-      return receiver$temp$0;
-    })(new Section(Attributes.classString("variant")));
+    return receiver$temp$0;
   }
 }

@@ -30,7 +30,7 @@ Scope: the platform-neutral DSL core, the web renderer and HTML vocabulary, and 
 
 - **Hyperscript-like functions (spike option C).** `Div(Class("card"), H1(Text(() => $"Count: {count.Value}")), Button(OnClick(() => count.Value++), "+1"))`, imported with `using static`. Attributes come first and children follow, in HTML order. A string is a static text child.
 - **Static or reactive by overload.** Every attribute and `Text` has a `T` and a `Func<T>` overload. A lambda cannot become a `Prop<T>` (CS1660), so there is no `Prop<T>` type.
-- **Not in v1:** fluent modifiers (option E) for element-specific escape hatches, grouped `Bind` (option F) as an optimisation, and collection initializers (option D) until Metano #804 removes the per-initializer IIFE.
+- **Not in v1:** fluent modifiers (option E) for element-specific escape hatches, grouped `Bind` (option F) as an optimisation, and collection initializers (option D). Metano 4.0.2 removed the per-initializer IIFE (#804), so D is no longer blocked by its emission; it stays out of v1 to keep one authoring shape, and remains open as an alternative to C.
 
 ### Components
 
@@ -172,9 +172,9 @@ Throwaway prototype `spikes/Metanui.Spike.Dsl` + `spikes/dsl-web`: the same app 
 
 | Shape | Source | Emitted TS | Verdict |
 |---|---|---|---|
-| A. Props object `P(new Props { Class = Bind(() => …) }, "x")` | A lambda cannot convert implicitly to `Prop<T>` (CS1660, verified), so reactive props need `Bind(...)`; every attribute is a property | One IIFE plus `Object.assign` per element | Rejected |
+| A. Props object `P(new Props { Class = Bind(() => …) }, "x")` | A lambda cannot convert implicitly to `Prop<T>` (CS1660, verified), so reactive props need `Bind(...)`; every attribute is a property | On Metano 4.0.1, one IIFE plus `Object.assign` per element; on 4.0.2, comma expressions over hoisted `let` temporaries | Rejected |
 | C. Attribute list `P(Class(() => …), "x")` | HTML order; `T`/`Func<T>` overloads pick static or reactive; strings convert to text | Straight calls (`classFuncOfString`), no closure beyond the user's | Lead candidate |
-| D. Collection initializer `new P(Class(...)) { "x" }` | Reads like markup, but `new` everywhere and one class per element | One IIFE per element (reported to Metano) | Rejected unless Metano lowers initializers without closures |
+| D. Collection initializer `new P(Class(...)) { "x" }` | Reads like markup, but `new` everywhere and one class per element | On Metano 4.0.1, one IIFE per element; on 4.0.2 (#804), a hoisted `const` plus `add` calls, no closure | Viable since Metano 4.0.2; alternative to C |
 | E. Fluent `P("x").WithClass(() => …)` | Typed per element, discoverable; attributes after children (inverted for large trees) | Straight calls | Kept for element-specific escape hatches |
 | F. Grouped `Bind(P(), () => [TextContent(...), ClassName(...)])` | Groups several properties under one effect | Each run allocates the array and setters and rewrites every property of the group | Possible optimisation (fewer effect nodes), not the default |
 
@@ -182,6 +182,8 @@ Other findings:
 
 - A base class with an implicit conversion that creates a subclass forms an import cycle (MS0005, a real ESM TDZ hazard); the subclass is nested in the base.
 - Class components with constructor props work; a reactive prop is a `Func<T>`. Records were not used for props: Metano gives them .NET value semantics, which a fine-grained renderer never uses.
+- Metano 4.0.2 (#804) shrank the whole gallery bundle from 55,503 to 51,618 bytes minified (13,000 to 12,713 gzipped), all of it from options A and D; the other variants emit the same code.
+- Strict `tsc` over the spike output fails on two Metano defects that 4.0.1 already had: a cross-project reference to an `[External]` interface emits `import type` from a subpath the referenced package does not export (#826), and `$runtimeType` assigns a class with a private constructor to `ClassType<T>`'s public `ctor` (#827). Bun erases the type import, so the bundle works.
 - The spike's `Part.AttachTo(HTMLElement)` is DOM-bound. The real layering puts a platform-neutral renderer port under the DSL (see "Layering").
 
 ## Inputs

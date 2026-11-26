@@ -31,7 +31,7 @@
     "spikes/dsl-web": {
       "name": "metanui-spike-dsl-web",
       "dependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.2",
         "metanui-reactive": "workspace:*",
         "metanui-spike-dsl": "workspace:*",
       },
@@ -71,7 +71,7 @@
         "metanui-spike-counter": "^1.0.0",
       },
       "peerDependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.2",
       },
     },
     "tests/js/reactive": {
