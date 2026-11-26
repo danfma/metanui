@@ -157,13 +157,17 @@ public abstract class OwnerNode : ReactiveNode
     /// <summary>
     /// Ends a run: unlinks the dependencies it did not read again. When the run disposed the node
     /// itself, it unlinks all of them and disposes what the run created or registered after the
-    /// disposal, so a disposed node keeps no dependency, child or cleanup.
+    /// disposal, so a disposed node keeps no dependency, child or cleanup. Its flags go back to what
+    /// disposal left, as for a deferred unlink: the dependencies the run read after the disposal
+    /// linked it again, and a flush nested in the run may have marked it pending or dirty through
+    /// them.
     /// </summary>
     internal void PurgeStaleDeps()
     {
         if (IsDisposed)
         {
             DepsTail = null;
+            Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
             DisposeOwned();
         }
 

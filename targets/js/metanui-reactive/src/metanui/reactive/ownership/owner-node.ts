@@ -132,6 +132,7 @@ export abstract class OwnerNode extends ReactiveNode {
   purgeStaleDeps(): void {
     if (this.isDisposed) {
       this.depsTail = null;
+      this.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
       this.disposeOwned();
     }
 
