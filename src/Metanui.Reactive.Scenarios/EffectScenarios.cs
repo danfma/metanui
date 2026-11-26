@@ -51,6 +51,10 @@ public static class EffectScenarios
             CleanupAfterSelfDisposalInApplyRunsWhenApplyEnds
         ),
         new Scenario(
+            "late apply cleanup runs when the apply throws after self-disposal",
+            LateApplyCleanupRunsWhenApplyThrowsAfterSelfDisposal
+        ),
+        new Scenario(
             "effect handle disposed before the first flush never applies",
             EffectHandleDisposedBeforeFirstFlushNeverApplies
         ),
@@ -515,6 +519,42 @@ public static class EffectScenarios
         Reactivity.Flush();
 
         expect.Equal("apply0,late0,apply1,late1,", log, "late cleanup order");
+    }
+
+    private static void LateApplyCleanupRunsWhenApplyThrowsAfterSelfDisposal(IExpect expect)
+    {
+        var log = "";
+        var source = Reactivity.Signal(0);
+
+        Reactivity.ErrorBoundary(
+            () =>
+            {
+                IDisposable handle = null!;
+
+                handle = Reactivity.Effect(
+                    () => source.Value,
+                    (value, previous) =>
+                    {
+                        if (value == 0)
+                        {
+                            return;
+                        }
+
+                        handle.Dispose();
+                        Reactivity.OnCleanup(() => log += "late,");
+
+                        throw new InvalidOperationException("apply failed");
+                    }
+                );
+            },
+            error => log += "boundary:" + error.Message + ","
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal("late,boundary:apply failed,", log, "late cleanup, then the apply error");
     }
 
     private static void EffectHandleDisposedBeforeFirstFlushNeverApplies(IExpect expect)

@@ -1,4 +1,5 @@
 import { throwError, toException, type IDisposable } from "metano-runtime";
+import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { ReactiveFlags } from "../graph/reactive-flags.js";
 import { CleanupEntry } from "../ownership/cleanup-entry.js";
@@ -84,17 +85,35 @@ export abstract class EffectNode extends OwnerNode implements IDisposable {
       }
 
       Tracking.activeApply = this;
-      this.apply();
-      Tracking.activeApply = previousApply;
+      try {
+        this.apply();
+      } catch (_err) {
+        this.endApply(previousApply);
+        throw _err;
+      }
+      const lateCleanupError = this.endApply(previousApply);
 
-      if (this.isDisposed) {
-        this.runApplyCleanups();
+      if (lateCleanupError != null) {
+        throw lateCleanupError;
       }
     } finally {
       Tracking.activeObserver = previousObserver;
       Tracking.currentOwner = previousOwner;
       Tracking.activeApply = previousApply;
     }
+  }
+
+  private endApply(previousApply: EffectNode | null): Exception | null {
+    Tracking.activeApply = previousApply;
+
+    if (!this.isDisposed) {
+      return null;
+    }
+
+    const lateCleanups = this._applyCleanups;
+    this._applyCleanups = null;
+
+    return Teardown.runChain(lateCleanups);
   }
 
   /** @internal */
