@@ -62,9 +62,9 @@ internal static class Teardown
     }
 
     /// <summary>
-    /// Forgets the error kept since the last rethrow. Used when a flush stops at the pass limit: that
-    /// error is what the flush reports, and an older cleanup error must not surface in a later,
-    /// unrelated flush.
+    /// Forgets the error kept since the last rethrow, whenever it was raised (during the flush or
+    /// before it). Used when a flush stops at the pass limit: the pass-limit error is what the flush
+    /// reports, and the cleanup error must not surface in a later, unrelated flush.
     /// </summary>
     public static void DiscardFirstError() => _firstError = null;
 

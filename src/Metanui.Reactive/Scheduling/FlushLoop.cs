@@ -215,7 +215,7 @@ internal static class FlushLoop
     /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// More than <see cref="MaxPasses" /> passes were needed; the pending writes and retries are
-    /// discarded, and so is the first cleanup error raised during the flush.
+    /// discarded, and so is the deferred cleanup error, even one raised before the flush started.
     /// </exception>
     public static void Run() => RunWithBudget(0);
 
