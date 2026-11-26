@@ -1,5 +1,10 @@
 {
   "name": "metanui-workspace",
   "private": true,
-  "workspaces": ["targets/js/*", "tests/js/*", "bench/*"]
+  "workspaces": [
+    "targets/js/*",
+    "tests/js/*",
+    "bench/*",
+    "spikes/counter-web"
+  ]
 }

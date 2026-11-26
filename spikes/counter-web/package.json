@@ -1,0 +1,14 @@
+{
+  "name": "metanui-spike-counter-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./main.ts --target=browser --conditions=bun --outdir=dist",
+    "dev": "bun run build && bun ./index.html"
+  },
+  "dependencies": {
+    "metano-runtime": "^4.0.0",
+    "metanui-reactive": "workspace:*",
+    "metanui-spike-counter": "workspace:*"
+  }
+}

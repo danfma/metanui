@@ -87,6 +87,35 @@ Criteria for the comparison:
 - what Metano emits for each form (closures in hot paths are a Metano issue);
 - the js-framework-benchmark operations.
 
+## Spike: counter (2026-11-26)
+
+Throwaway prototype on branch `spike/dsl-counter`: `spikes/Metanui.Spike.Counter` (C#, transpiled by Metano 4.0.0) and `spikes/counter-web` (Bun host). A counter with a derived value, written as:
+
+```csharp
+var count = Reactivity.Signal(0);
+var doubled = Reactivity.Computed(() => count.Value * 2);
+
+return Html.Element(
+    "div",
+    Html.Element("h1", Html.Text(() => $"Count: {count.Value}")),
+    Html.Element("p", Html.Text(() => $"Doubled: {doubled.Value}")),
+    Html.Button("-1", () => count.Value--),
+    Html.Button("+1", () => count.Value++)
+);
+```
+
+`Html` creates each DOM node once; only the parts passed as `Func<T>` get an effect that writes the node in the apply phase. Verified in Chrome: renders, `+1` x3 then `-1` gives 3/6 then 2/4, no console error.
+
+What it taught:
+
+- **DOM interop works with `[External]` interfaces** (`Node`, `Text`, `HTMLElement`, `Document`) and an `[External, NoContainer]` static class for the globals (`document`, `queueMicrotask`). The emitted TS uses the lib.dom names directly, with no import and no wrapper; strict tsc with `lib: DOM` is clean. Hand-writing these shapes does not scale (see "Element API" above).
+- **Reactive reads as `Func<T>` read well and cost one effect per binding.** An overload pair `Text(string)` / `Text(Func<string>)` becomes the fast paths `textString` / `textFuncOfString`, and call sites bind to them directly, with no dispatcher.
+- **`int` arithmetic is emitted with .NET semantics:** `count.Value++` becomes `(count.value + 1) | 0` and `* 2` becomes `Math.imul`. Correct, but a cost on numeric hot paths; the DSL should not push users to `int` math in bindings by accident.
+- **`[ModuleEntryPoint]` needs `[NoContainer]`**, and the generated package declares `sideEffects: false`, so a bundler may drop top-level code. The host calls `CounterApp.Main()` explicitly instead.
+- **Web packaging gap:** the generated packages export TS sources only under the `bun` condition (`dist` is not built). Bun's HTML dev server bundles for the browser without that condition, so the spike bundles with `bun build --conditions=bun`. A real web target needs a `dist` build or an explicit condition in the app bundler.
+- **Size:** the bundle is 31.8 KB minified, 8.2 KB gzipped. Most of it is metano-runtime: ten exception classes, equality, the default comparer, reflection and the disposable helper, pulled in by the reactive core (comparers, `InvalidOperationException`, `IDisposable`). Worth a pass before a js-framework-benchmark comparison.
+- **Scheduler:** the web adapter is a three-line `IFlushScheduler` over `queueMicrotask`, in C#. The first apply of a binding needs a flush, so mounting relies on the scheduler; with the manual scheduler nothing would paint.
+
 ## Inputs
 
 - Spec: [0001-reactive-core.md](0001-reactive-core.md), especially 5.3 (hot path), 5.4 (async room) and 6.1 (binding options).

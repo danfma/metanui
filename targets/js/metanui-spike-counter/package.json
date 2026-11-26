@@ -1,0 +1,25 @@
+{
+  "name": "metanui-spike-counter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/spike/counter": {
+      "bun": "./src/metanui/spike/counter/index.ts",
+      "types": "./dist/metanui/spike/counter/index.d.ts",
+      "import": "./dist/metanui/spike/counter/index.js"
+    },
+    "./metanui/spike/counter/ui": {
+      "bun": "./src/metanui/spike/counter/ui/index.ts",
+      "types": "./dist/metanui/spike/counter/ui/index.d.ts",
+      "import": "./dist/metanui/spike/counter/ui/index.js"
+    }
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0"
+  },
+  "peerDependencies": {
+    "metano-runtime": "^4.0.0"
+  }
+}

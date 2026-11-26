@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Throwaway spike for docs/design/0002-dsl-binding.md: a counter written in a minimal C# DSL,
+       transpiled to TS and rendered to the DOM. Not product code. -->
+  <PropertyGroup>
+    <RootNamespace>Metanui.Spike.Counter</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-spike-counter/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Metanui.Reactive/Metanui.Reactive.csproj" />
+  </ItemGroup>
+</Project>
