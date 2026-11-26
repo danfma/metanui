@@ -567,3 +567,32 @@ last.Message == …` (an `Exception?` local) and `error is not null && error.Mes
 `!(last == null) && last!.message`. The same test on an `Exception?` parameter emits no `!`. The
 behaviour is correct; the `!` is noise, probably from the #775 fix.
 
+
+## 10. Metano 3.3.0 re-check
+
+Toolchain: Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript and metano-runtime 3.3.0; `tsc --strict`
+on both packages.
+
+- `dotnet build`: 0 warnings, 0 errors, with no `NoWarn` left. `tsc --strict`: 0 diagnostics.
+- **#799 (fixed).** `[Name("void")]` on `Reactivity.Root(Action<Action>)` replaces its overload suffix and
+  silences MS0063. The TS surface is `rootBody<T>` (the value-returning overload; 3.3.0 builds suffixes
+  from parameter names, so it is no longer `rootFuncOfActionT`), `rootVoid`, and `root<T>`, a typed
+  forwarder to `rootBody` instead of a rest-args dispatcher. `root-dispatch.test.ts` still passes.
+- **#800 (fixed).** `EffectNode : IDisposable` emits `implements IDisposable` with the type imported from
+  metano-runtime; the explicit `void IDisposable.Dispose() => Dispose();` forwarder emits nothing, and the
+  inherited `dispose()` satisfies the interface. `Reactivity.effect` returns `IDisposable`.
+- **#794 and #796 (fixed).** `Missing<T>` and the explicit `Link?` local are gone. `null!` is emitted as
+  `null!`, and `var current = link;` followed by a null assignment emits `let current: Link | null = link;`,
+  the same TS as the workaround.
+- **#798 (fixed; the remaining `!` is by design).** `x is not null && x.Message == …` now emits
+  `x != null && x!.message` at three sites in `error-scenarios.ts`. The locals there are reassigned
+  inside a lambda, and TS control flow ignores assignments made in closures (a narrowed
+  `let last: Error | null = null` becomes `never`), so Metano keeps the `!` for closure-assigned locals
+  (Metano decision W10-3b). Harmless noise; behaviour is correct.
+- **#795.** Class fields are emitted as `declare` fields with one store each in the constructor.
+- **New: #818.** A consumer project is not transpiled again when only a referenced project changes
+  (the stamp check lists no reference assemblies). Pinning `[Name("void")]` left the scenarios package
+  calling `rootFuncOfActionT` until one of its `.cs` files was touched. Same workaround as #797.
+- **New: #819.** Internal classes emit no `$runtimeType`, so the effect handle (an internal `SplitEffect`)
+  inherits `OwnerNode`'s descriptor (`interfaces: []`) and `IDisposable$runtimeType.test(handle)` is
+  false; the inherited `OwnerNode.dispose` that satisfies `IDisposable` is emitted with `@internal`.
