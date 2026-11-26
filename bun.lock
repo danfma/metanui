@@ -8,7 +8,7 @@
     "bench/micro": {
       "name": "metanui-bench-micro",
       "dependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.1",
       },
     },
     "bench/reactivity": {
@@ -16,7 +16,7 @@
       "dependencies": {
         "@solidjs/signals": "2.0.4",
         "alien-signals": "3.2.1",
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.1",
         "metanui-reactive": "workspace:*",
       },
     },
@@ -32,7 +32,7 @@
       "name": "metanui-reactive",
       "version": "1.0.0",
       "peerDependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.1",
       },
     },
     "targets/js/metanui-reactive-scenarios": {
@@ -42,7 +42,7 @@
         "metanui-reactive": "^1.0.0",
       },
       "peerDependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.1",
       },
     },
     "targets/js/metanui-spike-counter": {
@@ -52,13 +52,13 @@
         "metanui-reactive": "^1.0.0",
       },
       "peerDependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.1",
       },
     },
     "tests/js/reactive": {
       "name": "metanui-reactive-tests",
       "dependencies": {
-        "metano-runtime": "^4.0.0",
+        "metano-runtime": "^4.0.1",
         "metanui-reactive": "workspace:*",
         "metanui-reactive-scenarios": "workspace:*",
       },
@@ -75,7 +75,7 @@
 
     "jsbi": ["jsbi@4.3.2", "", {}, "sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew=="],
 
-    "metano-runtime": ["metano-runtime@4.0.0", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-A0198dUQ37tLd6aN5a4H3H44En0p8JSDC5fFbhXD+gEaRppzl4SVmb6kb/lGKxmypZxNIFzCIIETA+BMFVuqGg=="],
+    "metano-runtime": ["metano-runtime@4.0.1", "", { "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" } }, "sha512-1h63r/yOHvEb/qL+hWhEJ1JZX0m4BTgMyEfjywBjTXCuiSD59aSKspwO72fhVlcD+oS3ezaxSLdpaWP+B5RUfA=="],
 
     "metanui-bench-micro": ["metanui-bench-micro@workspace:bench/micro"],
 

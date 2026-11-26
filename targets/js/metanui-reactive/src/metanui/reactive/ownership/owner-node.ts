@@ -86,6 +86,7 @@ export abstract class OwnerNode extends ReactiveNode {
     this.cleanups = new CleanupEntry(cleanup, this.cleanups);
   }
 
+  /** @internal */
   dispose(): void {
     if (this.isDisposed) {
       return;
