@@ -159,6 +159,18 @@ public static class ErrorScenarios
             FlushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary
         ),
         new Scenario(
+            "flush called in a boundary body keeps a deferred cleanup error from the boundary",
+            FlushInBoundaryBodyKeepsCleanupErrorFromTheBoundary
+        ),
+        new Scenario(
+            "flush called in a computed keeps a deferred cleanup error out of its cached error",
+            FlushInComputedKeepsCleanupErrorOutOfItsCachedError
+        ),
+        new Scenario(
+            "flush called in an effect's first compute keeps a deferred cleanup error from the boundary",
+            FlushInEffectFirstComputeKeepsCleanupErrorFromTheBoundary
+        ),
+        new Scenario(
             "write from a cleanup during disposal is allowed",
             WriteFromCleanupDuringDisposalIsAllowed
         ),
@@ -1822,6 +1834,93 @@ public static class ErrorScenarios
         var next = ScenarioRunner.Catch(Reactivity.Flush);
 
         expect.Equal("", outerErrors, "the outer boundary receives no cleanup error");
+
+        expect.IsTrue(
+            next is not null && next.Message == "cleanup failed",
+            "the next flush rethrows the cleanup error"
+        );
+    }
+
+    /// <summary>
+    /// The disposer called in a boundary body defers its cleanup error, since the boundary would catch
+    /// it (spec 4.5). A <see cref="Reactivity.Flush" /> the body then calls must keep it deferred: the
+    /// end of that flush must not rethrow it into the body, where the boundary would handle it.
+    /// </summary>
+    private static void FlushInBoundaryBodyKeepsCleanupErrorFromTheBoundary(IExpect expect)
+    {
+        var handled = "";
+        var disposeOther = RootWithThrowingCleanup();
+
+        Reactivity.ErrorBoundary(
+            () =>
+            {
+                disposeOther();
+                Reactivity.Flush();
+            },
+            error => handled += error.Message + ","
+        );
+
+        ExpectCleanupErrorLeftToTheNextFlush(expect, handled);
+    }
+
+    /// <summary>The variant of <see cref="FlushInBoundaryBodyKeepsCleanupErrorFromTheBoundary" /> in a computed, which would cache the error.</summary>
+    private static void FlushInComputedKeepsCleanupErrorOutOfItsCachedError(IExpect expect)
+    {
+        var disposeOther = RootWithThrowingCleanup();
+
+        var computed = Reactivity.Computed(() =>
+        {
+            disposeOther();
+            Reactivity.Flush();
+
+            return 1;
+        });
+
+        var read = ScenarioRunner.Catch(() => _ = computed.Peek());
+
+        expect.IsTrue(read is null, "the computed does not cache the cleanup error");
+
+        ExpectCleanupErrorLeftToTheNextFlush(expect, "");
+    }
+
+    /// <summary>The variant of <see cref="FlushInBoundaryBodyKeepsCleanupErrorFromTheBoundary" /> in the first compute of an effect under a boundary.</summary>
+    private static void FlushInEffectFirstComputeKeepsCleanupErrorFromTheBoundary(IExpect expect)
+    {
+        var handled = "";
+        var disposeOther = RootWithThrowingCleanup();
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.Effect(
+                    () =>
+                    {
+                        disposeOther();
+                        Reactivity.Flush();
+
+                        return 1;
+                    },
+                    (value, previous) => { }
+                ),
+            error => handled += error.Message + ","
+        );
+
+        ExpectCleanupErrorLeftToTheNextFlush(expect, handled);
+    }
+
+    /// <summary>A root whose only cleanup throws <c>cleanup failed</c>; returns its disposer.</summary>
+    private static Action RootWithThrowingCleanup() =>
+        Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.OnCleanup(() => throw new InvalidOperationException("cleanup failed"));
+
+            return disposeRoot;
+        });
+
+    private static void ExpectCleanupErrorLeftToTheNextFlush(IExpect expect, string handled)
+    {
+        var next = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.Equal("", handled, "no error handler receives the cleanup error");
 
         expect.IsTrue(
             next is not null && next.Message == "cleanup failed",
