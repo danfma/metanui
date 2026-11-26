@@ -184,7 +184,7 @@ public static class FlushScenarios
 
     private static void UsingNullSchedulerThrows(IExpect expect)
     {
-        var error = ScenarioRunner.Catch(() => Reactivity.UseScheduler(Missing<IFlushScheduler>()));
+        var error = ScenarioRunner.Catch(() => Reactivity.UseScheduler(null!));
 
         expect.IsTrue(error is ArgumentNullException, "a null scheduler is rejected");
     }
@@ -203,11 +203,6 @@ public static class FlushScenarios
 
         expect.IsTrue(restored, "the outer scheduler is in use after the nested run");
     }
-
-    // Metano #794: `null!`/`default!` of a non-generic reference type loses its `!` (emitted as `null`,
-    // which strict tsc rejects); for a type parameter it is kept (`null!`).
-    private static T Missing<T>()
-        where T : class => default!;
 
     private static void WithScheduler(IFlushScheduler scheduler, Action action)
     {

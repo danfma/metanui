@@ -365,9 +365,7 @@ internal static class DependencyGraph
     /// <summary>Turns the pending subscribers of <paramref name="link" />'s list dirty, without going deeper.</summary>
     public static void ShallowPropagate(Link link)
     {
-        // Metano #796: a `var` local keeps the type of its non-null initializer in TS and rejects
-        // the later null assignment (TS2322), so the nullable type is spelled out.
-        Link? current = link;
+        var current = link;
 
         do
         {
