@@ -85,8 +85,8 @@ public static class OwnershipScenarios
             PendingComputedDisposedDuringAnObserversCheckKeepsItsLastValue
         ),
         new Scenario(
-            "effect disposed during its dirty check stops at the dependency that disposed it",
-            EffectDisposedDuringItsCheckStopsAtTheDisposingDependency
+            "effect disposed during its dirty check fails nothing and leaves its dependencies unlinked",
+            EffectDisposedDuringItsCheckLeavesItsDependenciesUnlinked
         ),
         new Scenario(
             "effect disposed during a multi-level dirty check leaves no computed linked",
@@ -793,10 +793,11 @@ public static class OwnershipScenarios
 
     /// <summary>
     /// An effect reads <c>first</c>, then <c>second</c>, which only it reads. The update of
-    /// <c>first</c> (equal result) disposes the effect, so the dirty check must not go on to
-    /// <c>second</c> through a link the disposal removed, and <c>second</c> ends unlinked.
+    /// <c>first</c> (equal result) disposes the effect. The disposal keeps the effect's links until
+    /// the check ends, so the check goes on to <c>second</c> through a live link and updates it once,
+    /// then the effect's links go and <c>second</c> ends unlinked: a later write does not run it.
     /// </summary>
-    private static void EffectDisposedDuringItsCheckStopsAtTheDisposingDependency(IExpect expect)
+    private static void EffectDisposedDuringItsCheckLeavesItsDependenciesUnlinked(IExpect expect)
     {
         var secondRuns = 0;
         var applies = 0;
