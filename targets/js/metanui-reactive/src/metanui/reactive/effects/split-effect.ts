@@ -1,16 +1,19 @@
 import { EffectNode } from "./effect-node.js";
 
 export class SplitEffect<T> extends EffectNode {
-  private _compute: (() => T) | null;
-  private _apply: ((arg1: T, arg2: T) => void) | null;
-  private _value: T = null!;
-  private _applied: T = null!;
-  private _hasApplied: boolean = false;
+  declare private _compute: (() => T) | null;
+  declare private _apply: ((arg1: T, arg2: T) => void) | null;
+  declare private _value: T;
+  declare private _applied: T;
+  declare private _hasApplied: boolean;
 
   constructor(compute: () => T, apply: (arg1: T, arg2: T) => void) {
     super();
     this._compute = compute;
     this._apply = apply;
+    this._value = null!;
+    this._applied = null!;
+    this._hasApplied = false;
   }
 
   protected override compute(): void {

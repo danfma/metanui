@@ -8,7 +8,7 @@ import { Scenario } from "./scenario.js";
 export class ComputedScenarios {
   static readonly all: Scenario[] = [new Scenario("computed is lazy", ComputedScenarios.isLazy), new Scenario("computed is cached", ComputedScenarios.isCached), new Scenario("computed recomputes after flush", ComputedScenarios.recomputesAfterFlush), new Scenario("diamond is glitch-free", ComputedScenarios.diamondIsGlitchFree), new Scenario("equal result stops propagation", ComputedScenarios.equalResultStopsPropagation), new Scenario("dynamic dependency is dropped", ComputedScenarios.dynamicDependencyIsDropped), new Scenario("write inside compute throws", ComputedScenarios.writeInsideComputeThrows), new Scenario("nested dirty check walks branching dependencies", ComputedScenarios.nestedDirtyCheck)];
 
-  constructor() { }
+  private constructor() { }
 
   private static isLazy(expect: IExpect): void {
     let runs = 0;

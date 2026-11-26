@@ -6,10 +6,11 @@ let SignalNode$rt: ClassType<SignalNode> | undefined;
 
 export abstract class SignalNode extends ReactiveNode {
   /** @internal */
-  nextPending: SignalNode | null = null;
+  declare nextPending: SignalNode | null;
 
   constructor() {
     super();
+    this.nextPending = null;
   }
 
   static override get $runtimeType(): ClassType<SignalNode> {

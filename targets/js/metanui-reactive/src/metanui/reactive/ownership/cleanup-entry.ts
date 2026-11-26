@@ -1,6 +1,6 @@
 export class CleanupEntry {
-  readonly cleanup: () => void;
-  readonly next: CleanupEntry | null;
+  declare readonly cleanup: () => void;
+  declare readonly next: CleanupEntry | null;
 
   constructor(cleanup: () => void, next: CleanupEntry | null) {
     this.cleanup = cleanup;

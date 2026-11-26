@@ -9,7 +9,7 @@ import { Tracking } from "./tracking.js";
 import type { IEqualityComparer } from "metano-runtime/system/collections";
 
 export class Reactivity {
-  constructor() { }
+  private constructor() { }
 
   static get scheduler(): IFlushScheduler {
     return FlushLoop.scheduler;
@@ -47,13 +47,8 @@ export class Reactivity {
     });
   }
 
-  static root<T>(body: (arg: () => void) => T): T;
-  static root(...args: unknown[]): any {
-    if (args.length === 1 && typeof args[0] === "function") {
-      return Reactivity.rootFuncOfActionT(args[0] as any);
-    }
-
-    throw new Error("No matching overload for root");
+  static root<T>(body: (arg: () => void) => T): T {
+    return Reactivity.rootFuncOfActionT<T>(body);
   }
 
   static errorBoundary(body: () => void, onError: (obj: Exception) => void): void {
@@ -63,7 +58,7 @@ export class Reactivity {
   static onCleanup(cleanup: () => void): void {
     const owner = Tracking.currentOwner;
 
-    if (!(owner == null)) {
+    if (owner != null) {
       owner.addCleanup(cleanup);
     } else {
       Tracking.activeApply?.addApplyCleanup(cleanup);

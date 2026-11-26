@@ -4,8 +4,6 @@ import type { IExpect } from "./i-expect.js";
 import { Scenario } from "./scenario.js";
 
 class SignalScenarios$CaseInsensitiveComparer {
-  constructor() { }
-
   equals(x: string | null, y: string | null): boolean {
     return (x?.toLowerCase() ?? null) === (y?.toLowerCase() ?? null);
   }
@@ -16,7 +14,13 @@ class SignalScenarios$CaseInsensitiveComparer {
 }
 
 class SignalScenarios$Point {
-  constructor(readonly x: number, readonly y: number) { }
+  declare readonly x: number;
+  declare readonly y: number;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
 
   equals(other: any): boolean {
     return other != null && Object.getPrototypeOf(other) === Object.getPrototypeOf(this) && this.x === other.x && this.y === other.y;
@@ -42,7 +46,7 @@ class SignalScenarios$Point {
 export class SignalScenarios {
   static readonly all: Scenario[] = [new Scenario("signal reads its initial value", SignalScenarios.readsInitialValue), new Scenario("write is invisible until flush", SignalScenarios.writeIsInvisibleUntilFlush), new Scenario("last write wins", SignalScenarios.lastWriteWins), new Scenario("flush without writes is a no-op", SignalScenarios.flushWithoutWritesIsNoOp), new Scenario("custom comparer is used", SignalScenarios.customComparerIsUsed)];
 
-  constructor() { }
+  private constructor() { }
 
   private static readsInitialValue(expect: IExpect): void {
     expect.equal(42, Reactivity.signal(42).value, "initial value");

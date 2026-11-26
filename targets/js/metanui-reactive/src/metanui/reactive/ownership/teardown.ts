@@ -6,7 +6,7 @@ export class Teardown {
   static depth: number = 0;
   private static _firstError: Exception | null = null;
 
-  constructor() { }
+  private constructor() { }
 
   static run(entry: CleanupEntry | null): void {
     Teardown.depth = (Teardown.depth + 1) | 0;
@@ -17,7 +17,7 @@ export class Teardown {
 
   static runChain(entry: CleanupEntry | null): Exception | null {
     let firstError = null as Exception | null;
-    while (!(entry == null)) {
+    while (entry != null) {
       const error = Teardown.runOne(entry.cleanup);
       firstError ??= error;
       entry = entry.next;
@@ -47,8 +47,7 @@ export class Teardown {
 
       return null;
     } catch (e$) {
-      const e0 = toException(e$);
-      const error = e0;
+      const error = toException(e$);
 
       return error;
     }

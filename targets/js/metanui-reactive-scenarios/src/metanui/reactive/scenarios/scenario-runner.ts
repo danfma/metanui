@@ -5,7 +5,7 @@ import type { IExpect } from "./i-expect.js";
 import type { Scenario } from "./scenario.js";
 
 export class ScenarioRunner {
-  constructor() { }
+  private constructor() { }
 
   static run(scenario: Scenario, expect: IExpect): void {
     const outerScheduler = Reactivity.scheduler;
@@ -23,8 +23,7 @@ export class ScenarioRunner {
 
       return null;
     } catch (e$) {
-      const e0 = toException(e$);
-      const exception = e0;
+      const exception = toException(e$);
 
       return exception;
     }

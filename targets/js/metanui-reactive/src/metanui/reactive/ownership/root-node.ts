@@ -8,19 +8,21 @@ import { OwnerNode } from "./owner-node.js";
 
 export class RootNode extends OwnerNode {
   /** @internal */
-  readonly underComputation: boolean = false;
+  declare readonly underComputation: boolean;
 
-  private readonly _errorHandler: ((obj: Exception) => void) | null = null;
+  declare private readonly _errorHandler: ((obj: Exception) => void) | null;
 
   constructor(errorHandler: ((obj: Exception) => void) | null = null) {
     super();
+    this.underComputation = false;
+    this._errorHandler = null;
     this.underComputation = RootNode.isUnderComputation(this.parent);
     this._errorHandler = errorHandler;
   }
 
   /** @internal */
   override get catchesErrors(): boolean {
-    return !(this._errorHandler == null);
+    return this._errorHandler != null;
   }
 
   /** @internal */
@@ -40,7 +42,7 @@ export class RootNode extends OwnerNode {
   runBoundary(body: () => void): void {
     const failure = this.runBoundaryBody(body);
 
-    if (!(failure == null)) {
+    if (failure != null) {
       this.handleError(failure);
     }
   }
@@ -55,8 +57,7 @@ export class RootNode extends OwnerNode {
 
       return null;
     } catch (e$) {
-      const e0 = toException(e$);
-      const error = e0;
+      const error = toException(e$);
 
       return error;
     } finally {
@@ -102,8 +103,7 @@ export class RootNode extends OwnerNode {
     try {
       this._errorHandler!(error);
     } catch (e$) {
-      const e0 = toException(e$);
-      const handlerError = e0;
+      const handlerError = toException(e$);
 
       if (!RootNode.tryRouteError(this.parent, handlerError)) {
         throw e$;
@@ -118,10 +118,10 @@ export class RootNode extends OwnerNode {
 
   /** @internal */
   static tryRouteError(owner: OwnerNode | null, error: Exception): boolean {
-    while (!(owner == null)) {
+    while (owner != null) {
       let root: RootNode;
 
-      if (owner instanceof RootNode && (root = owner, true) && !(root._errorHandler == null)) {
+      if (owner instanceof RootNode && (root = owner, true) && root._errorHandler != null) {
         root.handleError(error);
 
         return true;
@@ -136,6 +136,6 @@ export class RootNode extends OwnerNode {
   private static isUnderComputation(parent: OwnerNode | null): boolean {
     let root: RootNode;
 
-    return !(parent == null) && (!(parent instanceof RootNode && (root = parent, true)) || root.underComputation);
+    return parent != null && (!(parent instanceof RootNode && (root = parent, true)) || root.underComputation);
   }
 }

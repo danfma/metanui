@@ -8,7 +8,13 @@ import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
 class EffectScenarios$Point {
-  constructor(readonly x: number, readonly y: number) { }
+  declare readonly x: number;
+  declare readonly y: number;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
 
   equals(other: any): boolean {
     return other != null && Object.getPrototypeOf(other) === Object.getPrototypeOf(this) && this.x === other.x && this.y === other.y;
@@ -34,7 +40,7 @@ class EffectScenarios$Point {
 export class EffectScenarios {
   static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun), new Scenario("effect created in a compute applies before its parent", EffectScenarios.childEffectAppliesBeforeItsParent)];
 
-  constructor() { }
+  private constructor() { }
 
   private static computeRunsOnCreationApplyOnFlush(expect: IExpect): void {
     let computes = 0;
@@ -92,15 +98,15 @@ export class EffectScenarios {
     let log = "";
     const count = Reactivity.signal(0);
     Reactivity.effect(() => {
-      log = (log ?? "") + "c1,";
+      log += "c1,";
 
       return count.value;
-    }, (value: number, previous: number) => log = (log ?? "") + "a1,");
+    }, (value: number, previous: number) => log += "a1,");
     Reactivity.effect(() => {
-      log = (log ?? "") + "c2,";
+      log += "c2,";
 
       return count.value;
-    }, (value: number, previous: number) => log = (log ?? "") + "a2,");
+    }, (value: number, previous: number) => log += "a2,");
     Reactivity.flush();
     log = "";
     count.value = 1;
@@ -132,8 +138,8 @@ export class EffectScenarios {
     let log = "";
     const count = Reactivity.signal(1);
     Reactivity.effect(() => count.value, (value: number, previous: number) => {
-      log = (log ?? "") + ("apply" + value + ",");
-      Reactivity.onCleanup(() => log = (log ?? "") + ("cleanup" + value + ","));
+      log += "apply" + value + ",";
+      Reactivity.onCleanup(() => log += "cleanup" + value + ",");
     });
     Reactivity.flush();
     count.value = 2;
@@ -165,12 +171,12 @@ export class EffectScenarios {
     const count = Reactivity.signal(1);
     const nested = Reactivity.computed(() => {
       const value = count.value;
-      Reactivity.onCleanup(() => log = (log ?? "") + ("computed-cleanup" + value + ","));
+      Reactivity.onCleanup(() => log += "computed-cleanup" + value + ",");
 
       return value;
     });
     Reactivity.effect(() => count.value, (value: number, previous: number) => {
-      log = (log ?? "") + ("apply" + value + ",");
+      log += "apply" + value + ",";
       const read = nested.value;
     });
     Reactivity.flush();
@@ -217,10 +223,10 @@ export class EffectScenarios {
   private static childEffectAppliesBeforeItsParent(expect: IExpect): void {
     let log = "";
     Reactivity.effect(() => {
-      Reactivity.effect(() => 0, (value: number, previous: number) => log = (log ?? "") + "child,");
+      Reactivity.effect(() => 0, (value: number, previous: number) => log += "child,");
 
       return 0;
-    }, (value: number, previous: number) => log = (log ?? "") + "parent,");
+    }, (value: number, previous: number) => log += "parent,");
     Reactivity.flush();
     expect.equal("child,parent,", log, "apply order");
   }
