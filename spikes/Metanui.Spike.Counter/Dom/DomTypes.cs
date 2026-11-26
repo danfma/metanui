@@ -22,6 +22,8 @@ public interface HTMLElement : Node
 {
     string TextContent { get; set; }
 
+    string ClassName { get; set; }
+
     void AddEventListener(string type, Action listener);
 }
 

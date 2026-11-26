@@ -28,6 +28,14 @@
         "metanui-spike-counter": "workspace:*",
       },
     },
+    "spikes/dsl-web": {
+      "name": "metanui-spike-dsl-web",
+      "dependencies": {
+        "metano-runtime": "^4.0.0",
+        "metanui-reactive": "workspace:*",
+        "metanui-spike-dsl": "workspace:*",
+      },
+    },
     "targets/js/metanui-reactive": {
       "name": "metanui-reactive",
       "version": "1.0.0",
@@ -53,6 +61,17 @@
       },
       "peerDependencies": {
         "metano-runtime": "^4.0.3",
+      },
+    },
+    "targets/js/metanui-spike-dsl": {
+      "name": "metanui-spike-dsl",
+      "version": "1.0.0",
+      "dependencies": {
+        "metanui-reactive": "^1.0.0",
+        "metanui-spike-counter": "^1.0.0",
+      },
+      "peerDependencies": {
+        "metano-runtime": "^4.0.0",
       },
     },
     "tests/js/reactive": {
@@ -90,5 +109,9 @@
     "metanui-spike-counter": ["metanui-spike-counter@workspace:targets/js/metanui-spike-counter"],
 
     "metanui-spike-counter-web": ["metanui-spike-counter-web@workspace:spikes/counter-web"],
+
+    "metanui-spike-dsl": ["metanui-spike-dsl@workspace:targets/js/metanui-spike-dsl"],
+
+    "metanui-spike-dsl-web": ["metanui-spike-dsl-web@workspace:spikes/dsl-web"],
   }
 }

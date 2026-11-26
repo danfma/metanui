@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Throwaway spike for docs/design/0002-dsl-binding.md: the same small app written in five DSL
+       shapes (A record props, C attribute list, D collection initializer, E fluent, F grouped Bind). -->
+  <PropertyGroup>
+    <RootNamespace>Metanui.Spike.Dsl</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-spike-dsl/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Metanui.Reactive/Metanui.Reactive.csproj" />
+    <ProjectReference Include="../Metanui.Spike.Counter/Metanui.Spike.Counter.csproj" />
+  </ItemGroup>
+</Project>

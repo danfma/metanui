@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/spikes/">
     <Project Path="spikes/Metanui.Spike.Counter/Metanui.Spike.Counter.csproj" />
+    <Project Path="spikes/Metanui.Spike.Dsl/Metanui.Spike.Dsl.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Metanui.Reactive.Tests/Metanui.Reactive.Tests.csproj" />

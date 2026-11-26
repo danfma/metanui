@@ -1,0 +1,36 @@
+{
+  "name": "metanui-spike-dsl",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/spike/dsl/core": {
+      "bun": "./src/metanui/spike/dsl/core/index.ts",
+      "types": "./dist/metanui/spike/dsl/core/index.d.ts",
+      "import": "./dist/metanui/spike/dsl/core/index.js"
+    },
+    "./metanui/spike/dsl": {
+      "bun": "./src/metanui/spike/dsl/index.ts",
+      "types": "./dist/metanui/spike/dsl/index.d.ts",
+      "import": "./dist/metanui/spike/dsl/index.js"
+    },
+    "./metanui/spike/dsl/variants": {
+      "bun": "./src/metanui/spike/dsl/variants/index.ts",
+      "types": "./dist/metanui/spike/dsl/variants/index.d.ts",
+      "import": "./dist/metanui/spike/dsl/variants/index.js"
+    },
+    "./metanui/spike/dsl/variants/initializers": {
+      "bun": "./src/metanui/spike/dsl/variants/initializers/index.ts",
+      "types": "./dist/metanui/spike/dsl/variants/initializers/index.d.ts",
+      "import": "./dist/metanui/spike/dsl/variants/initializers/index.js"
+    }
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0",
+    "metanui-spike-counter": "^1.0.0"
+  },
+  "peerDependencies": {
+    "metano-runtime": "^4.0.0"
+  }
+}
