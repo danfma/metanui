@@ -117,7 +117,7 @@ export abstract class OwnerNode extends ReactiveNode {
   /** @internal */
   unlinkDependenciesOnDisposal(): void {
     if (Tracking.dirtyCheckDepth === 0) {
-      DependencyGraph.purgeDeps(this);
+      this.unlinkAllDependenciesOfDisposed();
 
       return;
     }
@@ -142,13 +142,14 @@ export abstract class OwnerNode extends ReactiveNode {
 
   /** @internal */
   purgeStaleDeps(): void {
-    if (this.isDisposed) {
-      this.depsTail = null;
-      this.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
-      this.disposeOwned();
+    if (!this.isDisposed) {
+      DependencyGraph.purgeDeps(this);
+
+      return;
     }
 
-    DependencyGraph.purgeDeps(this);
+    this.unlinkAllDependenciesOfDisposed();
+    this.disposeOwned();
   }
 
   private static unlinkDeferredDependencies(): void {
@@ -156,9 +157,7 @@ export abstract class OwnerNode extends ReactiveNode {
       const node = OwnerNode._deferredUnlinks;
       OwnerNode._deferredUnlinks = node.nextDeferredUnlink;
       node.nextDeferredUnlink = null;
-      node.depsTail = null;
-      node.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
-      DependencyGraph.purgeDeps(node);
+      node.unlinkAllDependenciesOfDisposed();
     }
   }
 
@@ -172,6 +171,12 @@ export abstract class OwnerNode extends ReactiveNode {
     }
 
     return false;
+  }
+
+  private unlinkAllDependenciesOfDisposed(): void {
+    this.depsTail = null;
+    DependencyGraph.purgeDeps(this);
+    this.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
   }
 
   private attachTo(parent: OwnerNode): void {

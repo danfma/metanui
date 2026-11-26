@@ -72,7 +72,7 @@ class OwnershipScenarios$LateChildren {
 }
 
 export class OwnershipScenarios {
-  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed), new Scenario("disposed queued effect neither applies nor resubscribes", OwnershipScenarios.disposedQueuedEffectNeitherAppliesNorResubscribes), new Scenario("apply cleanup that disposes its effect skips the apply", OwnershipScenarios.applyCleanupThatDisposesItsEffectSkipsTheApply), new Scenario("compute cleanup that disposes its effect skips the compute", OwnershipScenarios.computeCleanupThatDisposesItsEffectSkipsTheCompute), new Scenario("computed disposed by its own cleanup keeps the value of that run", OwnershipScenarios.computedDisposedByItsOwnCleanupKeepsTheValueOfThatRun), new Scenario("computed disposed during its own run disposes what that run created next", OwnershipScenarios.computedDisposedDuringItsRunDisposesWhatTheRunCreated), new Scenario("effect disposed during its own compute disposes what that compute created next", OwnershipScenarios.effectDisposedDuringItsComputeDisposesWhatTheComputeCreated), new Scenario("computed that loses its last observer unlinks and reruns on the next read", OwnershipScenarios.computedLosingItsLastObserverUnlinksAndRerunsOnTheNextRead), new Scenario("computed without dependencies that loses its last observer disposes what it created", OwnershipScenarios.computedWithoutDepsLosingItsLastObserverDisposesWhatItCreated), new Scenario("root disposed by its own body disposes what the body created next", OwnershipScenarios.rootDisposedByItsBodyDisposesWhatTheBodyCreated), new Scenario("error boundary disposed by its own body disposes what the body created next", OwnershipScenarios.boundaryDisposedByItsBodyDisposesWhatTheBodyCreated), new Scenario("error boundary disposed by its own body disposes what it created before its handler runs", OwnershipScenarios.boundaryDisposedByItsBodyDisposesWhatItCreatedBeforeItsHandler), new Scenario("computed whose last observer is disposed during its run keeps that run", OwnershipScenarios.computedWhoseLastObserverIsDisposedDuringItsRunKeepsThatRun), new Scenario("pending computed disposed during its own dirty check keeps its last value", OwnershipScenarios.pendingComputedDisposedDuringItsCheckKeepsItsLastValue), new Scenario("pending computed disposed during an observer's dirty check keeps its last value", OwnershipScenarios.pendingComputedDisposedDuringAnObserversCheckKeepsItsLastValue), new Scenario("effect disposed during its dirty check fails nothing and leaves its dependencies unlinked", OwnershipScenarios.effectDisposedDuringItsCheckLeavesItsDependenciesUnlinked), new Scenario("effect disposed during a multi-level dirty check leaves no computed linked", OwnershipScenarios.effectDisposedDuringMultiLevelCheckLeavesNoComputedLinked), new Scenario("observer sharing a computed with an effect disposed during its check sees the change", OwnershipScenarios.observerSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange), new Scenario("computed that disposed itself keeps what its run creates until the run ends when unwatched", OwnershipScenarios.selfDisposedComputedUnwatchedMidRunKeepsWhatItsRunCreatesUntilTheRunEnds), new Scenario("computed that disposes itself and flushes during its run reads its last value", OwnershipScenarios.computedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue), new Scenario("computed disposed during a dirty check and marked by a nested flush reads its last value", OwnershipScenarios.computedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue)];
+  static readonly all: Scenario[] = [new Scenario("root dispose runs cleanups in reverse order", OwnershipScenarios.rootDisposeRunsCleanupsInReverse), new Scenario("children are disposed when their owner reruns", OwnershipScenarios.childrenDisposedOnRerun), new Scenario("computed owned by a root is disposed with it", OwnershipScenarios.computedOwnedByRootIsDisposed), new Scenario("untrack does not subscribe", OwnershipScenarios.untrackDoesNotSubscribe), new Scenario("dispose during a flush skips the queued effects", OwnershipScenarios.disposeDuringFlushSkipsQueuedEffects), new Scenario("write inside untrack in a computed throws", OwnershipScenarios.writeInsideUntrackInComputedThrows), new Scenario("write in a root created in a computed throws", OwnershipScenarios.writeInRootInsideComputedThrows), new Scenario("write in a root nested in a root is allowed", OwnershipScenarios.writeInNestedRootIsAllowed), new Scenario("disposed queued effect neither applies nor resubscribes", OwnershipScenarios.disposedQueuedEffectNeitherAppliesNorResubscribes), new Scenario("apply cleanup that disposes its effect skips the apply", OwnershipScenarios.applyCleanupThatDisposesItsEffectSkipsTheApply), new Scenario("compute cleanup that disposes its effect skips the compute", OwnershipScenarios.computeCleanupThatDisposesItsEffectSkipsTheCompute), new Scenario("computed disposed by its own cleanup keeps the value of that run", OwnershipScenarios.computedDisposedByItsOwnCleanupKeepsTheValueOfThatRun), new Scenario("computed disposed during its own run disposes what that run created next", OwnershipScenarios.computedDisposedDuringItsRunDisposesWhatTheRunCreated), new Scenario("effect disposed during its own compute disposes what that compute created next", OwnershipScenarios.effectDisposedDuringItsComputeDisposesWhatTheComputeCreated), new Scenario("computed that loses its last observer unlinks and reruns on the next read", OwnershipScenarios.computedLosingItsLastObserverUnlinksAndRerunsOnTheNextRead), new Scenario("computed without dependencies that loses its last observer disposes what it created", OwnershipScenarios.computedWithoutDepsLosingItsLastObserverDisposesWhatItCreated), new Scenario("root disposed by its own body disposes what the body created next", OwnershipScenarios.rootDisposedByItsBodyDisposesWhatTheBodyCreated), new Scenario("error boundary disposed by its own body disposes what the body created next", OwnershipScenarios.boundaryDisposedByItsBodyDisposesWhatTheBodyCreated), new Scenario("error boundary disposed by its own body disposes what it created before its handler runs", OwnershipScenarios.boundaryDisposedByItsBodyDisposesWhatItCreatedBeforeItsHandler), new Scenario("computed whose last observer is disposed during its run keeps that run", OwnershipScenarios.computedWhoseLastObserverIsDisposedDuringItsRunKeepsThatRun), new Scenario("pending computed disposed during its own dirty check keeps its last value", OwnershipScenarios.pendingComputedDisposedDuringItsCheckKeepsItsLastValue), new Scenario("pending computed disposed during an observer's dirty check keeps its last value", OwnershipScenarios.pendingComputedDisposedDuringAnObserversCheckKeepsItsLastValue), new Scenario("effect disposed during its dirty check fails nothing and leaves its dependencies unlinked", OwnershipScenarios.effectDisposedDuringItsCheckLeavesItsDependenciesUnlinked), new Scenario("effect disposed during a multi-level dirty check leaves no computed linked", OwnershipScenarios.effectDisposedDuringMultiLevelCheckLeavesNoComputedLinked), new Scenario("observer sharing a computed with an effect disposed during its check sees the change", OwnershipScenarios.observerSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange), new Scenario("computed that disposed itself keeps what its run creates until the run ends when unwatched", OwnershipScenarios.selfDisposedComputedUnwatchedMidRunKeepsWhatItsRunCreatesUntilTheRunEnds), new Scenario("computed that disposes itself and flushes during its run reads its last value", OwnershipScenarios.computedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue), new Scenario("computed that disposes itself and whose late cleanup flushes reads its last value", OwnershipScenarios.computedThatDisposesItselfAndWhoseLateCleanupFlushesReadsItsLastValue), new Scenario("computed unlinked after a dirty check, whose unwatched dependency flushes, reads its last value", OwnershipScenarios.computedUnlinkedAfterACheckWhoseUnwatchedDependencyFlushesReadsItsLastValue), new Scenario("disposed computed whose unwatched dependency flushes reads its last value", OwnershipScenarios.disposedComputedWhoseUnwatchedDependencyFlushesReadsItsLastValue), new Scenario("computed disposed during a dirty check and marked by a nested flush reads its last value", OwnershipScenarios.computedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue)];
 
   constructor() { }
 
@@ -651,6 +651,95 @@ export class OwnershipScenarios {
     });
     expect.isTrue(error == null, "a later read does not throw");
     expect.equal(10, frozen.value, "it keeps the value of that run");
+  }
+
+  private static computedThatDisposesItselfAndWhoseLateCleanupFlushesReadsItsLastValue(expect: IExpect): void {
+    const source = Reactivity.signal(1);
+    const middle = Reactivity.computed(() => source.value);
+    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+      disposeRoot();
+      const value = middle.value;
+      Reactivity.onCleanup(() => {
+        source.value = 2;
+        Reactivity.flush();
+      });
+
+      return Math.imul(value, 10);
+    }));
+    expect.equal(10, frozen.value, "value of the run that disposed it");
+    const error = ScenarioRunner.catch(() => {
+      frozen.value;
+    });
+    expect.isTrue(error == null, "a later read does not throw");
+    expect.equal(10, frozen.value, "it keeps the value of that run");
+  }
+
+  private static disposedComputedWhoseUnwatchedDependencyFlushesReadsItsLastValue(expect: IExpect): void {
+    const source = Reactivity.signal(0);
+    const first = Reactivity.computed(() => {
+      Reactivity.onCleanup(() => {
+        source.value = 5;
+        Reactivity.flush();
+      });
+
+      return 0;
+    });
+    const second = Reactivity.computed(() => source.value);
+    const [frozen, dispose] = Reactivity.rootFuncOfActionT<[Computed<number>, () => void]>((disposeRoot: () => void) => [Reactivity.computed(() => (first.value + second.value) | 0), disposeRoot] as [Computed<number>, () => void]);
+    expect.equal(0, frozen.peek(), "initial value");
+    dispose();
+    const error = ScenarioRunner.catch(() => {
+      frozen.peek();
+    });
+    expect.isTrue(error == null, "the read of the disposed computed does not throw");
+    expect.equal(0, frozen.peek(), "it keeps its last value");
+  }
+
+  private static computedUnlinkedAfterACheckWhoseUnwatchedDependencyFlushesReadsItsLastValue(expect: IExpect): void {
+    let armed = false;
+    const trigger = Reactivity.signal(0);
+    const source = Reactivity.signal(0);
+    let disposeFrozen = () => {
+    };
+    const first = Reactivity.computed(() => {
+      Reactivity.onCleanup(() => {
+        if (armed) {
+          armed = false;
+          source.value = 5;
+          Reactivity.flush();
+        }
+      });
+
+      return 0;
+    });
+    const second = Reactivity.computed(() => source.value);
+    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+      disposeFrozen = disposeRoot;
+
+      return Reactivity.computed(() => (first.value + second.value) | 0);
+    });
+    const inner = Reactivity.computed(() => {
+      const value = trigger.value;
+      Reactivity.onCleanup(() => {
+        if (value === 0) {
+          disposeFrozen();
+        }
+      });
+
+      return value;
+    });
+    const reader = Reactivity.computed(() => inner.value);
+    expect.equal(0, frozen.peek(), "initial value");
+    expect.equal(0, reader.peek(), "initial reader value");
+    trigger.value = 1;
+    Reactivity.flush();
+    armed = true;
+    expect.equal(1, reader.peek(), "the reader sees the change");
+    const error = ScenarioRunner.catch(() => {
+      frozen.peek();
+    });
+    expect.isTrue(error == null, "the read of the disposed computed does not throw");
+    expect.equal(0, frozen.peek(), "it keeps its last value");
   }
 
   private static computedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue(expect: IExpect): void {

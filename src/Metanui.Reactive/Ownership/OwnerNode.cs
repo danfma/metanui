@@ -142,7 +142,7 @@ public abstract class OwnerNode : ReactiveNode
     {
         if (Tracking.DirtyCheckDepth == 0)
         {
-            DependencyGraph.PurgeDeps(this);
+            UnlinkAllDependenciesOfDisposed();
 
             return;
         }
@@ -178,30 +178,30 @@ public abstract class OwnerNode : ReactiveNode
     /// <summary>
     /// Ends a run: unlinks the dependencies it did not read again. When the run disposed the node
     /// itself, it unlinks all of them and disposes what the run created or registered after the
-    /// disposal, so a disposed node keeps no dependency, child or cleanup. Its flags go back to what
-    /// disposal left, as for a deferred unlink: the dependencies the run read after the disposal
-    /// linked it again, and a flush nested in the run may have marked it pending or dirty through
-    /// them.
+    /// disposal, so a disposed node keeps no dependency, child or cleanup.
     /// </summary>
+    /// <remarks>
+    /// The disposed node is unlinked (<see cref="UnlinkAllDependenciesOfDisposed" />) before the late
+    /// cleanups run: the dependencies the run read after the disposal linked it again, and a flush in
+    /// one of those cleanups must find no link left to mark it through.
+    /// </remarks>
     internal void PurgeStaleDeps()
     {
-        if (IsDisposed)
+        if (!IsDisposed)
         {
-            DepsTail = null;
-            Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
-            DisposeOwned();
+            DependencyGraph.PurgeDeps(this);
+
+            return;
         }
 
-        DependencyGraph.PurgeDeps(this);
+        UnlinkAllDependenciesOfDisposed();
+        DisposeOwned();
     }
 
     /// <summary>
     /// Unlinks the dependencies of every node a finished dirty check disposed. Each node leaves the
-    /// list before its unlink, which may run cleanups that dispose and defer more nodes. A flush nested
-    /// in the check may have marked a node pending through the links it still had; its flags go back
-    /// to what disposal left (a computed keeps <see cref="ReactiveFlags.Mutable" /> and its error, an
-    /// effect has none), so a later read of the disposed computed returns its last value instead of
-    /// checking dependencies it no longer has.
+    /// list before its unlink (<see cref="UnlinkAllDependenciesOfDisposed" />), which may run cleanups
+    /// that dispose and defer more nodes.
     /// </summary>
     private static void UnlinkDeferredDependencies()
     {
@@ -211,9 +211,7 @@ public abstract class OwnerNode : ReactiveNode
 
             _deferredUnlinks = node.NextDeferredUnlink;
             node.NextDeferredUnlink = null;
-            node.DepsTail = null;
-            node.Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
-            DependencyGraph.PurgeDeps(node);
+            node.UnlinkAllDependenciesOfDisposed();
         }
     }
 
@@ -234,6 +232,21 @@ public abstract class OwnerNode : ReactiveNode
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Unlinks every dependency of a disposed node, then puts its flags back to what disposal left (a
+    /// computed keeps <see cref="ReactiveFlags.Mutable" /> and its error, an effect has none). The
+    /// flags come last: the unlink may unwatch a dependency whose cleanups write and flush, and that
+    /// flush, or one nested in a run or a dirty check before, may mark the node pending or dirty
+    /// through a link still in place. A disposed computed left so with no dependency would check
+    /// links it no longer has on its next read, instead of returning its last value.
+    /// </summary>
+    private void UnlinkAllDependenciesOfDisposed()
+    {
+        DepsTail = null;
+        DependencyGraph.PurgeDeps(this);
+        Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
     }
 
     private void AttachTo(OwnerNode parent)
