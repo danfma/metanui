@@ -2,21 +2,52 @@
 # Pull the latest Metano release from NuGet: packages float (Version="*"),
 # the compiler tool is pinned in dotnet-tools.json and must be updated explicitly.
 # The generated packages get the matching metano-runtime from the build; the hand-written
-# workspaces (tests, benchmarks) are moved to the same version here. Afterwards run `dotnet build`
-# (it rewrites the generated package.json files), then `bun install`.
+# workspaces (tests, benchmarks, spike hosts) are moved to the same version here.
+# Afterwards run `dotnet build` (it rewrites the generated package.json files), then `bun install`.
 set -euo pipefail
+shopt -s nullglob
 cd "$(dirname "$0")/.."
-dotnet tool update Metano.Compiler.TypeScript
-dotnet restore --force-evaluate
-grep -ohE '"Metano(\.Build\.TypeScript)?/[0-9.]+"' src/*/obj/project.assets.json | sort -u
-dotnet tool list | grep -i metano
 
-version="$(dotnet tool list | awk 'tolower($1) == "metano.compiler.typescript" { print $2 }')"
-[[ -n "$version" ]] || { echo "Metano.Compiler.TypeScript is not in the tool manifest" >&2; exit 1; }
+solution=Metanui.slnx
+tool_manifest=dotnet-tools.json
+runtime_manifests=(tests/js/*/package.json bench/*/package.json spikes/*/package.json)
 
-for manifest in tests/js/*/package.json bench/*/package.json; do
-  sed -i.bak -E "s/\"metano-runtime\": \"\\^[^\"]+\"/\"metano-runtime\": \"^${version}\"/" "$manifest"
+fail() {
+  echo "$1" >&2
+  exit 1
+}
+
+previous_tool_manifest="$(cat "$tool_manifest")"
+
+dotnet tool update Metano.Compiler.TypeScript --no-http-cache
+dotnet restore "$solution" --force-evaluate --no-http-cache
+
+tool_version="$(dotnet tool list | awk 'tolower($1) == "metano.compiler.typescript" { print $2 }')"
+[[ -n "$tool_version" ]] || fail "Metano.Compiler.TypeScript is not in the tool manifest"
+
+# Only the projects of the solution: a leftover obj/ of a removed project would report a stale version.
+assets_files=()
+while IFS= read -r project; do
+  assets_files+=("$(dirname "$project")/obj/project.assets.json")
+done < <(dotnet sln "$solution" list | grep -E '\.csproj$')
+
+resolved_package_versions="$(grep -ohE '"Metano(\.Build\.TypeScript)?/[^"]+"' "${assets_files[@]}" | sort -u || true)"
+[[ -n "$resolved_package_versions" ]] || fail "No Metano package found in the restore output"
+
+echo "$resolved_package_versions"
+echo "Metano.Compiler.TypeScript ${tool_version}"
+
+# While NuGet indexes a new release, the tool and the floating packages can resolve different versions.
+if grep -qvF "/${tool_version}\"" <<<"$resolved_package_versions"; then
+  printf '%s\n' "$previous_tool_manifest" >"$tool_manifest"
+  fail "The Metano packages and the tool ${tool_version} resolve different versions; NuGet may still be indexing the release. ${tool_manifest} was restored; re-run the script in a few minutes."
+fi
+
+(( ${#runtime_manifests[@]} )) || fail "No hand-written package.json to sync"
+
+for manifest in "${runtime_manifests[@]}"; do
+  sed -i.bak -E "s/\"metano-runtime\": \"\\^[^\"]+\"/\"metano-runtime\": \"^${tool_version}\"/" "$manifest"
   rm "$manifest.bak"
 done
 
-grep -H '"metano-runtime"' tests/js/*/package.json bench/*/package.json
+grep -H '"metano-runtime"' "${runtime_manifests[@]}"
