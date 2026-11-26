@@ -8,7 +8,7 @@ export class Tracking {
   static activeApply: EffectNode | null = null;
   static cycle: number = 0;
   static pass: number = 0;
-  static updatesInDirtyCheck: number = 0;
+  static dirtyCheckDepth: number = 0;
 
   constructor() { }
 }
