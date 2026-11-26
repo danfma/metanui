@@ -171,7 +171,7 @@ export class EffectScenarios {
       });
       effectError = ScenarioRunner.catch(() => Reactivity.effect(() => 1, (innerValue: number, innerPrevious: number) => {
       }));
-      rootError = ScenarioRunner.catch(() => Reactivity.rootActionOfAction((dispose: () => void) => {
+      rootError = ScenarioRunner.catch(() => Reactivity.rootVoid((dispose: () => void) => {
       }));
     });
     Reactivity.flush();
@@ -275,7 +275,7 @@ export class EffectScenarios {
     let rootCleanups = 0;
     const source = Reactivity.signal(0);
     let handle: IDisposable = null!;
-    const disposeRoot = Reactivity.rootFuncOfActionT<() => void>((dispose: () => void) => {
+    const disposeRoot = Reactivity.rootBody<() => void>((dispose: () => void) => {
       Reactivity.onCleanup(() => rootCleanups = (rootCleanups + 1) | 0);
       handle = EffectScenarios.countedEffect(source, counts);
 

@@ -1,3 +1,5 @@
+using Metano.Annotations;
+
 namespace Metanui.Reactive;
 
 /// <summary>Entry point of the reactive graph (one graph per process).</summary>
@@ -78,6 +80,12 @@ public static partial class Reactivity
     public static T Root<T>(Func<Action, T> body) => new RootNode().Run(body);
 
     /// <inheritdoc cref="Root{T}" />
+    /// <remarks>
+    /// TypeScript cannot tell this overload from <see cref="Root{T}" /> at runtime, so the TS
+    /// <c>root</c> forwards to the value-returning one (<c>rootBody</c>) and this one is pinned as
+    /// <c>rootVoid</c>.
+    /// </remarks>
+    [Name("void")]
     public static void Root(Action<Action> body) =>
         Root(dispose =>
         {

@@ -39,12 +39,12 @@ export class Reactivity {
     return effect;
   }
 
-  static rootFuncOfActionT<T>(body: (arg: () => void) => T): T {
+  static rootBody<T>(body: (arg: () => void) => T): T {
     return new RootNode().run(body);
   }
 
-  static rootActionOfAction(body: (obj: () => void) => void): void {
-    Reactivity.rootFuncOfActionT<boolean>((dispose: () => void) => {
+  static rootVoid(body: (obj: () => void) => void): void {
+    Reactivity.rootBody<boolean>((dispose: () => void) => {
       body(dispose);
 
       return true;
@@ -52,7 +52,7 @@ export class Reactivity {
   }
 
   static root<T>(body: (arg: () => void) => T): T {
-    return Reactivity.rootFuncOfActionT<T>(body);
+    return Reactivity.rootBody<T>(body);
   }
 
   static errorBoundary(body: () => void, onError: (obj: Exception) => void): void {

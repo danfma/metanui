@@ -87,7 +87,7 @@ export class OwnershipScenarios {
 
   private static rootDisposeRunsCleanupsInReverse(expect: IExpect): void {
     let log = "";
-    const dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    const dispose = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => log += "1,");
       Reactivity.onCleanup(() => log += "2,");
       Reactivity.onCleanup(() => log += "3,");
@@ -132,7 +132,7 @@ export class OwnershipScenarios {
   private static computedOwnedByRootIsDisposed(expect: IExpect): void {
     let runs = 0;
     const source = Reactivity.signal(0);
-    const [dispose, computed] = Reactivity.rootFuncOfActionT<[() => void, Computed<number>]>((disposeRoot: () => void) => [disposeRoot, Reactivity.computed(() => {
+    const [dispose, computed] = Reactivity.rootBody<[() => void, Computed<number>]>((disposeRoot: () => void) => [disposeRoot, Reactivity.computed(() => {
       runs = (runs + 1) | 0;
 
       return source.value;
@@ -178,7 +178,7 @@ export class OwnershipScenarios {
         disposeInner();
       }
     });
-    disposeInner = Reactivity.rootFuncOfActionT<() => void>((dispose: () => void) => {
+    disposeInner = Reactivity.rootBody<() => void>((dispose: () => void) => {
       Reactivity.effect(() => source.value, (value: number, previous: number) => appliesOfB = (appliesOfB + 1) | 0);
 
       return dispose;
@@ -206,7 +206,7 @@ export class OwnershipScenarios {
   private static writeInRootInsideComputedThrows(expect: IExpect): void {
     const target = Reactivity.signal(0);
     const writer = Reactivity.computed(() => {
-      Reactivity.rootFuncOfActionT<number>((dispose: () => void) => target.value = 1);
+      Reactivity.rootBody<number>((dispose: () => void) => target.value = 1);
 
       return 0;
     });
@@ -218,7 +218,7 @@ export class OwnershipScenarios {
 
   private static writeInNestedRootIsAllowed(expect: IExpect): void {
     const target = Reactivity.signal(0);
-    const error = ScenarioRunner.catch(() => Reactivity.rootFuncOfActionT<number>((outer: () => void) => Reactivity.rootFuncOfActionT<number>((inner: () => void) => target.value = 1)));
+    const error = ScenarioRunner.catch(() => Reactivity.rootBody<number>((outer: () => void) => Reactivity.rootBody<number>((inner: () => void) => target.value = 1)));
     Reactivity.flush();
     expect.isTrue(error == null, "the write in the nested root does not throw");
     expect.equal(1, target.value, "committed value");
@@ -230,7 +230,7 @@ export class OwnershipScenarios {
     let applies = 0;
     let cleanups = 0;
     const source = Reactivity.signal(0);
-    const dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    const dispose = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.effect(() => {
         computes = (computes + 1) | 0;
         Reactivity.onCleanup(() => cleanups = (cleanups + 1) | 0);
@@ -260,7 +260,7 @@ export class OwnershipScenarios {
     const source = Reactivity.signal(0);
     let dispose = () => {
     };
-    dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    dispose = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.effect(() => source.value, (value: number, previous: number) => {
         applies = (applies + 1) | 0;
         Reactivity.onCleanup(() => dispose());
@@ -279,7 +279,7 @@ export class OwnershipScenarios {
     const source = Reactivity.signal(0);
     let dispose = () => {
     };
-    dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    dispose = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.effect(() => {
         computes = (computes + 1) | 0;
         Reactivity.onCleanup(() => dispose());
@@ -301,7 +301,7 @@ export class OwnershipScenarios {
     const source = Reactivity.signal(0);
     let dispose = () => {
     };
-    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const computed = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       dispose = disposeRoot;
 
       return Reactivity.computed(() => {
@@ -324,7 +324,7 @@ export class OwnershipScenarios {
   private static computedDisposedDuringItsRunDisposesWhatTheRunCreated(expect: IExpect): void {
     const late = new OwnershipScenarios$LateChildren();
     const source = Reactivity.signal(0);
-    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+    const computed = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
       const value = source.value;
 
       if (value === 1) {
@@ -344,7 +344,7 @@ export class OwnershipScenarios {
   private static effectDisposedDuringItsComputeDisposesWhatTheComputeCreated(expect: IExpect): void {
     const late = new OwnershipScenarios$LateChildren();
     const source = Reactivity.signal(0);
-    Reactivity.rootFuncOfActionT<IDisposable>((disposeRoot: () => void) => Reactivity.effect(() => {
+    Reactivity.rootBody<IDisposable>((disposeRoot: () => void) => Reactivity.effect(() => {
       const value = source.value;
 
       if (value === 1) {
@@ -372,7 +372,7 @@ export class OwnershipScenarios {
 
       return Math.imul(source.value, 2);
     });
-    const dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    const dispose = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.effect(() => doubled.value, (value: number, previous: number) => {
       });
 
@@ -403,7 +403,7 @@ export class OwnershipScenarios {
 
       return 1;
     });
-    const dispose = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    const dispose = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.effect(() => constant.value, (value: number, previous: number) => {
       });
 
@@ -418,7 +418,7 @@ export class OwnershipScenarios {
 
   private static rootDisposedByItsBodyDisposesWhatTheBodyCreated(expect: IExpect): void {
     const late = new OwnershipScenarios$LateChildren();
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+    Reactivity.rootVoid((disposeRoot: () => void) => {
       disposeRoot();
       late.create();
     });
@@ -428,7 +428,7 @@ export class OwnershipScenarios {
   private static boundaryDisposedByItsBodyDisposesWhatTheBodyCreated(expect: IExpect): void {
     let caught = 0;
     const late = new OwnershipScenarios$LateChildren();
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => Reactivity.errorBoundary(() => {
+    Reactivity.rootVoid((disposeRoot: () => void) => Reactivity.errorBoundary(() => {
       disposeRoot();
       late.create();
       throw new InvalidOperationException("body failed");
@@ -439,7 +439,7 @@ export class OwnershipScenarios {
 
   private static boundaryDisposedByItsBodyDisposesWhatItCreatedBeforeItsHandler(expect: IExpect): void {
     let log = "";
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => Reactivity.errorBoundary(() => {
+    Reactivity.rootVoid((disposeRoot: () => void) => Reactivity.errorBoundary(() => {
       disposeRoot();
       Reactivity.onCleanup(() => log += "cleanup,");
       throw new InvalidOperationException("body failed");
@@ -464,7 +464,7 @@ export class OwnershipScenarios {
 
       return source.value;
     });
-    const reader = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const reader = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       disposeReader = disposeRoot;
 
       return Reactivity.computed(() => (counted.value + 1) | 0);
@@ -484,7 +484,7 @@ export class OwnershipScenarios {
     let runs = 0;
     const source = Reactivity.signal(0);
     const graph = new OwnershipScenarios$DisposingGraph(source);
-    const reader = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const reader = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       graph.dispose = disposeRoot;
       const inner = graph.createInner();
 
@@ -510,7 +510,7 @@ export class OwnershipScenarios {
     let applied = 0;
     const source = Reactivity.signal(0);
     const graph = new OwnershipScenarios$DisposingGraph(source);
-    const reader = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const reader = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       graph.dispose = disposeRoot;
       const inner = graph.createInner();
 
@@ -551,7 +551,7 @@ export class OwnershipScenarios {
 
       return source.value;
     });
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+    Reactivity.rootVoid((disposeRoot: () => void) => {
       dispose = disposeRoot;
       Reactivity.effect(() => (first.value + second.value) | 0, (value: number, previous: number) => applies = (applies + 1) | 0);
     });
@@ -577,7 +577,7 @@ export class OwnershipScenarios {
 
       return Math.imul(inner.value, 10);
     });
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+    Reactivity.rootVoid((disposeRoot: () => void) => {
       graph.dispose = disposeRoot;
       Reactivity.effect(() => middle.value, (value: number, previous: number) => applies = (applies + 1) | 0);
     });
@@ -598,7 +598,7 @@ export class OwnershipScenarios {
     const graph = new OwnershipScenarios$DisposingGraph(source);
     const inner = graph.createInner();
     const middle = Reactivity.computed(() => Math.imul(inner.value, 10));
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+    Reactivity.rootVoid((disposeRoot: () => void) => {
       graph.dispose = disposeRoot;
       Reactivity.effect(() => middle.value, (value: number, previous: number) => {
       });
@@ -617,7 +617,7 @@ export class OwnershipScenarios {
     let disposeReader = () => {
     };
     const source = Reactivity.signal(0);
-    const counted = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+    const counted = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
       if (!disposeOnRun) {
         return source.value;
       }
@@ -630,7 +630,7 @@ export class OwnershipScenarios {
 
       return value;
     }));
-    const reader = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const reader = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       disposeReader = disposeRoot;
 
       return Reactivity.computed(() => (counted.value + 1) | 0);
@@ -661,7 +661,7 @@ export class OwnershipScenarios {
 
       return value;
     });
-    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+    const frozen = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
       const step = trigger.value;
 
       if (!disposeOnRun) {
@@ -697,7 +697,7 @@ export class OwnershipScenarios {
 
       return value;
     });
-    frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+    frozen = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
       disposeRoot();
       const value = middle.value;
       Reactivity.flush();
@@ -713,7 +713,7 @@ export class OwnershipScenarios {
   private static computedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue(expect: IExpect): void {
     const source = Reactivity.signal(1);
     const middle = Reactivity.computed(() => source.value);
-    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+    const frozen = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
       disposeRoot();
       const value = middle.value;
       Reactivity.flush();
@@ -732,7 +732,7 @@ export class OwnershipScenarios {
   private static computedThatDisposesItselfAndWhoseLateCleanupFlushesReadsItsLastValue(expect: IExpect): void {
     const source = Reactivity.signal(1);
     const middle = Reactivity.computed(() => source.value);
-    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
+    const frozen = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => Reactivity.computed(() => {
       disposeRoot();
       const value = middle.value;
       Reactivity.onCleanup(() => {
@@ -761,7 +761,7 @@ export class OwnershipScenarios {
       return 0;
     });
     const second = Reactivity.computed(() => source.value);
-    const [frozen, dispose] = Reactivity.rootFuncOfActionT<[Computed<number>, () => void]>((disposeRoot: () => void) => [Reactivity.computed(() => (first.value + second.value) | 0), disposeRoot] as [Computed<number>, () => void]);
+    const [frozen, dispose] = Reactivity.rootBody<[Computed<number>, () => void]>((disposeRoot: () => void) => [Reactivity.computed(() => (first.value + second.value) | 0), disposeRoot] as [Computed<number>, () => void]);
     expect.equal(0, frozen.peek(), "initial value");
     dispose();
     const error = ScenarioRunner.catch(() => {
@@ -789,7 +789,7 @@ export class OwnershipScenarios {
       return 0;
     });
     const second = Reactivity.computed(() => source.value);
-    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const frozen = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       disposeFrozen = disposeRoot;
 
       return Reactivity.computed(() => (first.value + second.value) | 0);
@@ -824,7 +824,7 @@ export class OwnershipScenarios {
     const middle = Reactivity.computed(() => (source.value + 1) | 0);
     let disposeFrozen = () => {
     };
-    const frozen = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const frozen = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       disposeFrozen = disposeRoot;
 
       return Reactivity.computed(() => Math.imul(middle.value, 10));
