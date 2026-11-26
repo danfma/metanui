@@ -8,7 +8,7 @@
     "bench/micro": {
       "name": "metanui-bench-micro",
       "dependencies": {
-        "metano-runtime": "^3.2.0",
+        "metano-runtime": "^3.3.0",
       },
     },
     "bench/reactivity": {
@@ -16,7 +16,7 @@
       "dependencies": {
         "@solidjs/signals": "2.0.4",
         "alien-signals": "3.2.1",
-        "metano-runtime": "^3.2.0",
+        "metano-runtime": "^3.3.0",
         "metanui-reactive": "workspace:*",
       },
     },
