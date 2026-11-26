@@ -1,6 +1,6 @@
 # Handoff — Metanui
 
-## Status (2026-11-26): reactive core done, Metano 4.0.0, effect handle shipped
+## Status (2026-11-26): reactive core done, Metano 4.0.1, effect handle shipped, DSL spikes
 
 The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
 
@@ -12,7 +12,7 @@ The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds,
 
 ### Repo and PRs
 
-The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (`feat/metano-3.3-effect-handle`) moves to Metano 4.0.0 and adds the effect handle.
+The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (Metano 4.0.0 and the effect handle) is merged; the counter spike is on `main` (`spikes/`). The DSL-shapes spike is on branch `spike/dsl-shapes`, with its findings in `docs/design/0002-dsl-binding.md`. PR #4 moves to Metano 4.0.1.
 
 ### Benchmark summary
 
