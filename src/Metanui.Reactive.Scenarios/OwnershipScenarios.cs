@@ -121,6 +121,10 @@ public static class OwnershipScenarios
             DisposedComputedReadByACleanupItsOwnUnlinkRunsReturnsItsLastValue
         ),
         new Scenario(
+            "dirty check through a disposed computed during its unlink does not walk its dependencies",
+            DirtyCheckThroughADisposedComputedDuringItsUnlinkDoesNotWalkItsDependencies
+        ),
+        new Scenario(
             "computed disposed during a dirty check and marked by a nested flush reads its last value",
             ComputedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue
         ),
@@ -992,6 +996,72 @@ public static class OwnershipScenarios
 
         expect.Equal(1, counted.Peek(), "value of the run");
         expect.Equal("run end,late cleanup,", log, "order");
+    }
+
+    /// <summary>
+    /// The variant of <see cref="DisposedComputedReadByACleanupItsOwnUnlinkRunsReturnsItsLastValue" />
+    /// where the cleanup reads <c>reader</c>, a pending subscriber of <c>frozen</c>: the dirty check
+    /// of <c>reader</c> reaches <c>frozen</c>, disposed and marked pending, with no dependency left,
+    /// and must not walk into them. (What <c>reader</c> then holds is a separate, open issue: a
+    /// subscriber read from a cleanup that runs before its producer propagated misses the change.)
+    /// </summary>
+    private static void DirtyCheckThroughADisposedComputedDuringItsUnlinkDoesNotWalkItsDependencies(
+        IExpect expect
+    )
+    {
+        Computed<int>? reader = null;
+        Exception? readError = null;
+        var disposeOnRun = false;
+        var trigger = Reactivity.Signal(0);
+        var source = Reactivity.Signal(1);
+
+        var middle = Reactivity.Computed(() =>
+        {
+            var value = source.Value;
+
+            Reactivity.OnCleanup(() =>
+            {
+                if (disposeOnRun)
+                {
+                    readError = ScenarioRunner.Catch(() => _ = reader!.Peek());
+                }
+            });
+
+            return value;
+        });
+
+        var frozen = Reactivity.Root(disposeRoot =>
+            Reactivity.Computed(() =>
+            {
+                var step = trigger.Value;
+
+                if (!disposeOnRun)
+                {
+                    return step;
+                }
+
+                disposeRoot();
+
+                var value = middle.Value;
+
+                Reactivity.Flush();
+
+                return value * 10;
+            })
+        );
+
+        reader = Reactivity.Computed(() => frozen.Value + 1);
+
+        expect.Equal(1, reader.Peek(), "initial value");
+
+        disposeOnRun = true;
+        trigger.Value = 1;
+        Reactivity.Flush();
+        source.Value = 2;
+
+        expect.Equal(10, frozen.Peek(), "value of the run that disposed it");
+        expect.IsTrue(readError is null, "the check from the cleanup does not throw");
+        expect.Equal(10, frozen.Peek(), "it keeps the value of that run");
     }
 
     /// <summary>

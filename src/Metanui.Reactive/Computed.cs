@@ -77,9 +77,11 @@ public sealed class Computed<T> : ComputedNode
     /// update, and its function is gone.
     /// </summary>
     /// <remarks>
-    /// Disposal keeps <see cref="ReactiveFlags.Mutable" /> instead of clearing the flags as an effect
-    /// does, which would let the walk's own <c>sub.Flags != None</c> test skip it: a computed with no
-    /// flags is one that never ran, and the next read would run its released function.
+    /// Disposal also clears <see cref="ReactiveFlags.Mutable" /> (only the error stays), so no walk
+    /// treats a disposed computed as a node to check or update through, propagation does not go
+    /// through it, and the walk's own <c>sub.Flags != None</c> test skips it as it skips a disposed
+    /// effect. A disposed computed with no flags left is not one that never ran: <see cref="RunFirst" />
+    /// checks <see cref="OwnerNode.IsDisposed" />.
     /// </remarks>
     internal override bool Update()
     {
@@ -211,7 +213,7 @@ public sealed class Computed<T> : ComputedNode
     internal override void OnDisposed()
     {
         DepsTail = null;
-        Flags = ReactiveFlags.Mutable | (Flags & ReactiveFlags.Errored);
+        Flags &= ReactiveFlags.Errored;
         UnlinkDependenciesOnDisposal();
         _compute = null;
         _comparer = null;
@@ -286,6 +288,11 @@ public sealed class Computed<T> : ComputedNode
 
     private void RunFirst()
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+
         Flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
 
         var previousObserver = Tracking.ActiveObserver;
@@ -311,8 +318,8 @@ public sealed class Computed<T> : ComputedNode
         }
     }
 
-    /// <summary>Puts back the flags disposal left: <see cref="ReactiveFlags.Mutable" /> and the error, if any.</summary>
-    private void SettleDisposedFlags() => Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
+    /// <summary>Puts back the flags disposal left: only the error, if any.</summary>
+    private void SettleDisposedFlags() => Flags &= ReactiveFlags.Errored;
 
     private void CacheError(Exception error)
     {
