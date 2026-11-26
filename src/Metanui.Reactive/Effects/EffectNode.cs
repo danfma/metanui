@@ -40,7 +40,8 @@ internal abstract class EffectNode : OwnerNode
 
     /// <summary>
     /// Compute phase of a flush (upstream <c>run</c>): recomputes when a dependency changed and
-    /// queues the apply; otherwise only re-arms the effect for the next notification.
+    /// queues the apply; otherwise only re-arms the effect for the next notification, unless the check
+    /// disposed it.
     /// </summary>
     internal void RunIfDirty()
     {
@@ -61,8 +62,10 @@ internal abstract class EffectNode : OwnerNode
                 FlushLoop.EnqueueApply(this);
             }
         }
-        else if (Deps is not null)
+        else if (!IsDisposed && Deps is not null)
         {
+            // A check nested in an outer one (a flush run from a computed's update) may dispose this
+            // effect and leave its links until the outer check ends: it must not watch again.
             Flags = ReactiveFlags.Watching;
         }
     }

@@ -44,7 +44,7 @@ export abstract class EffectNode extends OwnerNode {
         FlushLoop.enqueueApply(this);
       }
     } else {
-      if (!(this.deps == null)) {
+      if (!this.isDisposed && !(this.deps == null)) {
         this.flags = ReactiveFlags.Watching;
       }
     }
