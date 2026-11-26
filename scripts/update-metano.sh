@@ -17,7 +17,17 @@ fail() {
   exit 1
 }
 
-previous_tool_manifest="$(cat "$tool_manifest")"
+# The tool update rewrites the manifest first; any failure before the version guard passes puts it back.
+tool_manifest_backup="$(mktemp)"
+cp "$tool_manifest" "$tool_manifest_backup"
+keep_tool_manifest=false
+
+restore_tool_manifest() {
+  [[ "$keep_tool_manifest" == true ]] || cp "$tool_manifest_backup" "$tool_manifest"
+  rm -f "$tool_manifest_backup"
+}
+
+trap restore_tool_manifest EXIT
 
 dotnet tool update Metano.Compiler.TypeScript --no-http-cache
 dotnet restore "$solution" --force-evaluate --no-http-cache
@@ -30,6 +40,7 @@ assets_files=()
 while IFS= read -r project; do
   assets_files+=("$(dirname "$project")/obj/project.assets.json")
 done < <(dotnet sln "$solution" list | grep -E '\.csproj$')
+(( ${#assets_files[@]} )) || fail "No project in ${solution}"
 
 resolved_package_versions="$(grep -ohE '"Metano(\.Build\.TypeScript)?/[^"]+"' "${assets_files[@]}" | sort -u || true)"
 [[ -n "$resolved_package_versions" ]] || fail "No Metano package found in the restore output"
@@ -39,9 +50,10 @@ echo "Metano.Compiler.TypeScript ${tool_version}"
 
 # While NuGet indexes a new release, the tool and the floating packages can resolve different versions.
 if grep -qvF "/${tool_version}\"" <<<"$resolved_package_versions"; then
-  printf '%s\n' "$previous_tool_manifest" >"$tool_manifest"
   fail "The Metano packages and the tool ${tool_version} resolve different versions; NuGet may still be indexing the release. ${tool_manifest} was restored; re-run the script in a few minutes."
 fi
+
+keep_tool_manifest=true
 
 (( ${#runtime_manifests[@]} )) || fail "No hand-written package.json to sync"
 
