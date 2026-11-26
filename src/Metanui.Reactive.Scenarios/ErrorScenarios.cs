@@ -155,6 +155,10 @@ public static class ErrorScenarios
             DisposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary
         ),
         new Scenario(
+            "flush called in a boundary handler keeps a deferred cleanup error from the outer boundary",
+            FlushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary
+        ),
+        new Scenario(
             "write from a cleanup during disposal is allowed",
             WriteFromCleanupDuringDisposalIsAllowed
         ),
@@ -1772,6 +1776,45 @@ public static class ErrorScenarios
                 Reactivity.ErrorBoundary(
                     () => throw new InvalidOperationException("body failed"),
                     error => disposeOther()
+                ),
+            error => outerErrors += error.Message + ","
+        );
+
+        var next = ScenarioRunner.Catch(Reactivity.Flush);
+
+        expect.Equal("", outerErrors, "the outer boundary receives no cleanup error");
+
+        expect.IsTrue(
+            next is not null && next.Message == "cleanup failed",
+            "the next flush rethrows the cleanup error"
+        );
+    }
+
+    /// <summary>
+    /// The variant of <see cref="DisposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary" /> where
+    /// the handler also calls <see cref="Reactivity.Flush" />: the end of that flush must not rethrow
+    /// the deferred cleanup error inside the handler, where it would reach the outer boundary.
+    /// </summary>
+    private static void FlushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary(IExpect expect)
+    {
+        var outerErrors = "";
+
+        var disposeOther = Reactivity.Root(disposeRoot =>
+        {
+            Reactivity.OnCleanup(() => throw new InvalidOperationException("cleanup failed"));
+
+            return disposeRoot;
+        });
+
+        Reactivity.ErrorBoundary(
+            () =>
+                Reactivity.ErrorBoundary(
+                    () => throw new InvalidOperationException("body failed"),
+                    error =>
+                    {
+                        disposeOther();
+                        Reactivity.Flush();
+                    }
                 ),
             error => outerErrors += error.Message + ","
         );

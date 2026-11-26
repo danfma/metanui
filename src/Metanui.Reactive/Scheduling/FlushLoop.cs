@@ -210,7 +210,8 @@ internal static class FlushLoop
     /// halted (spec 4.4). That re-requested flush continues the failed flush's pass budget, unless a
     /// flush was requested before it ran, and a flush that stops at the pass limit requests no other.
     /// Any other flush (a direct call, or one requested by a write) starts with a fresh budget. After a flush that ends normally, the first
-    /// cleanup error raised during it is rethrown.
+    /// cleanup error raised during it is rethrown, unless the flush was called from an error handler,
+    /// which would hand it to a boundary: it then waits for the next flush or root disposal.
     /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// More than <see cref="MaxPasses" /> passes were needed; the pending writes and retries are
@@ -254,7 +255,10 @@ internal static class FlushLoop
             throw new InvalidOperationException(PassLimitMessage);
         }
 
-        Teardown.RethrowFirstError();
+        if (Tracking.ErrorHandlerDepth == 0)
+        {
+            Teardown.RethrowFirstError();
+        }
     }
 
     /// <summary>

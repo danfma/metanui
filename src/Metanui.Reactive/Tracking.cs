@@ -36,4 +36,11 @@ internal static class Tracking
     /// <see cref="OwnerNode.UnlinkDependenciesOnDisposal" />).
     /// </summary>
     public static int DirtyCheckDepth;
+
+    /// <summary>
+    /// Nesting depth of running error handlers. A handler runs with no owner, yet an exception it
+    /// throws goes to the next boundary up, so a cleanup error raised there (by a disposer, or at the
+    /// end of a flush the handler runs) stays deferred (spec 4.5).
+    /// </summary>
+    public static int ErrorHandlerDepth;
 }
