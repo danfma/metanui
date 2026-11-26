@@ -68,9 +68,9 @@ Known behaviour, stated precisely:
 
 ## Known issue: reentrant read from a cleanup during a producer's rerun
 
-Parked for a follow-up; it predates the Metano 3.2 branch and needs its own design decision.
+Parked for a follow-up; it predates the Metano 3.2 branch (reproduced on 2150c1e and c3af7d1 with the shape below) and needs its own design decision.
 
-- **Shape:** `trigger = Signal(0)`; `stale = Computed(() => { OnCleanup(() => seen = reader.Peek()); return 0; })`; `producer = Computed(() => trigger.Value == 0 ? stale.Value : 5)`; `reader = Computed(() => producer.Value + 1)`. Read `reader.Peek()` (1), then `trigger.Value = 1; Flush(); producer.Peek()`.
+- **Shape:** `trigger = Signal(0)`; `other = Signal(0)`; `stale = Computed(() => { OnCleanup(() => seen = reader.Peek()); return other.Value; })`; `producer = Computed(() => trigger.Value == 0 ? stale.Value : 5)`; `reader = Computed(() => producer.Value + 1)`. Read `reader.Peek()` (1), then `trigger.Value = 1; Flush(); producer.Peek()`.
 - **Observed:** `producer` reruns and drops `stale`; its end-of-run unlink unwatches `stale`, whose cleanup reads `reader`. `reader` is pending, but `producer` has not shallow-propagated its change yet, so `reader`'s dirty check finds nothing dirty and clears its pending mark; `producer`'s propagation then skips it. `reader.Peek()` returns 1 instead of 6, and keeps doing so until another change.
 - **Cause:** unwatch cleanups (Solid `unobserved`) run user code in the middle of a computed's update, before its propagation; alien-signals has no such cleanups.
 - **Candidate fixes:** defer the disposal an unwatch does until the producer has propagated; or make the producer's propagation also reach subscribers that are no longer pending (a cleared mark set during its own update).
