@@ -53,9 +53,21 @@ internal sealed class RootNode : OwnerNode
 
     /// <summary>
     /// Runs an error boundary's body like a root body; an exception it throws goes to the boundary's
-    /// own handler.
+    /// own handler once the run has ended, so what a body that disposed its boundary created
+    /// afterwards is already disposed when the handler runs.
     /// </summary>
     internal void RunBoundary(Action body)
+    {
+        var failure = RunBoundaryBody(body);
+
+        if (failure is not null)
+        {
+            HandleError(failure);
+        }
+    }
+
+    /// <summary>Runs the boundary body and returns the exception it threw, or null.</summary>
+    private Exception? RunBoundaryBody(Action body)
     {
         var previousOwner = Tracking.CurrentOwner;
         var previousObserver = Tracking.ActiveObserver;
@@ -66,10 +78,12 @@ internal sealed class RootNode : OwnerNode
         try
         {
             body();
+
+            return null;
         }
         catch (Exception error)
         {
-            HandleError(error);
+            return error;
         }
         finally
         {

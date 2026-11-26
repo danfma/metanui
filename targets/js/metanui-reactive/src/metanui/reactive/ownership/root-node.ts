@@ -35,16 +35,27 @@ export class RootNode extends OwnerNode {
 
   /** @internal */
   runBoundary(body: () => void): void {
+    const failure = this.runBoundaryBody(body);
+
+    if (!(failure == null)) {
+      this.handleError(failure);
+    }
+  }
+
+  private runBoundaryBody(body: () => void): Exception | null {
     const previousOwner = Tracking.currentOwner;
     const previousObserver = Tracking.activeObserver;
     Tracking.currentOwner = this;
     Tracking.activeObserver = null;
     try {
       body();
+
+      return null;
     } catch (e$) {
       const e0 = toException(e$);
       const error = e0;
-      this.handleError(error);
+
+      return error;
     } finally {
       this.endRun(previousOwner, previousObserver);
     }

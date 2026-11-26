@@ -69,6 +69,10 @@ public static class OwnershipScenarios
             BoundaryDisposedByItsBodyDisposesWhatTheBodyCreated
         ),
         new Scenario(
+            "error boundary disposed by its own body disposes what it created before its handler runs",
+            BoundaryDisposedByItsBodyDisposesWhatItCreatedBeforeItsHandler
+        ),
+        new Scenario(
             "pending computed disposed during its own dirty check keeps its last value",
             PendingComputedDisposedDuringItsCheckKeepsItsLastValue
         ),
@@ -627,6 +631,33 @@ public static class OwnershipScenarios
         expect.Equal(1, caught, "the handler received the body error");
 
         ExpectLateChildrenGone(expect, late);
+    }
+
+    /// <summary>
+    /// The boundary body disposes its owner, registers a cleanup, then throws. What the body created
+    /// after the disposal is disposed when the body ends, before the handler runs, as for a
+    /// computation whose run disposed it.
+    /// </summary>
+    private static void BoundaryDisposedByItsBodyDisposesWhatItCreatedBeforeItsHandler(
+        IExpect expect
+    )
+    {
+        var log = "";
+
+        Reactivity.Root(disposeRoot =>
+            Reactivity.ErrorBoundary(
+                () =>
+                {
+                    disposeRoot();
+                    Reactivity.OnCleanup(() => log += "cleanup,");
+
+                    throw new InvalidOperationException("body failed");
+                },
+                error => log += "handler,"
+            )
+        );
+
+        expect.Equal("cleanup,handler,", log, "order");
     }
 
     /// <summary>
