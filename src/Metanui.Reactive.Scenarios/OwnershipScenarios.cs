@@ -117,6 +117,10 @@ public static class OwnershipScenarios
             DisposedComputedWhoseUnwatchedDependencyFlushesReadsItsLastValue
         ),
         new Scenario(
+            "disposed computed read by a cleanup its own unlink runs returns its last value",
+            DisposedComputedReadByACleanupItsOwnUnlinkRunsReturnsItsLastValue
+        ),
+        new Scenario(
             "computed disposed during a dirty check and marked by a nested flush reads its last value",
             ComputedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue
         ),
@@ -988,6 +992,50 @@ public static class OwnershipScenarios
 
         expect.Equal(1, counted.Peek(), "value of the run");
         expect.Equal("run end,late cleanup,", log, "order");
+    }
+
+    /// <summary>
+    /// <c>frozen</c> disposes its own root during its first run, reads <c>middle</c> and flushes, which
+    /// marks it pending through <c>middle</c>. At the end of the run its unlink unwatches
+    /// <c>middle</c>, whose cleanup reads <c>frozen</c>: at that moment <c>frozen</c> has no
+    /// dependency left but is still marked pending. A disposed computed never checks its
+    /// dependencies, so that read returns its last value.
+    /// </summary>
+    private static void DisposedComputedReadByACleanupItsOwnUnlinkRunsReturnsItsLastValue(
+        IExpect expect
+    )
+    {
+        Computed<int>? frozen = null;
+        Exception? readError = null;
+        var source = Reactivity.Signal(1);
+
+        var middle = Reactivity.Computed(() =>
+        {
+            var value = source.Value;
+
+            Reactivity.OnCleanup(() => readError = ScenarioRunner.Catch(() => _ = frozen!.Peek()));
+
+            return value;
+        });
+
+        frozen = Reactivity.Root(disposeRoot =>
+            Reactivity.Computed(() =>
+            {
+                disposeRoot();
+
+                var value = middle.Value;
+
+                Reactivity.Flush();
+
+                return value * 10;
+            })
+        );
+
+        source.Value = 2;
+
+        expect.Equal(10, frozen.Value, "value of the run that disposed it");
+        expect.IsTrue(readError is null, "the read from the cleanup does not throw");
+        expect.Equal(10, frozen.Value, "it keeps the value of that run");
     }
 
     /// <summary>

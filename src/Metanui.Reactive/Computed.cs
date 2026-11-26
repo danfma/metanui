@@ -85,6 +85,8 @@ public sealed class Computed<T> : ComputedNode
     {
         if (IsDisposed)
         {
+            SettleDisposedFlags();
+
             return false;
         }
 
@@ -234,7 +236,10 @@ public sealed class Computed<T> : ComputedNode
     }
 
     /// <summary>
-    /// Pending: recomputes when the dirty check finds a changed dependency. Otherwise only the pending
+    /// Pending: recomputes when the dirty check finds a changed dependency. A disposed computed never
+    /// checks its dependencies: whatever marked it pending (a flush through links it kept for a while
+    /// after its disposal), it returns its frozen value or error, and its flags go back to what
+    /// disposal left. Otherwise only the pending
     /// mark is cleared, from the current flags rather than those read before the check: a
     /// <see cref="Reactivity.Flush" /> nested in the check (spec 4.6) may have marked this computed
     /// dirty meanwhile, and then it recomputes too (Metanui: alien-signals writes back the flags read
@@ -242,6 +247,13 @@ public sealed class Computed<T> : ComputedNode
     /// </summary>
     private void RecomputeIfDependencyChanged()
     {
+        if (IsDisposed)
+        {
+            SettleDisposedFlags();
+
+            return;
+        }
+
         if (IsAnyDependencyDirty())
         {
             Recompute();
@@ -298,6 +310,9 @@ public sealed class Computed<T> : ComputedNode
             PurgeStaleDeps();
         }
     }
+
+    /// <summary>Puts back the flags disposal left: <see cref="ReactiveFlags.Mutable" /> and the error, if any.</summary>
+    private void SettleDisposedFlags() => Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
 
     private void CacheError(Exception error)
     {

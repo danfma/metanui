@@ -68,6 +68,8 @@ export class Computed<T> extends ComputedNode {
   /** @internal */
   override update(): boolean {
     if (this.isDisposed) {
+      this.settleDisposedFlags();
+
       return false;
     }
 
@@ -170,6 +172,12 @@ export class Computed<T> extends ComputedNode {
   }
 
   private recomputeIfDependencyChanged(): void {
+    if (this.isDisposed) {
+      this.settleDisposedFlags();
+
+      return;
+    }
+
     if (this.isAnyDependencyDirty()) {
       this.recompute();
 
@@ -213,6 +221,10 @@ export class Computed<T> extends ComputedNode {
       this.flags &= ~ReactiveFlags.RecursedCheck;
       this.purgeStaleDeps();
     }
+  }
+
+  private settleDisposedFlags(): void {
+    this.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
   }
 
   private cacheError(error: Exception): void {
