@@ -105,6 +105,18 @@ public static class OwnershipScenarios
             ComputedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue
         ),
         new Scenario(
+            "computed that disposes itself and whose late cleanup flushes reads its last value",
+            ComputedThatDisposesItselfAndWhoseLateCleanupFlushesReadsItsLastValue
+        ),
+        new Scenario(
+            "computed unlinked after a dirty check, whose unwatched dependency flushes, reads its last value",
+            ComputedUnlinkedAfterACheckWhoseUnwatchedDependencyFlushesReadsItsLastValue
+        ),
+        new Scenario(
+            "disposed computed whose unwatched dependency flushes reads its last value",
+            DisposedComputedWhoseUnwatchedDependencyFlushesReadsItsLastValue
+        ),
+        new Scenario(
             "computed disposed during a dirty check and marked by a nested flush reads its last value",
             ComputedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue
         ),
@@ -1013,6 +1025,154 @@ public static class OwnershipScenarios
 
         expect.IsTrue(error is null, "a later read does not throw");
         expect.Equal(10, frozen.Value, "it keeps the value of that run");
+    }
+
+    /// <summary>
+    /// <c>frozen</c> disposes its own root during its first run, reads <c>middle</c> (which links it
+    /// again until the run ends) and registers a cleanup that writes <c>source</c> and flushes. The
+    /// end of the run runs that late cleanup: its flush must not mark <c>frozen</c> pending through
+    /// links that are about to go, or a later read would check dependencies it no longer has.
+    /// </summary>
+    private static void ComputedThatDisposesItselfAndWhoseLateCleanupFlushesReadsItsLastValue(
+        IExpect expect
+    )
+    {
+        var source = Reactivity.Signal(1);
+        var middle = Reactivity.Computed(() => source.Value);
+
+        var frozen = Reactivity.Root(disposeRoot =>
+            Reactivity.Computed(() =>
+            {
+                disposeRoot();
+
+                var value = middle.Value;
+
+                Reactivity.OnCleanup(() =>
+                {
+                    source.Value = 2;
+                    Reactivity.Flush();
+                });
+
+                return value * 10;
+            })
+        );
+
+        expect.Equal(10, frozen.Value, "value of the run that disposed it");
+
+        var error = ScenarioRunner.Catch(() => _ = frozen.Value);
+
+        expect.IsTrue(error is null, "a later read does not throw");
+        expect.Equal(10, frozen.Value, "it keeps the value of that run");
+    }
+
+    /// <summary>
+    /// <c>frozen</c> reads <c>first</c>, then <c>second</c>. Its disposal unlinks <c>first</c> first,
+    /// and the cleanup of the unwatched <c>first</c> writes <c>source</c> and flushes while
+    /// <c>frozen</c> is still linked to <c>second</c>. That flush must not leave <c>frozen</c> pending
+    /// once its links are gone.
+    /// </summary>
+    private static void DisposedComputedWhoseUnwatchedDependencyFlushesReadsItsLastValue(
+        IExpect expect
+    )
+    {
+        var source = Reactivity.Signal(0);
+
+        var first = Reactivity.Computed(() =>
+        {
+            Reactivity.OnCleanup(() =>
+            {
+                source.Value = 5;
+                Reactivity.Flush();
+            });
+
+            return 0;
+        });
+
+        var second = Reactivity.Computed(() => source.Value);
+
+        var (frozen, dispose) = Reactivity.Root(disposeRoot =>
+            (Reactivity.Computed(() => first.Value + second.Value), disposeRoot)
+        );
+
+        expect.Equal(0, frozen.Peek(), "initial value");
+
+        dispose();
+
+        var error = ScenarioRunner.Catch(() => _ = frozen.Peek());
+
+        expect.IsTrue(error is null, "the read of the disposed computed does not throw");
+        expect.Equal(0, frozen.Peek(), "it keeps its last value");
+    }
+
+    /// <summary>
+    /// <c>frozen</c> reads <c>first</c>, then <c>second</c>, and is disposed during a dirty check, so
+    /// its links wait for the end of that check. Unlinking them then unwatches <c>first</c>, whose
+    /// cleanup writes <c>source</c> and flushes while <c>frozen</c> is still linked to
+    /// <c>second</c>. That flush must not leave <c>frozen</c> pending once its links are gone.
+    /// </summary>
+    private static void ComputedUnlinkedAfterACheckWhoseUnwatchedDependencyFlushesReadsItsLastValue(
+        IExpect expect
+    )
+    {
+        var armed = false;
+        var trigger = Reactivity.Signal(0);
+        var source = Reactivity.Signal(0);
+        var disposeFrozen = () => { };
+
+        var first = Reactivity.Computed(() =>
+        {
+            Reactivity.OnCleanup(() =>
+            {
+                if (armed)
+                {
+                    armed = false;
+                    source.Value = 5;
+                    Reactivity.Flush();
+                }
+            });
+
+            return 0;
+        });
+
+        var second = Reactivity.Computed(() => source.Value);
+
+        var frozen = Reactivity.Root(disposeRoot =>
+        {
+            disposeFrozen = disposeRoot;
+
+            return Reactivity.Computed(() => first.Value + second.Value);
+        });
+
+        var inner = Reactivity.Computed(() =>
+        {
+            var value = trigger.Value;
+
+            Reactivity.OnCleanup(() =>
+            {
+                if (value == 0)
+                {
+                    disposeFrozen();
+                }
+            });
+
+            return value;
+        });
+
+        var reader = Reactivity.Computed(() => inner.Value);
+
+        expect.Equal(0, frozen.Peek(), "initial value");
+        expect.Equal(0, reader.Peek(), "initial reader value");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+        armed = true;
+
+        expect.Equal(1, reader.Peek(), "the reader sees the change");
+
+        var error = ScenarioRunner.Catch(() => _ = frozen.Peek());
+
+        expect.IsTrue(error is null, "the read of the disposed computed does not throw");
+        expect.Equal(0, frozen.Peek(), "it keeps its last value");
     }
 
     /// <summary>
