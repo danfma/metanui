@@ -97,6 +97,10 @@ public static class OwnershipScenarios
             ObserverSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange
         ),
         new Scenario(
+            "computed that disposes itself and flushes during its run reads its last value",
+            ComputedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue
+        ),
+        new Scenario(
             "computed disposed during a dirty check and marked by a nested flush reads its last value",
             ComputedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue
         ),
@@ -916,6 +920,43 @@ public static class OwnershipScenarios
 
         expect.IsTrue(error is null, "the flush does not fail");
         expect.Equal(10, seen, "the other effect applies the new value");
+    }
+
+    /// <summary>
+    /// <c>frozen</c> disposes its own root during its first run, then reads <c>middle</c> (which links
+    /// it again until the run ends) and calls <see cref="Reactivity.Flush" />. That nested flush
+    /// commits the pending write and marks <c>frozen</c> pending through <c>middle</c>. Once the run
+    /// ends and its links are gone, a read must return the value of that run, not check dependencies
+    /// it no longer has.
+    /// </summary>
+    private static void ComputedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue(
+        IExpect expect
+    )
+    {
+        var source = Reactivity.Signal(1);
+        var middle = Reactivity.Computed(() => source.Value);
+
+        var frozen = Reactivity.Root(disposeRoot =>
+            Reactivity.Computed(() =>
+            {
+                disposeRoot();
+
+                var value = middle.Value;
+
+                Reactivity.Flush();
+
+                return value * 10;
+            })
+        );
+
+        source.Value = 2;
+
+        expect.Equal(10, frozen.Value, "value of the run that disposed it");
+
+        var error = ScenarioRunner.Catch(() => _ = frozen.Value);
+
+        expect.IsTrue(error is null, "a later read does not throw");
+        expect.Equal(10, frozen.Value, "it keeps the value of that run");
     }
 
     /// <summary>
