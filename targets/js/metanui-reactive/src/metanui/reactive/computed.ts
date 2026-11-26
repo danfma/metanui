@@ -125,7 +125,7 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override unwatched(): void {
-    if ((this.flags & ReactiveFlags.RecursedCheck) !== 0) {
+    if (this.isDisposed || (this.flags & ReactiveFlags.RecursedCheck) !== 0) {
       return;
     }
 
