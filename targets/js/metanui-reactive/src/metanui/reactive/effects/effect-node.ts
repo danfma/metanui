@@ -1,4 +1,4 @@
-import { throwError, toException } from "metano-runtime";
+import { throwError, toException, type IDisposable } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { ReactiveFlags } from "../graph/reactive-flags.js";
 import { CleanupEntry } from "../ownership/cleanup-entry.js";
@@ -8,7 +8,7 @@ import { Teardown } from "../ownership/teardown.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
 
-export abstract class EffectNode extends OwnerNode {
+export abstract class EffectNode extends OwnerNode implements IDisposable {
   /** @internal */
   declare nextQueued: EffectNode | null;
 

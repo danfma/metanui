@@ -1,4 +1,4 @@
-import { HashCode, copyRecordWith } from "metano-runtime";
+import { HashCode, copyRecordWith, type IDisposable } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity, type Computed, type Signal } from "metanui-reactive/metanui/reactive";
@@ -344,7 +344,7 @@ export class OwnershipScenarios {
   private static effectDisposedDuringItsComputeDisposesWhatTheComputeCreated(expect: IExpect): void {
     const late = new OwnershipScenarios$LateChildren();
     const source = Reactivity.signal(0);
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => Reactivity.effect(() => {
+    Reactivity.rootFuncOfActionT<IDisposable>((disposeRoot: () => void) => Reactivity.effect(() => {
       const value = source.value;
 
       if (value === 1) {

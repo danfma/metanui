@@ -15,8 +15,10 @@ namespace Metanui.Reactive.Effects;
 /// last on disposal, like the cleanup a Solid effect function returns.
 /// An exception from the compute or the apply goes to the nearest error boundary among the owners;
 /// with none it escapes (spec 4.4). A failed compute queues no apply.
+/// The node is also the handle <see cref="Reactivity.Effect{T}" /> returns: disposing it is owner
+/// disposal of this effect alone, so the handle allocates nothing.
 /// </remarks>
-internal abstract class EffectNode : OwnerNode
+internal abstract class EffectNode : OwnerNode, IDisposable
 {
     /// <summary>Next effect in the flush queue of computes to run.</summary>
     internal EffectNode? NextQueued;
@@ -160,6 +162,9 @@ internal abstract class EffectNode : OwnerNode
         UnlinkDependenciesOnDisposal();
         ReleaseUserState();
     }
+
+    /// <summary>Disposes the effect before its owner does (spec 4.3); disposing twice does nothing.</summary>
+    void IDisposable.Dispose() => Dispose();
 
     /// <summary>Effects are subscribers only, so no dependency walk ever asks them to update.</summary>
     internal override bool Update() =>
