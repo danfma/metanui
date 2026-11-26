@@ -33,7 +33,7 @@ export class ScenarioRunner {
     let dispose = () => {
     };
     try {
-      Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+      Reactivity.rootVoid((disposeRoot: () => void) => {
         dispose = disposeRoot;
         scenario.run(expect);
       });

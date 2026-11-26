@@ -3,13 +3,6 @@
     <RootNamespace>Metanui.Reactive</RootNamespace>
     <MetanoOutputDir>../../targets/js/metanui-reactive/src</MetanoOutputDir>
     <MetanoClean>true</MetanoClean>
-    <!-- MS0063: Root<T>(Func<Action, T>) and Root(Action<Action>) differ only in the delegate's
-         return type, which TypeScript cannot test at runtime, so the `root` dispatcher forwards
-         every call to the value-returning overload. That is the intended TS surface: the void
-         overload only wraps the other one, and C# call sites still bind to it directly.
-         Temporary: remove after Metano #799 ships, or when the 0002 design replaces Root with a
-         CreateRoot object. -->
-    <NoWarn>$(NoWarn);MS0063</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Metano" />

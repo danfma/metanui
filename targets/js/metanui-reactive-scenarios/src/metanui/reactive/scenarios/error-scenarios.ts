@@ -372,7 +372,7 @@ export class ErrorScenarios {
 
       return runs === 1 ? throwError(new InvalidOperationException("First run fails.")) : value;
     });
-    const graph = Reactivity.rootFuncOfActionT<ErrorScenarios$OwnedRetryGraph>((dispose: () => void) => {
+    const graph = Reactivity.rootBody<ErrorScenarios$OwnedRetryGraph>((dispose: () => void) => {
       const reader = Reactivity.computed(() => {
         trigger.value;
 
@@ -407,7 +407,7 @@ export class ErrorScenarios {
 
       return runs === 1 ? throwError(new InvalidOperationException("First run fails.")) : source.value;
     });
-    Reactivity.rootActionOfAction((dispose: () => void) => {
+    Reactivity.rootVoid((dispose: () => void) => {
       Reactivity.effect(() => {
         trigger.value;
 
@@ -462,7 +462,7 @@ export class ErrorScenarios {
 
   private static computedDisposedWhileItsRetryIsPendingIsNotRetried(expect: IExpect): void {
     const trigger = Reactivity.signal(0);
-    const graph = Reactivity.rootFuncOfActionT<ErrorScenarios$OwnedRetryGraph>((dispose: () => void) => {
+    const graph = Reactivity.rootBody<ErrorScenarios$OwnedRetryGraph>((dispose: () => void) => {
       const flaky = ErrorScenarios.failingOnFirstRun(42);
       const reader = Reactivity.computed(() => {
         trigger.value;
@@ -867,7 +867,7 @@ export class ErrorScenarios {
   private static selfDisposingApplyCleanupErrorReachesBoundary(expect: IExpect): void {
     let caught = "";
     const source = Reactivity.signal(0);
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => Reactivity.errorBoundary(() => Reactivity.effect(() => source.value, (value: number, previous: number) => {
+    Reactivity.rootVoid((disposeRoot: () => void) => Reactivity.errorBoundary(() => Reactivity.effect(() => source.value, (value: number, previous: number) => {
       if (value === 0) {
         Reactivity.onCleanup(() => ErrorScenarios.disposeAndFail(disposeRoot));
       }
@@ -882,7 +882,7 @@ export class ErrorScenarios {
   private static selfDisposingComputeErrorReachesBoundary(expect: IExpect): void {
     let caught = "";
     const source = Reactivity.signal(0);
-    Reactivity.rootActionOfAction((disposeRoot: () => void) => Reactivity.errorBoundary(() => Reactivity.effect(() => {
+    Reactivity.rootVoid((disposeRoot: () => void) => Reactivity.errorBoundary(() => Reactivity.effect(() => {
       if (source.value === 1) {
         ErrorScenarios.disposeAndFail(disposeRoot);
       }
@@ -913,7 +913,7 @@ export class ErrorScenarios {
     let caught = "";
     let dispose = () => {
     };
-    Reactivity.errorBoundary(() => Reactivity.rootActionOfAction((disposeRoot: () => void) => {
+    Reactivity.errorBoundary(() => Reactivity.rootVoid((disposeRoot: () => void) => {
       dispose = disposeRoot;
       Reactivity.effect(() => {
         Reactivity.onCleanup(() => log += "child,");
@@ -996,7 +996,7 @@ export class ErrorScenarios {
   }
 
   private static rootWithThrowingCleanupThrown(thrown: Exception): () => void {
-    return Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    return Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => throwError(thrown));
 
       return disposeRoot;
@@ -1004,7 +1004,7 @@ export class ErrorScenarios {
   }
 
   private static rootWithThrowingCleanupDefault(): () => void {
-    return Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    return Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => throwError(new InvalidOperationException("cleanup failed")));
 
       return disposeRoot;
@@ -1051,7 +1051,7 @@ export class ErrorScenarios {
 
   private static disposerInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary(expect: IExpect): void {
     let outerErrors = "";
-    const disposeOther = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    const disposeOther = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => throwError(new InvalidOperationException("cleanup failed")));
 
       return disposeRoot;
@@ -1064,7 +1064,7 @@ export class ErrorScenarios {
 
   private static flushInBoundaryHandlerKeepsCleanupErrorFromOuterBoundary(expect: IExpect): void {
     let outerErrors = "";
-    const disposeOther = Reactivity.rootFuncOfActionT<() => void>((disposeRoot: () => void) => {
+    const disposeOther = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
       Reactivity.onCleanup(() => throwError(new InvalidOperationException("cleanup failed")));
 
       return disposeRoot;
@@ -1128,7 +1128,7 @@ export class ErrorScenarios {
     const late = Reactivity.signal(0);
     let dispose = () => {
     };
-    const computed = Reactivity.rootFuncOfActionT<Computed<number>>((disposeRoot: () => void) => {
+    const computed = Reactivity.rootBody<Computed<number>>((disposeRoot: () => void) => {
       dispose = disposeRoot;
 
       return Reactivity.computed(() => {
