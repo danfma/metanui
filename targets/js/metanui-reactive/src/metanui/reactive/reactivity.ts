@@ -1,3 +1,4 @@
+import type { IDisposable } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { Computed } from "./computed.js";
 import { SplitEffect } from "./effects/split-effect.js";
@@ -31,8 +32,11 @@ export class Reactivity {
     return new Computed(compute, comparer);
   }
 
-  static effect<T>(compute: () => T, apply: (arg1: T, arg2: T) => void): void {
-    new SplitEffect(compute, apply).start();
+  static effect<T>(compute: () => T, apply: (arg1: T, arg2: T) => void): IDisposable {
+    const effect = new SplitEffect(compute, apply);
+    effect.start();
+
+    return effect;
   }
 
   static rootFuncOfActionT<T>(body: (arg: () => void) => T): T {

@@ -60,8 +60,14 @@ public static partial class Reactivity
     /// first compute). A failed compute queues no apply. An effect created outside any owner is never
     /// disposed; Solid warns about it in dev (<c>NO_OWNER_EFFECT</c>), Metanui has no warning channel.
     /// </remarks>
-    public static void Effect<T>(Func<T> compute, Action<T, T> apply) =>
-        new SplitEffect<T>(compute, apply).Start();
+    public static IDisposable Effect<T>(Func<T> compute, Action<T, T> apply)
+    {
+        var effect = new SplitEffect<T>(compute, apply);
+
+        effect.Start();
+
+        return effect;
+    }
 
     /// <summary>
     /// Runs <paramref name="body" /> under a new owner, untracked, and hands it the disposer, which

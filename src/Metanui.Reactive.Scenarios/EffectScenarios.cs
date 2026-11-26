@@ -32,6 +32,20 @@ public static class EffectScenarios
             "effect created in a compute applies before its parent",
             ChildEffectAppliesBeforeItsParent
         ),
+        new Scenario("effect handle disposes the effect early", EffectHandleDisposesEarly),
+        new Scenario("effect handle dispose is idempotent", EffectHandleDisposeIsIdempotent),
+        new Scenario(
+            "owner dispose after handle dispose runs nothing twice",
+            OwnerDisposeAfterHandleDisposeRunsNothingTwice
+        ),
+        new Scenario(
+            "effect handle disposed during a flush skips the queued apply",
+            EffectHandleDisposedDuringFlushSkipsQueuedApply
+        ),
+        new Scenario(
+            "effect handle disposed in its own apply runs no further work",
+            EffectHandleDisposedInItsOwnApply
+        ),
     ];
 
     private static void ComputeRunsOnCreationApplyOnFlush(IExpect expect)
@@ -336,5 +350,143 @@ public static class EffectScenarios
         Reactivity.Flush();
 
         expect.Equal("child,parent,", log, "apply order");
+    }
+
+    private static void EffectHandleDisposesEarly(IExpect expect)
+    {
+        var counts = new EffectCounts();
+        var source = Reactivity.Signal(0);
+        var handle = CountedEffect(source, counts);
+
+        Reactivity.Flush();
+        handle.Dispose();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, counts.Computes, "computes after dispose and a write");
+        expect.Equal(1, counts.Applies, "applies after dispose and a write");
+        expect.Equal(1, counts.ComputeCleanups, "compute cleanups after dispose");
+        expect.Equal(1, counts.ApplyCleanups, "apply cleanups after dispose");
+    }
+
+    private static void EffectHandleDisposeIsIdempotent(IExpect expect)
+    {
+        var counts = new EffectCounts();
+        var source = Reactivity.Signal(0);
+        var handle = CountedEffect(source, counts);
+
+        Reactivity.Flush();
+        handle.Dispose();
+        handle.Dispose();
+
+        expect.Equal(1, counts.ComputeCleanups, "compute cleanups after two disposes");
+        expect.Equal(1, counts.ApplyCleanups, "apply cleanups after two disposes");
+    }
+
+    private static void OwnerDisposeAfterHandleDisposeRunsNothingTwice(IExpect expect)
+    {
+        var counts = new EffectCounts();
+        var rootCleanups = 0;
+        var source = Reactivity.Signal(0);
+        IDisposable handle = null!;
+
+        var disposeRoot = Reactivity.Root(dispose =>
+        {
+            Reactivity.OnCleanup(() => rootCleanups++);
+            handle = CountedEffect(source, counts);
+
+            return dispose;
+        });
+
+        Reactivity.Flush();
+        handle.Dispose();
+        disposeRoot();
+
+        expect.Equal(1, counts.ComputeCleanups, "compute cleanups after both disposals");
+        expect.Equal(1, counts.ApplyCleanups, "apply cleanups after both disposals");
+        expect.Equal(1, rootCleanups, "root cleanups after both disposals");
+    }
+
+    private static void EffectHandleDisposedDuringFlushSkipsQueuedApply(IExpect expect)
+    {
+        var appliesOfB = 0;
+        var source = Reactivity.Signal(0);
+        IDisposable handleOfB = null!;
+
+        Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                if (value > 0)
+                {
+                    handleOfB.Dispose();
+                }
+            }
+        );
+
+        handleOfB = Reactivity.Effect(() => source.Value, (value, previous) => appliesOfB++);
+        Reactivity.Flush();
+
+        expect.Equal(1, appliesOfB, "applies of B before the write");
+
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, appliesOfB, "applies of B after A disposed its handle");
+    }
+
+    /// <summary>Like owner disposal of the running effect (spec 4.5): the apply finishes, nothing runs after it.</summary>
+    private static void EffectHandleDisposedInItsOwnApply(IExpect expect)
+    {
+        var log = "";
+        var source = Reactivity.Signal(0);
+        IDisposable handle = null!;
+
+        handle = Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                Reactivity.OnCleanup(() => log += "cleanup" + value + ",");
+
+                if (value > 0)
+                {
+                    handle.Dispose();
+                }
+
+                log += "apply" + value + ",";
+            }
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+        source.Value = 2;
+        Reactivity.Flush();
+
+        expect.Equal("apply0,cleanup0,cleanup1,apply1,", log, "self-disposal order");
+    }
+
+    private static IDisposable CountedEffect(Signal<int> source, EffectCounts counts) =>
+        Reactivity.Effect(
+            () =>
+            {
+                counts.Computes++;
+                Reactivity.OnCleanup(() => counts.ComputeCleanups++);
+
+                return source.Value;
+            },
+            (value, previous) =>
+            {
+                counts.Applies++;
+                Reactivity.OnCleanup(() => counts.ApplyCleanups++);
+            }
+        );
+
+    private sealed class EffectCounts
+    {
+        public int Computes;
+        public int Applies;
+        public int ComputeCleanups;
+        public int ApplyCleanups;
     }
 }

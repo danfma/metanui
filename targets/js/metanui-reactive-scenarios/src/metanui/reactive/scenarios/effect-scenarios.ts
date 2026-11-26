@@ -1,7 +1,7 @@
-import { HashCode, copyRecordWith } from "metano-runtime";
+import { HashCode, copyRecordWith, type IDisposable } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
-import { Reactivity } from "metanui-reactive/metanui/reactive";
+import { Reactivity, type Signal } from "metanui-reactive/metanui/reactive";
 import { ExpectedMessages } from "./expected-messages.js";
 import type { IExpect } from "./i-expect.js";
 import { ScenarioRunner } from "./scenario-runner.js";
@@ -37,8 +37,22 @@ class EffectScenarios$Point {
   }
 }
 
+class EffectScenarios$EffectCounts {
+  declare computes: number;
+  declare applies: number;
+  declare computeCleanups: number;
+  declare applyCleanups: number;
+
+  constructor() {
+    this.computes = 0;
+    this.applies = 0;
+    this.computeCleanups = 0;
+    this.applyCleanups = 0;
+  }
+}
+
 export class EffectScenarios {
-  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun), new Scenario("effect created in a compute applies before its parent", EffectScenarios.childEffectAppliesBeforeItsParent)];
+  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun), new Scenario("effect created in a compute applies before its parent", EffectScenarios.childEffectAppliesBeforeItsParent), new Scenario("effect handle disposes the effect early", EffectScenarios.effectHandleDisposesEarly), new Scenario("effect handle dispose is idempotent", EffectScenarios.effectHandleDisposeIsIdempotent), new Scenario("owner dispose after handle dispose runs nothing twice", EffectScenarios.ownerDisposeAfterHandleDisposeRunsNothingTwice), new Scenario("effect handle disposed during a flush skips the queued apply", EffectScenarios.effectHandleDisposedDuringFlushSkipsQueuedApply), new Scenario("effect handle disposed in its own apply runs no further work", EffectScenarios.effectHandleDisposedInItsOwnApply)];
 
   private constructor() { }
 
@@ -229,5 +243,99 @@ export class EffectScenarios {
     }, (value: number, previous: number) => log += "parent,");
     Reactivity.flush();
     expect.equal("child,parent,", log, "apply order");
+  }
+
+  private static effectHandleDisposesEarly(expect: IExpect): void {
+    const counts = new EffectScenarios$EffectCounts();
+    const source = Reactivity.signal(0);
+    const handle = EffectScenarios.countedEffect(source, counts);
+    Reactivity.flush();
+    handle.dispose();
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, counts.computes, "computes after dispose and a write");
+    expect.equal(1, counts.applies, "applies after dispose and a write");
+    expect.equal(1, counts.computeCleanups, "compute cleanups after dispose");
+    expect.equal(1, counts.applyCleanups, "apply cleanups after dispose");
+  }
+
+  private static effectHandleDisposeIsIdempotent(expect: IExpect): void {
+    const counts = new EffectScenarios$EffectCounts();
+    const source = Reactivity.signal(0);
+    const handle = EffectScenarios.countedEffect(source, counts);
+    Reactivity.flush();
+    handle.dispose();
+    handle.dispose();
+    expect.equal(1, counts.computeCleanups, "compute cleanups after two disposes");
+    expect.equal(1, counts.applyCleanups, "apply cleanups after two disposes");
+  }
+
+  private static ownerDisposeAfterHandleDisposeRunsNothingTwice(expect: IExpect): void {
+    const counts = new EffectScenarios$EffectCounts();
+    let rootCleanups = 0;
+    const source = Reactivity.signal(0);
+    let handle: IDisposable = null!;
+    const disposeRoot = Reactivity.rootFuncOfActionT<() => void>((dispose: () => void) => {
+      Reactivity.onCleanup(() => rootCleanups = (rootCleanups + 1) | 0);
+      handle = EffectScenarios.countedEffect(source, counts);
+
+      return dispose;
+    });
+    Reactivity.flush();
+    handle.dispose();
+    disposeRoot();
+    expect.equal(1, counts.computeCleanups, "compute cleanups after both disposals");
+    expect.equal(1, counts.applyCleanups, "apply cleanups after both disposals");
+    expect.equal(1, rootCleanups, "root cleanups after both disposals");
+  }
+
+  private static effectHandleDisposedDuringFlushSkipsQueuedApply(expect: IExpect): void {
+    let appliesOfB = 0;
+    const source = Reactivity.signal(0);
+    let handleOfB: IDisposable = null!;
+    Reactivity.effect(() => source.value, (value: number, previous: number) => {
+      if (value > 0) {
+        handleOfB.dispose();
+      }
+    });
+    handleOfB = Reactivity.effect(() => source.value, (value: number, previous: number) => appliesOfB = (appliesOfB + 1) | 0);
+    Reactivity.flush();
+    expect.equal(1, appliesOfB, "applies of B before the write");
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal(1, appliesOfB, "applies of B after A disposed its handle");
+  }
+
+  private static effectHandleDisposedInItsOwnApply(expect: IExpect): void {
+    let log = "";
+    const source = Reactivity.signal(0);
+    let handle: IDisposable = null!;
+    handle = Reactivity.effect(() => source.value, (value: number, previous: number) => {
+      Reactivity.onCleanup(() => log += "cleanup" + value + ",");
+
+      if (value > 0) {
+        handle.dispose();
+      }
+
+      log += "apply" + value + ",";
+    });
+    Reactivity.flush();
+    source.value = 1;
+    Reactivity.flush();
+    source.value = 2;
+    Reactivity.flush();
+    expect.equal("apply0,cleanup0,cleanup1,apply1,", log, "self-disposal order");
+  }
+
+  private static countedEffect(source: Signal<number>, counts: EffectScenarios$EffectCounts): IDisposable {
+    return Reactivity.effect(() => {
+      counts.computes = (counts.computes + 1) | 0;
+      Reactivity.onCleanup(() => counts.computeCleanups = (counts.computeCleanups + 1) | 0);
+
+      return source.value;
+    }, (value: number, previous: number) => {
+      counts.applies = (counts.applies + 1) | 0;
+      Reactivity.onCleanup(() => counts.applyCleanups = (counts.applyCleanups + 1) | 0);
+    });
   }
 }
