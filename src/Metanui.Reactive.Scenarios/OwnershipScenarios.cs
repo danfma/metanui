@@ -88,6 +88,10 @@ public static class OwnershipScenarios
             "observer sharing a computed with an effect disposed during its check sees the change",
             ObserverSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange
         ),
+        new Scenario(
+            "computed disposed during a dirty check and marked by a nested flush reads its last value",
+            ComputedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue
+        ),
     ];
 
     private static void RootDisposeRunsCleanupsInReverse(IExpect expect)
@@ -827,6 +831,62 @@ public static class OwnershipScenarios
 
         expect.IsTrue(error is null, "the flush does not fail");
         expect.Equal(10, seen, "the other effect applies the new value");
+    }
+
+    /// <summary>
+    /// The dirty check of <c>reader</c> updates <c>inner</c>, whose cleanup disposes the root owning
+    /// <c>frozen</c>, writes <c>source</c> and flushes (allowed outside a flush, spec 4.6). The
+    /// disposed <c>frozen</c> keeps its links until the check ends, so that nested flush marks it
+    /// pending through <c>middle</c>. Once the check ends and its links are gone, a read must return
+    /// its last value, not walk dependencies it no longer has.
+    /// </summary>
+    private static void ComputedDisposedDuringACheckAndMarkedByANestedFlushReadsItsLastValue(
+        IExpect expect
+    )
+    {
+        var trigger = Reactivity.Signal(0);
+        var source = Reactivity.Signal(0);
+        var middle = Reactivity.Computed(() => source.Value + 1);
+        var disposeFrozen = () => { };
+
+        var frozen = Reactivity.Root(disposeRoot =>
+        {
+            disposeFrozen = disposeRoot;
+
+            return Reactivity.Computed(() => middle.Value * 10);
+        });
+
+        var inner = Reactivity.Computed(() =>
+        {
+            var value = trigger.Value;
+
+            Reactivity.OnCleanup(() =>
+            {
+                if (value == 0)
+                {
+                    disposeFrozen();
+                    source.Value = 1;
+                    Reactivity.Flush();
+                }
+            });
+
+            return value;
+        });
+
+        var reader = Reactivity.Computed(() => inner.Value);
+
+        expect.Equal(10, frozen.Peek(), "initial value");
+        expect.Equal(0, reader.Peek(), "initial reader value");
+
+        trigger.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, reader.Peek(), "the reader sees the change");
+
+        var error = ScenarioRunner.Catch(() => _ = frozen.Peek());
+
+        expect.IsTrue(error is null, "the read of the disposed computed does not throw");
+        expect.Equal(10, frozen.Peek(), "it keeps its last value");
     }
 
     private static void ExpectLateChildrenGone(IExpect expect, LateChildren late)

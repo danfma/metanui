@@ -1,6 +1,7 @@
 import type { ClassType } from "metano-runtime";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { DependencyGraph } from "../graph/dependency-graph.js";
+import { ReactiveFlags } from "../graph/reactive-flags.js";
 import { ReactiveNode } from "../graph/reactive-node.js";
 import { Tracking } from "../tracking.js";
 import { CleanupEntry } from "./cleanup-entry.js";
@@ -140,6 +141,7 @@ export abstract class OwnerNode extends ReactiveNode {
       OwnerNode._deferredUnlinks = node.nextDeferredUnlink;
       node.nextDeferredUnlink = null;
       node.depsTail = null;
+      node.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
       DependencyGraph.purgeDeps(node);
     }
   }
