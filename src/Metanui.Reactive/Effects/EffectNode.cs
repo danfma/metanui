@@ -121,6 +121,14 @@ internal abstract class EffectNode : OwnerNode, IDisposable
 
             Tracking.ActiveApply = this;
             Apply();
+            Tracking.ActiveApply = previousApply;
+
+            if (IsDisposed)
+            {
+                // The apply disposed its own effect: the cleanups it registered after the disposal
+                // would never run, so they run now, as the late cleanups of a self-disposed run do.
+                RunApplyCleanups();
+            }
         }
         finally
         {
