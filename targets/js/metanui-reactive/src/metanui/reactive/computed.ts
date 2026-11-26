@@ -125,6 +125,10 @@ export class Computed<T> extends ComputedNode {
 
   /** @internal */
   override unwatched(): void {
+    if ((this.flags & ReactiveFlags.RecursedCheck) !== 0) {
+      return;
+    }
+
     if (!(this.depsTail == null)) {
       this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
       DependencyGraph.disposeAllDepsInReverse(this);
