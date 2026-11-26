@@ -20,6 +20,6 @@
     "metanui-reactive": "^1.0.0"
   },
   "peerDependencies": {
-    "metano-runtime": "^4.0.1"
+    "metano-runtime": "^4.0.2"
   }
 }
