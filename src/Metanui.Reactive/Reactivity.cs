@@ -54,14 +54,20 @@ public static partial class Reactivity
     /// <remarks>
     /// Solid's apply returns its cleanup; here an apply registers cleanups with
     /// <see cref="OnCleanup" /> instead. They run, last registered first, before the next apply of
-    /// the same effect and when the effect is disposed with its owner.
-    /// If the scheduler throws while the effect is created, the exception escapes this call but the
-    /// effect still exists and stays subscribed; its first apply runs on the next flush.
+    /// the same effect and when the effect is disposed, through its owner or the returned handle.
+    /// If the scheduler throws while the effect is created, the exception escapes this call and no
+    /// handle is returned, but the effect still exists and stays subscribed; its first apply runs on
+    /// the next flush, and only its owner can dispose it.
     /// An exception from <paramref name="compute" /> or <paramref name="apply" /> goes to the nearest
     /// <see cref="ErrorBoundary" />; with none, it escapes <see cref="Flush" /> (or this call, for the
     /// first compute). A failed compute queues no apply. An effect created outside any owner is never
-    /// disposed; Solid warns about it in dev (<c>NO_OWNER_EFFECT</c>), Metanui has no warning channel.
+    /// disposed unless its handle is; Solid warns about it in dev (<c>NO_OWNER_EFFECT</c>), Metanui has
+    /// no warning channel.
     /// </remarks>
+    /// <returns>
+    /// A handle that disposes this effect alone before its owner does (spec 4.3); disposing it twice
+    /// does nothing. Ignoring it gives Solid's lifetime: the effect lives until its owner is disposed.
+    /// </returns>
     public static IDisposable Effect<T>(Func<T> compute, Action<T, T> apply)
     {
         var effect = new SplitEffect<T>(compute, apply);
@@ -82,8 +88,8 @@ public static partial class Reactivity
     /// <inheritdoc cref="Root{T}" />
     /// <remarks>
     /// TypeScript cannot tell this overload from <see cref="Root{T}" /> at runtime, so the TS
-    /// <c>root</c> forwards to the value-returning one (<c>rootBody</c>) and this one is pinned as
-    /// <c>rootVoid</c>.
+    /// <c>root</c> forwards to the value-returning one. This one is pinned with
+    /// <c>[Name("void")]</c>, which Metano emits as <c>rootVoid</c>.
     /// </remarks>
     [Name("void")]
     public static void Root(Action<Action> body) =>

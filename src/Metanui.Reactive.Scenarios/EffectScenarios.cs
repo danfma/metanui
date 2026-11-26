@@ -44,7 +44,19 @@ public static class EffectScenarios
         ),
         new Scenario(
             "effect handle disposed in its own apply runs no further work",
-            EffectHandleDisposedInItsOwnApply
+            EffectHandleDisposedInItsOwnApplyRunsNoFurtherWork
+        ),
+        new Scenario(
+            "cleanup registered after self-disposal in an apply runs when the apply ends",
+            CleanupAfterSelfDisposalInApplyRunsWhenApplyEnds
+        ),
+        new Scenario(
+            "effect handle disposed before the first flush never applies",
+            EffectHandleDisposedBeforeFirstFlushNeverApplies
+        ),
+        new Scenario(
+            "handle dispose after owner dispose runs nothing twice",
+            HandleDisposeAfterOwnerDisposeRunsNothingTwice
         ),
     ];
 
@@ -359,6 +371,7 @@ public static class EffectScenarios
         var handle = CountedEffect(source, counts);
 
         Reactivity.Flush();
+
         handle.Dispose();
         source.Value = 1;
         Reactivity.Flush();
@@ -376,6 +389,7 @@ public static class EffectScenarios
         var handle = CountedEffect(source, counts);
 
         Reactivity.Flush();
+
         handle.Dispose();
         handle.Dispose();
 
@@ -399,6 +413,7 @@ public static class EffectScenarios
         });
 
         Reactivity.Flush();
+
         handle.Dispose();
         disposeRoot();
 
@@ -409,34 +424,42 @@ public static class EffectScenarios
 
     private static void EffectHandleDisposedDuringFlushSkipsQueuedApply(IExpect expect)
     {
-        var appliesOfB = 0;
+        var disposedEffectApplies = 0;
         var source = Reactivity.Signal(0);
-        IDisposable handleOfB = null!;
+        IDisposable disposedEffectHandle = null!;
 
+        // The first effect disposes the second one when the source changes.
         Reactivity.Effect(
             () => source.Value,
             (value, previous) =>
             {
                 if (value > 0)
                 {
-                    handleOfB.Dispose();
+                    disposedEffectHandle.Dispose();
                 }
             }
         );
 
-        handleOfB = Reactivity.Effect(() => source.Value, (value, previous) => appliesOfB++);
+        disposedEffectHandle = Reactivity.Effect(
+            () => source.Value,
+            (value, previous) => disposedEffectApplies++
+        );
+
         Reactivity.Flush();
 
-        expect.Equal(1, appliesOfB, "applies of B before the write");
+        expect.Equal(1, disposedEffectApplies, "applies before the write");
 
         source.Value = 1;
         Reactivity.Flush();
 
-        expect.Equal(1, appliesOfB, "applies of B after A disposed its handle");
+        expect.Equal(1, disposedEffectApplies, "applies after the first effect disposed it");
     }
 
-    /// <summary>Like owner disposal of the running effect (spec 4.5): the apply finishes, nothing runs after it.</summary>
-    private static void EffectHandleDisposedInItsOwnApply(IExpect expect)
+    /// <summary>
+    /// Like owner disposal of the running effect (spec 4.5): <c>Dispose</c> runs the apply cleanups at
+    /// once, the apply then finishes, and no later pass runs it.
+    /// </summary>
+    private static void EffectHandleDisposedInItsOwnApplyRunsNoFurtherWork(IExpect expect)
     {
         var log = "";
         var source = Reactivity.Signal(0);
@@ -464,6 +487,79 @@ public static class EffectScenarios
         Reactivity.Flush();
 
         expect.Equal("apply0,cleanup0,cleanup1,apply1,", log, "self-disposal order");
+    }
+
+    private static void CleanupAfterSelfDisposalInApplyRunsWhenApplyEnds(IExpect expect)
+    {
+        var log = "";
+        var source = Reactivity.Signal(0);
+        IDisposable handle = null!;
+
+        handle = Reactivity.Effect(
+            () => source.Value,
+            (value, previous) =>
+            {
+                log += "apply" + value + ",";
+
+                if (value > 0)
+                {
+                    handle.Dispose();
+                }
+
+                Reactivity.OnCleanup(() => log += "late" + value + ",");
+            }
+        );
+
+        Reactivity.Flush();
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal("apply0,late0,apply1,late1,", log, "late cleanup order");
+    }
+
+    private static void EffectHandleDisposedBeforeFirstFlushNeverApplies(IExpect expect)
+    {
+        var counts = new EffectCounts();
+        var source = Reactivity.Signal(0);
+        var handle = CountedEffect(source, counts);
+
+        handle.Dispose();
+        Reactivity.Flush();
+
+        expect.Equal(1, counts.Computes, "computes when disposed before the first flush");
+        expect.Equal(0, counts.Applies, "applies when disposed before the first flush");
+        expect.Equal(
+            1,
+            counts.ComputeCleanups,
+            "compute cleanups when disposed before the first flush"
+        );
+        expect.Equal(
+            0,
+            counts.ApplyCleanups,
+            "apply cleanups when disposed before the first flush"
+        );
+    }
+
+    private static void HandleDisposeAfterOwnerDisposeRunsNothingTwice(IExpect expect)
+    {
+        var counts = new EffectCounts();
+        var source = Reactivity.Signal(0);
+        IDisposable handle = null!;
+
+        var disposeRoot = Reactivity.Root(dispose =>
+        {
+            handle = CountedEffect(source, counts);
+
+            return dispose;
+        });
+
+        Reactivity.Flush();
+
+        disposeRoot();
+        handle.Dispose();
+
+        expect.Equal(1, counts.ComputeCleanups, "compute cleanups after both disposals");
+        expect.Equal(1, counts.ApplyCleanups, "apply cleanups after both disposals");
     }
 
     private static IDisposable CountedEffect(Signal<int> source, EffectCounts counts) =>
