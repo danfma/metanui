@@ -2,7 +2,8 @@
 # Pull the latest Metano release from NuGet: packages float (Version="*"),
 # the compiler tool is pinned in dotnet-tools.json and must be updated explicitly.
 # The generated packages get the matching metano-runtime from the build; the hand-written
-# workspaces (tests, benchmarks) are moved to the same version here.
+# workspaces (tests, benchmarks) are moved to the same version here. Afterwards run `dotnet build`
+# (it rewrites the generated package.json files), then `bun install`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 dotnet tool update Metano.Compiler.TypeScript
@@ -19,4 +20,3 @@ for manifest in tests/js/*/package.json bench/*/package.json; do
 done
 
 grep -H '"metano-runtime"' tests/js/*/package.json bench/*/package.json
-echo "Next: 'dotnet build' (rewrites the generated package.json files), then 'bun install'."

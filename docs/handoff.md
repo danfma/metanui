@@ -27,9 +27,15 @@ The project is on Metano **4.0.0** (tool, NuGet packages and `metano-runtime`), 
 
 **Removed with 3.3.0:** `Missing<T>` (#794), the explicit `Link?` local in `ShallowPropagate` (#796; the emitted TS is unchanged), and the MS0063 `NoWarn` (#799: the void `Root` overload is pinned with `[Name("void")]`, so TS has `rootBody`, `rootVoid` and a typed `root` forwarder). 3.3.0 also builds overload suffixes from parameter names and emits class fields as declarations (#795).
 
-**Metano 4.0.0 (major):** C# `using` emits native TS `using` (#817); every `IDisposable` class gets `[Symbol.dispose]()`; internal classes get their own `$runtimeType` and members that implement a public interface member lose `@internal` (#819); consumers are transpiled again when a referenced project changes or a file is removed (#818, #797), so no stamp workaround is needed. Every TS project that consumes the generated code or metano-runtime needs `"ESNext.Disposable"` in tsconfig `lib`; below target ESNext, `importHelpers` and `tslib` (^2.6.0). `MetanoUsingLowering=tryFinally` restores the try/finally lowering if a target needs it.
+**Metano 4.0.0 (major):**
 
-**Open issues (danfma/metano):** #781, #786. See the audit for the older ones.
+- C# `using` emits native TS `using` (#817), and every `IDisposable` class gets `[Symbol.dispose]()`.
+- Internal classes get their own `$runtimeType`, and members that implement a public interface member lose `@internal` (#819).
+- Consumers are transpiled again when a referenced project changes or a file is removed (#818, #797); no stamp workaround is needed.
+- Consumer requirements: `"ESNext.Disposable"` in tsconfig `lib` for every TS project that consumes the generated code or metano-runtime; below target ESNext, enable `importHelpers` and depend on `tslib` ^2.6.0. No tsconfig is versioned here (Bun runs the TS directly), so the hand-written tests are not type-checked.
+- `MetanoUsingLowering=tryFinally` restores the try/finally lowering if a target needs it (per the Metano 4.0.0 release notes).
+
+**Open issues (danfma/metano):** #781, #786, and a follow-up to #819 (reported to the Metano session): `OwnerNode.dispose()` lost `@internal` because it satisfies `IDisposable` for the internal `EffectNode`, so `Computed<T>` (through `ComputedNode`) now has a public `dispose()` in TS that .NET does not expose. Do not call it from TS; no local workaround. See the audit for the older ones.
 
 ### Effect handle
 
@@ -99,7 +105,7 @@ Current facts (Metano 4.0.0):
 - `Metano`, `Metano.Build.TypeScript` and the `Metano.Compiler.TypeScript` tool are all on 4.0.0, and `metano-runtime` on ^4.0.0; `scripts/update-metano.sh` moves them together.
 - Metano warnings fail the build (#785), with no exemption.
 - `closed` hierarchies and unions are transpiled since Metano 3.1.0; check what the current release emits before using them in web-targeted code.
-- The open issues and kept workarounds are in "Metano" above and in the audit (section 9).
+- The open issues (#781, #786) are in "Metano" above; the per-release re-checks are in the audit, sections 9 to 11. No Metano workaround is kept.
 
 Historical (kickoff, Metano 3.0.2; kept for context, superseded by the facts above):
 
