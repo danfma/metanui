@@ -164,7 +164,11 @@ public abstract class OwnerNode : ReactiveNode
 
     /// <summary>
     /// Unlinks the dependencies of every node a finished dirty check disposed. Each node leaves the
-    /// list before its unlink, which may run cleanups that dispose and defer more nodes.
+    /// list before its unlink, which may run cleanups that dispose and defer more nodes. A flush nested
+    /// in the check may have marked a node pending through the links it still had; its flags go back
+    /// to what disposal left (a computed keeps <see cref="ReactiveFlags.Mutable" /> and its error, an
+    /// effect has none), so a later read of the disposed computed returns its last value instead of
+    /// checking dependencies it no longer has.
     /// </summary>
     private static void UnlinkDeferredDependencies()
     {
@@ -175,6 +179,7 @@ public abstract class OwnerNode : ReactiveNode
             _deferredUnlinks = node.NextDeferredUnlink;
             node.NextDeferredUnlink = null;
             node.DepsTail = null;
+            node.Flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
             DependencyGraph.PurgeDeps(node);
         }
     }
