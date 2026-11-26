@@ -604,8 +604,9 @@ with `lib: ["ES2022", "ESNext.Disposable"]` on both packages: 0 diagnostics. `do
 
 - **#819 (fixed).** `EffectNode`, `SplitEffect` and `RootNode` now emit their own lazy `$runtimeType`;
   `EffectNode`'s lists `IDisposable`, so `IDisposable$runtimeType.test(handle)` is true. `OwnerNode.dispose`
-  lost its `@internal` tag. Side effect, reported upstream: `Computed<T>` inherits that `dispose()` through
-  `ComputedNode`, so the public TS surface of a computed now includes a member .NET keeps internal.
+  lost its `@internal` tag. Side effect in 4.0.0: `Computed<T>` inherited that public `dispose()` through `ComputedNode`.
+  Fixed in 4.0.1 (#821): `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits
+  `override dispose(): void { super.dispose(); }`.
 - **#817.** `EffectNode` gains `[Symbol.dispose]() { disposeResource(this, this.dispose); }`; the runtime
   helper installs `Symbol.dispose` on engines without it. Metanui's C# has no `using` statement, so the
   generated packages need no `tslib`.

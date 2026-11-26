@@ -158,6 +158,10 @@ export abstract class EffectNode extends OwnerNode implements IDisposable {
     this.releaseUserState();
   }
 
+  override dispose(): void {
+    super.dispose();
+  }
+
   /** @internal */
   override update(): boolean {
     return throwError(new InvalidOperationException("An effect cannot be updated."));
