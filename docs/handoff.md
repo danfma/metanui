@@ -66,6 +66,15 @@ Known behaviour, stated precisely:
 - **Queue-once guard:** a computed already on the chain is not queued again (`IsQueuedForRetry`: it has a next link, or it is the tail). Both branches are covered by "errored computed re-read by several observers is retried once" (A,B then B,A). A dedicated A,B / A,C scenario would exercise the same non-tail branch; without the guard, re-queuing A would link the tail back to A and loop the chain.
 - **Retry as an extra pass (untested):** a retry queued in the last pass the budget allows counts as work, so that flush stops with the pass-limit error and discards the retry with the pending writes. Confirm with a scenario before relying on it.
 
+## Known issue: reentrant read from a cleanup during a producer's rerun
+
+Parked for a follow-up; it predates the Metano 3.2 branch and needs its own design decision.
+
+- **Shape:** `trigger = Signal(0)`; `stale = Computed(() => { OnCleanup(() => seen = reader.Peek()); return 0; })`; `producer = Computed(() => trigger.Value == 0 ? stale.Value : 5)`; `reader = Computed(() => producer.Value + 1)`. Read `reader.Peek()` (1), then `trigger.Value = 1; Flush(); producer.Peek()`.
+- **Observed:** `producer` reruns and drops `stale`; its end-of-run unlink unwatches `stale`, whose cleanup reads `reader`. `reader` is pending, but `producer` has not shallow-propagated its change yet, so `reader`'s dirty check finds nothing dirty and clears its pending mark; `producer`'s propagation then skips it. `reader.Peek()` returns 1 instead of 6, and keeps doing so until another change.
+- **Cause:** unwatch cleanups (Solid `unobserved`) run user code in the middle of a computed's update, before its propagation; alien-signals has no such cleanups.
+- **Candidate fixes:** defer the disposal an unwatch does until the producer has propagated; or make the producer's propagation also reach subscribers that are no longer pending (a cleared mark set during its own update).
+
 ## Next steps
 
 1. **Effect handle on Metano 3.3.0:** resume `wip/effect-handle` once #800 ships.
