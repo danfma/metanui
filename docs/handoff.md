@@ -1,6 +1,6 @@
 # Handoff — Metanui
 
-## Status (2026-11-26): reactive core done, Metano 4.0.1, effect handle shipped, DSL spikes
+## Status (2026-11-26): reactive core done, Metano 4.0.2, effect handle shipped, DSL spikes
 
 The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
 
@@ -12,7 +12,7 @@ The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds,
 
 ### Repo and PRs
 
-The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (Metano 4.0.0 and the effect handle) is merged; the counter spike is on `main` (`spikes/`). The DSL-shapes spike is on branch `spike/dsl-shapes`, with its findings in `docs/design/0002-dsl-binding.md`. PR #4 moves to Metano 4.0.1.
+The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (Metano 4.0.0 and the effect handle) is merged; the counter spike is on `main` (`spikes/`). The DSL-shapes spike is on branch `spike/dsl-shapes`, with its findings in `docs/design/0002-dsl-binding.md`. PR #4 (Metano 4.0.1) is merged; branch `chore/metano-4.0.2` moves to 4.0.2 and hardens `scripts/update-metano.sh`.
 
 ### Benchmark summary
 
@@ -23,7 +23,7 @@ js-reactivity-benchmark against Solid 2.0.4 and alien-signals 3.2.1, budget 10-1
 
 ### Metano
 
-The project is on Metano **4.0.1** (tool, NuGet packages and `metano-runtime`), moved with `scripts/update-metano.sh` (then `dotnet build` and `bun install`, in that order: the build rewrites the generated `package.json` files). Since #785, Metano warnings fail the build, with no exemption left.
+The project is on Metano **4.0.2** (tool, NuGet packages and `metano-runtime`), moved with `scripts/update-metano.sh` (then `dotnet build` and `bun install`, in that order: the build rewrites the generated `package.json` files). The script bypasses the NuGet HTTP cache and fails, restoring `dotnet-tools.json`, while the tool and the floating packages resolve different versions (NuGet takes minutes to index a release). Since #785, Metano warnings fail the build, with no exemption left.
 
 **Removed with 3.3.0:** `Missing<T>` (#794), the explicit `Link?` local in `ShallowPropagate` (#796; the emitted TS is unchanged), and the MS0063 `NoWarn` (#799: the void `Root` overload is pinned with `[Name("void")]`, so TS has `rootBody`, `rootVoid` and a typed `root` forwarder). 3.3.0 also builds overload suffixes from parameter names and emits class fields as declarations (#795).
 
@@ -35,7 +35,7 @@ The project is on Metano **4.0.1** (tool, NuGet packages and `metano-runtime`), 
 - Consumer requirements: `"ESNext.Disposable"` in tsconfig `lib` for every TS project that consumes the generated code or metano-runtime; below target ESNext, enable `importHelpers` and depend on `tslib` ^2.6.0. No tsconfig is versioned here (Bun runs the TS directly), so the hand-written tests are not type-checked.
 - `MetanoUsingLowering=tryFinally` restores the try/finally lowering if a target needs it (per the Metano 4.0.0 release notes).
 
-**Open issues (danfma/metano):** #781, #786, #822 (claimer shapes not used by Metanui), #804 (initializer IIFEs; matters for DSL option D). #821 is fixed in 4.0.1: `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits its own `override dispose()`, so `Computed<T>` exposes no `dispose()`.
+**Open issues (danfma/metano):** #781, #786, #822 (claimer shapes not used by Metanui), #826 (cross-package `[External]` type emits an `import type` from a missing subpath, TS2307), #827 (`$runtimeType` of a class with only non-public constructors fails strict tsc, TS2322); both seen in the DSL spike output, not in the core. #804 is fixed in 4.0.2: initializers lower without IIFEs, which unblocks DSL option D. #821 is fixed in 4.0.1: `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits its own `override dispose()`, so `Computed<T>` exposes no `dispose()`.
 
 ### Effect handle
 
@@ -100,12 +100,12 @@ Origin: a design discussion in the Metano repo session (wave 8). The maintainer 
 
 ### Things to know before coding
 
-Current facts (Metano 4.0.1):
+Current facts (Metano 4.0.2):
 
-- `Metano`, `Metano.Build.TypeScript` and the `Metano.Compiler.TypeScript` tool are all on 4.0.1, and `metano-runtime` on ^4.0.1; `scripts/update-metano.sh` moves them together.
+- `Metano`, `Metano.Build.TypeScript` and the `Metano.Compiler.TypeScript` tool are all on 4.0.2, and `metano-runtime` on ^4.0.2; `scripts/update-metano.sh` moves them together.
 - Metano warnings fail the build (#785), with no exemption.
 - `closed` hierarchies and unions are transpiled since Metano 3.1.0; check what the current release emits before using them in web-targeted code.
-- The open issues (#781, #786) are in "Metano" above; the per-release re-checks are in the audit, sections 9 to 11. No Metano workaround is kept.
+- The open issues (#781, #786, #826, #827) are in "Metano" above; the per-release re-checks are in the audit, sections 9 to 11. No Metano workaround is kept.
 
 Historical (kickoff, Metano 3.0.2; kept for context, superseded by the facts above):
 

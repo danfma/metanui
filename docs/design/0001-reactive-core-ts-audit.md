@@ -614,3 +614,16 @@ with `lib: ["ES2022", "ESNext.Disposable"]` on both packages: 0 diagnostics. `do
 - Hot path: no change in `dependency-graph.ts`, `computed.ts`, `signal.ts` or `flush-loop.ts`; the new
   members are static getters evaluated on first use and the dispose alias.
 
+
+## 12. Metano 4.0.2 re-check
+
+Toolchain: Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript and metano-runtime 4.0.2. The generated
+sources of both packages are byte-identical to 4.0.1; `tsc --strict` (same options as section 11): 0 diagnostics.
+.NET 121 and Bun 127 tests pass; the benchmark correctness suite passes 12/12.
+
+- **#804 (fixed).** Expression temporaries no longer lower to IIFEs. The core had none, so it is unaffected; the
+  DSL spike's initializers now emit a hoisted `const` plus statements, or comma expressions over `let`
+  temporaries in argument position (Metano decision W13-1), with no closure.
+- **#826, #827 (open).** Found by strict `tsc` over the DSL spike output, present since 4.0.1: a cross-package
+  `[External]` type emits an `import type` from a subpath the package does not export, and the `$runtimeType`
+  of a class with only non-public constructors fails `ClassType<T>`. Neither appears in the core packages.
