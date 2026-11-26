@@ -1,4 +1,4 @@
-import { throwError, toException, type IDisposable } from "metano-runtime";
+import { IDisposable$runtimeType, disposeResource, throwError, toException, type ClassType, type IDisposable } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { ReactiveFlags } from "../graph/reactive-flags.js";
@@ -8,6 +8,8 @@ import { RootNode } from "../ownership/root-node.js";
 import { Teardown } from "../ownership/teardown.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
+
+let EffectNode$rt: ClassType<EffectNode> | undefined;
 
 export abstract class EffectNode extends OwnerNode implements IDisposable {
   /** @internal */
@@ -27,6 +29,24 @@ export abstract class EffectNode extends OwnerNode implements IDisposable {
     this.nextApply = null;
     this.hasPendingApply = false;
     this._applyCleanups = null;
+  }
+
+  static override get $runtimeType(): ClassType<EffectNode> {
+    return (EffectNode$rt ??= {
+      kind: "class",
+      name: "EffectNode",
+      fullName: "Metanui.Reactive.Effects.EffectNode",
+      namespace: "Metanui.Reactive.Effects",
+      ctor: EffectNode,
+      base: () => OwnerNode.$runtimeType,
+      interfaces: [
+        () => IDisposable$runtimeType,
+      ],
+      typeParameters: [],
+      isAbstract: true,
+      isValueType: false,
+      test: (v: unknown): v is EffectNode => v instanceof EffectNode,
+    });
   }
 
   /** @internal */
@@ -198,5 +218,9 @@ export abstract class EffectNode extends OwnerNode implements IDisposable {
     if (error != null) {
       throw error;
     }
+  }
+
+  [Symbol.dispose](): void {
+    disposeResource(this, this.dispose);
   }
 }

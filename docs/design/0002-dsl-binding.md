@@ -11,7 +11,7 @@ Stub, 2026-11-25. This is not a design. It records the decisions taken so far an
 `Reactivity.CreateRoot()` returns an `IDisposable` scope with `Run<T>(Func<T>)`, which can be re-entered. This covers owner capture (Solid `getOwner`/`runWithOwner`) for event handlers and async continuations. The callback `Root` stays as the low-level form.
 
 - **Public type.** The scope is a public `RootScope` (working name). `RootNode` stays internal: the scope exposes only `Run` and `Dispose`, not the node's members.
-- **`IDisposable` on the web.** Metano 3.3.0 maps `IDisposable` (#800); `Reactivity.Effect` already returns one. `IAsyncDisposable` is still MS0001, which matches the decision to keep the scope synchronous.
+- **`IDisposable` on the web.** Metano maps `IDisposable` since 3.3.0 (#800) and emits native `using` with `[Symbol.dispose]()` since 4.0.0; `Reactivity.Effect` already returns one. `IAsyncDisposable` is still MS0001, which matches the decision to keep the scope synchronous.
 - **The callback `Root` overloads.** The MS0063 `NoWarn` is gone (#799): the void overload is pinned as `rootVoid` in TS. Whether `CreateRoot` replaces the overloads is still open.
 - **Re-entrant `Run` rules are open.** See "Re-entrant `Run`" below.
 

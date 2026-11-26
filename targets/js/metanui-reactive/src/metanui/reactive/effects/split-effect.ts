@@ -1,4 +1,7 @@
+import { IDisposable$runtimeType, type ClassType } from "metano-runtime";
 import { EffectNode } from "./effect-node.js";
+
+let SplitEffect$rt: ClassType<SplitEffect<unknown>> | undefined;
 
 export class SplitEffect<T> extends EffectNode {
   declare private _compute: (() => T) | null;
@@ -14,6 +17,24 @@ export class SplitEffect<T> extends EffectNode {
     this._value = null!;
     this._applied = null!;
     this._hasApplied = false;
+  }
+
+  static override get $runtimeType(): ClassType<SplitEffect<unknown>> {
+    return (SplitEffect$rt ??= {
+      kind: "class",
+      name: "SplitEffect`1",
+      fullName: "Metanui.Reactive.Effects.SplitEffect`1",
+      namespace: "Metanui.Reactive.Effects",
+      ctor: SplitEffect,
+      base: () => EffectNode.$runtimeType,
+      interfaces: [
+        () => IDisposable$runtimeType,
+      ],
+      typeParameters: ["T"],
+      isAbstract: false,
+      isValueType: false,
+      test: (v: unknown): v is SplitEffect<unknown> => v instanceof SplitEffect,
+    });
   }
 
   protected override compute(): void {
