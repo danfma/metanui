@@ -149,7 +149,7 @@ export class Computed<T> extends ComputedNode {
   /** @internal */
   override onDisposed(): void {
     this.depsTail = null;
-    this.flags = ReactiveFlags.Mutable | this.flags & ReactiveFlags.Errored;
+    this.flags &= ReactiveFlags.Errored;
     this.unlinkDependenciesOnDisposal();
     this._compute = null;
     this._comparer = null;
@@ -204,6 +204,10 @@ export class Computed<T> extends ComputedNode {
   }
 
   private runFirst(): void {
+    if (this.isDisposed) {
+      return;
+    }
+
     this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
     const previousObserver = Tracking.activeObserver;
     const previousOwner = Tracking.currentOwner;
@@ -224,7 +228,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   private settleDisposedFlags(): void {
-    this.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
+    this.flags &= ReactiveFlags.Errored;
   }
 
   private cacheError(error: Exception): void {

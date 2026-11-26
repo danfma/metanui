@@ -175,8 +175,9 @@ export abstract class OwnerNode extends ReactiveNode {
 
   private unlinkAllDependenciesOfDisposed(): void {
     this.depsTail = null;
+    this.flags &= ReactiveFlags.Errored;
     DependencyGraph.purgeDeps(this);
-    this.flags &= ReactiveFlags.Mutable | ReactiveFlags.Errored;
+    this.flags &= ReactiveFlags.Errored;
   }
 
   private attachTo(parent: OwnerNode): void {
