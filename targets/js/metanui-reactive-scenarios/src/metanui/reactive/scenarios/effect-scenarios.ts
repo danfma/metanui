@@ -52,7 +52,7 @@ class EffectScenarios$EffectCounts {
 }
 
 export class EffectScenarios {
-  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun), new Scenario("effect created in a compute applies before its parent", EffectScenarios.childEffectAppliesBeforeItsParent), new Scenario("effect handle disposes the effect early", EffectScenarios.effectHandleDisposesEarly), new Scenario("effect handle dispose is idempotent", EffectScenarios.effectHandleDisposeIsIdempotent), new Scenario("owner dispose after handle dispose runs nothing twice", EffectScenarios.ownerDisposeAfterHandleDisposeRunsNothingTwice), new Scenario("effect handle disposed during a flush skips the queued apply", EffectScenarios.effectHandleDisposedDuringFlushSkipsQueuedApply), new Scenario("effect handle disposed in its own apply runs no further work", EffectScenarios.effectHandleDisposedInItsOwnApplyRunsNoFurtherWork), new Scenario("cleanup registered after self-disposal in an apply runs when the apply ends", EffectScenarios.cleanupAfterSelfDisposalInApplyRunsWhenApplyEnds), new Scenario("effect handle disposed before the first flush never applies", EffectScenarios.effectHandleDisposedBeforeFirstFlushNeverApplies), new Scenario("handle dispose after owner dispose runs nothing twice", EffectScenarios.handleDisposeAfterOwnerDisposeRunsNothingTwice)];
+  static readonly all: Scenario[] = [new Scenario("effect computes on creation and applies on flush", EffectScenarios.computeRunsOnCreationApplyOnFlush), new Scenario("apply receives the previous value", EffectScenarios.applyReceivesPrevious), new Scenario("first apply previous equals the value for a value type", EffectScenarios.firstApplyPreviousEqualsValueForValueType), new Scenario("applies run after all computes", EffectScenarios.appliesRunAfterAllComputes), new Scenario("apply is untracked", EffectScenarios.applyIsUntracked), new Scenario("apply cleanup runs before the next apply", EffectScenarios.applyCleanupRunsBeforeNextApply), new Scenario("creating a computation inside an apply throws", EffectScenarios.creatingComputationInsideApplyThrows), new Scenario("cleanup of a computed recomputed in an apply belongs to the computed", EffectScenarios.computedCleanupInApplyBelongsToComputed), new Scenario("write in apply schedules another pass", EffectScenarios.writeInApplySchedulesAnotherPass), new Scenario("effect write loop throws", EffectScenarios.effectWriteLoopThrows), new Scenario("equal record write does not rerun the effect", EffectScenarios.equalRecordWriteDoesNotRerun), new Scenario("effect created in a compute applies before its parent", EffectScenarios.childEffectAppliesBeforeItsParent), new Scenario("effect handle disposes the effect early", EffectScenarios.effectHandleDisposesEarly), new Scenario("effect handle dispose is idempotent", EffectScenarios.effectHandleDisposeIsIdempotent), new Scenario("owner dispose after handle dispose runs nothing twice", EffectScenarios.ownerDisposeAfterHandleDisposeRunsNothingTwice), new Scenario("effect handle disposed during a flush skips the queued apply", EffectScenarios.effectHandleDisposedDuringFlushSkipsQueuedApply), new Scenario("effect handle disposed in its own apply runs no further work", EffectScenarios.effectHandleDisposedInItsOwnApplyRunsNoFurtherWork), new Scenario("cleanup registered after self-disposal in an apply runs when the apply ends", EffectScenarios.cleanupAfterSelfDisposalInApplyRunsWhenApplyEnds), new Scenario("late apply cleanup runs when the apply throws after self-disposal", EffectScenarios.lateApplyCleanupRunsWhenApplyThrowsAfterSelfDisposal), new Scenario("effect handle disposed before the first flush never applies", EffectScenarios.effectHandleDisposedBeforeFirstFlushNeverApplies), new Scenario("handle dispose after owner dispose runs nothing twice", EffectScenarios.handleDisposeAfterOwnerDisposeRunsNothingTwice)];
 
   private constructor() { }
 
@@ -344,6 +344,27 @@ export class EffectScenarios {
     source.value = 1;
     Reactivity.flush();
     expect.equal("apply0,late0,apply1,late1,", log, "late cleanup order");
+  }
+
+  private static lateApplyCleanupRunsWhenApplyThrowsAfterSelfDisposal(expect: IExpect): void {
+    let log = "";
+    const source = Reactivity.signal(0);
+    Reactivity.errorBoundary(() => {
+      let handle: IDisposable = null!;
+      handle = Reactivity.effect(() => source.value, (value: number, previous: number) => {
+        if (value === 0) {
+          return;
+        }
+
+        handle.dispose();
+        Reactivity.onCleanup(() => log += "late,");
+        throw new InvalidOperationException("apply failed");
+      });
+    }, (error: Exception) => log += "boundary:" + error.message + ",");
+    Reactivity.flush();
+    source.value = 1;
+    Reactivity.flush();
+    expect.equal("late,boundary:apply failed,", log, "late cleanup, then the apply error");
   }
 
   private static effectHandleDisposedBeforeFirstFlushNeverApplies(expect: IExpect): void {

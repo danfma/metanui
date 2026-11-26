@@ -120,14 +120,24 @@ internal abstract class EffectNode : OwnerNode, IDisposable
             }
 
             Tracking.ActiveApply = this;
-            Apply();
-            Tracking.ActiveApply = previousApply;
 
-            if (IsDisposed)
+            try
             {
-                // The apply disposed its own effect: the cleanups it registered after the disposal
-                // would never run, so they run now, as the late cleanups of a self-disposed run do.
-                RunApplyCleanups();
+                Apply();
+            }
+            catch
+            {
+                // The apply's error wins over an error from a late cleanup.
+                _ = EndApply(previousApply);
+
+                throw;
+            }
+
+            var lateCleanupError = EndApply(previousApply);
+
+            if (lateCleanupError is not null)
+            {
+                throw lateCleanupError;
             }
         }
         finally
@@ -136,6 +146,27 @@ internal abstract class EffectNode : OwnerNode, IDisposable
             Tracking.CurrentOwner = previousOwner;
             Tracking.ActiveApply = previousApply;
         }
+    }
+
+    /// <summary>
+    /// Leaves the apply. When it disposed its own effect, the cleanups it registered after the
+    /// disposal would never run, so they run now, as the late cleanups of a self-disposed run do
+    /// (spec 4.5); returns the first error they raised.
+    /// </summary>
+    private Exception? EndApply(EffectNode? previousApply)
+    {
+        Tracking.ActiveApply = previousApply;
+
+        if (!IsDisposed)
+        {
+            return null;
+        }
+
+        var lateCleanups = _applyCleanups;
+
+        _applyCleanups = null;
+
+        return Teardown.RunChain(lateCleanups);
     }
 
     /// <summary>Attaches <paramref name="cleanup" /> to the running apply; cleanups run last registered first.</summary>
