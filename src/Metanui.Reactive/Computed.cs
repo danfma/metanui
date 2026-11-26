@@ -171,11 +171,14 @@ public sealed class Computed<T> : ComputedNode
     /// cleanups, those are still disposed, and it recomputes on the next read to create them again;
     /// an errored one keeps its error instead, as its retry rule (F-9) expects.
     /// A computed whose run is in progress (its function disposed its last subscriber) is left alone:
-    /// the run finishes and keeps what it creates and reads, like a run read with no observer.
+    /// the run finishes and keeps what it creates and reads, like a run read with no observer. So is a
+    /// disposed one: it holds nothing, unless its run disposed it and is still going, and then the end
+    /// of that run disposes what it created (<see cref="OwnerNode.PurgeStaleDeps" />). Disposal
+    /// clears <see cref="ReactiveFlags.RecursedCheck" />, so that test alone would miss it.
     /// </remarks>
     internal override void Unwatched()
     {
-        if ((Flags & ReactiveFlags.RecursedCheck) != 0)
+        if (IsDisposed || (Flags & ReactiveFlags.RecursedCheck) != 0)
         {
             return;
         }

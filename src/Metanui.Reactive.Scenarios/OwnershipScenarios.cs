@@ -97,6 +97,10 @@ public static class OwnershipScenarios
             ObserverSharingAComputedWithAnEffectDisposedDuringItsCheckSeesTheChange
         ),
         new Scenario(
+            "computed that disposed itself keeps what its run creates until the run ends when unwatched",
+            SelfDisposedComputedUnwatchedMidRunKeepsWhatItsRunCreatesUntilTheRunEnds
+        ),
+        new Scenario(
             "computed that disposes itself and flushes during its run reads its last value",
             ComputedThatDisposesItselfAndFlushesDuringItsRunReadsItsLastValue
         ),
@@ -920,6 +924,58 @@ public static class OwnershipScenarios
 
         expect.IsTrue(error is null, "the flush does not fail");
         expect.Equal(10, seen, "the other effect applies the new value");
+    }
+
+    /// <summary>
+    /// <c>counted</c>, read directly while dirty, disposes its own root, registers a cleanup, reads a
+    /// dependency, then disposes <c>reader</c>, its only subscriber. That unwatch reaches a computed
+    /// that is disposed but still running: what the rest of the run creates is disposed when the run
+    /// ends (spec 4.5), not by the unwatch in the middle of it.
+    /// </summary>
+    private static void SelfDisposedComputedUnwatchedMidRunKeepsWhatItsRunCreatesUntilTheRunEnds(
+        IExpect expect
+    )
+    {
+        var log = "";
+        var disposeOnRun = false;
+        var disposeReader = () => { };
+        var source = Reactivity.Signal(0);
+
+        var counted = Reactivity.Root(disposeRoot =>
+            Reactivity.Computed(() =>
+            {
+                if (!disposeOnRun)
+                {
+                    return source.Value;
+                }
+
+                disposeRoot();
+                Reactivity.OnCleanup(() => log += "late cleanup,");
+
+                var value = source.Value;
+
+                disposeReader();
+                log += "run end,";
+
+                return value;
+            })
+        );
+
+        var reader = Reactivity.Root(disposeRoot =>
+        {
+            disposeReader = disposeRoot;
+
+            return Reactivity.Computed(() => counted.Value + 1);
+        });
+
+        expect.Equal(1, reader.Peek(), "initial value");
+
+        disposeOnRun = true;
+        source.Value = 1;
+        Reactivity.Flush();
+
+        expect.Equal(1, counted.Peek(), "value of the run");
+        expect.Equal("run end,late cleanup,", log, "order");
     }
 
     /// <summary>
