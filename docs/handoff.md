@@ -1,6 +1,6 @@
 # Handoff — Metanui
 
-## Status (2026-11-26): reactive core done, Metano 3.3.0, effect handle shipped
+## Status (2026-11-26): reactive core done, Metano 4.0.0, effect handle shipped
 
 The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
 
@@ -12,7 +12,7 @@ The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds,
 
 ### Repo and PRs
 
-The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. The branch `feat/metano-3.3-effect-handle` moves to Metano 3.3.0 and adds the effect handle.
+The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (`feat/metano-3.3-effect-handle`) moves to Metano 4.0.0 and adds the effect handle.
 
 ### Benchmark summary
 
@@ -23,22 +23,17 @@ js-reactivity-benchmark against Solid 2.0.4 and alien-signals 3.2.1, budget 10-1
 
 ### Metano
 
-The project is on Metano **3.3.0** (tool, NuGet packages and `metano-runtime`), moved with `scripts/update-metano.sh`. Since #785, Metano warnings fail the build, with no exemption left.
+The project is on Metano **4.0.0** (tool, NuGet packages and `metano-runtime`), moved with `scripts/update-metano.sh` (then `dotnet build` and `bun install`, in that order: the build rewrites the generated `package.json` files). Since #785, Metano warnings fail the build, with no exemption left.
 
-**Workarounds removed in 3.3.0:** `Missing<T>` (#794, `null!` keeps its `!`), the explicit `Link?` local in `ShallowPropagate` (#796, a reassigned `var` gets `| null`; the emitted TS is unchanged), and the MS0063 `NoWarn` (#799: the void `Root` overload is pinned with `[Name("void")]`, so TS has `rootBody`, `rootVoid` and a typed `root` forwarder). 3.3.0 also changes the TS names of overloads (the suffix comes from parameter names) and emits class fields as declarations with one constructor store each (#795).
+**Removed with 3.3.0:** `Missing<T>` (#794), the explicit `Link?` local in `ShallowPropagate` (#796; the emitted TS is unchanged), and the MS0063 `NoWarn` (#799: the void `Root` overload is pinned with `[Name("void")]`, so TS has `rootBody`, `rootVoid` and a typed `root` forwarder). 3.3.0 also builds overload suffixes from parameter names and emits class fields as declarations (#795).
 
-**Open issues (danfma/metano):** #781, #786, #797, #818, #819. See the audit for the older ones. In short:
+**Metano 4.0.0 (major):** C# `using` emits native TS `using` (#817); every `IDisposable` class gets `[Symbol.dispose]()`; internal classes get their own `$runtimeType` and members that implement a public interface member lose `@internal` (#819); consumers are transpiled again when a referenced project changes or a file is removed (#818, #797), so no stamp workaround is needed. Every TS project that consumes the generated code or metano-runtime needs `"ESNext.Disposable"` in tsconfig `lib`; below target ESNext, `importHelpers` and `tslib` (^2.6.0). `MetanoUsingLowering=tryFinally` restores the try/finally lowering if a target needs it.
 
-- #797: deleting or renaming a `.cs` file leaves a stale `.ts`.
-- #818: a consumer project is not transpiled again when only a referenced project changes, so `Metanui.Reactive.Scenarios` can keep calling names that `Metanui.Reactive` no longer emits.
-
-**Process notes (until #797 and #818 ship):** after removing or renaming a `.cs` file, or after changing the public surface of `Metanui.Reactive`, delete the `.metano-stamp` of the affected target (or touch a `.cs` file of the consumer project) before building. `dotnet build --no-incremental` does not help: the stamp is a file input/output check.
+**Open issues (danfma/metano):** #781, #786. See the audit for the older ones.
 
 ### Effect handle
 
-`Reactivity.Effect` returns an `IDisposable` handle (spec 4.3): the effect node itself, so nothing is allocated. The handle is optional; an effect still belongs to its owner, as in Solid. In TS, Metano 3.3.0 maps `IDisposable` to metano-runtime's `{ dispose(): void }` and lowers `using` to try/finally; `IAsyncDisposable` gives MS0001. The next Metano release (#817) emits native `using` declarations and adds `[Symbol.dispose]()` to every `IDisposable` class; consumers will then need `"ESNext.Disposable"` in their tsconfig `lib`. Nothing in the C# changes. `Root(d => Reactivity.Effect(...))` now binds to `Root<IDisposable>`.
-
-**Known limitation (Metano #819, fix in progress):** in TS the handle passes no nominal `IDisposable` check (`obj is IDisposable` in transpiled C# is false on the web), because the internal `EffectNode`/`SplitEffect` emit no `$runtimeType` and inherit `OwnerNode`'s. The `dispose()` that satisfies the interface is `OwnerNode.dispose`, emitted with `@internal`; check the `.d.ts` once the package gets a declaration build with `stripInternal`. #819 gives every class its own `$runtimeType` and drops `@internal` from members that implement a public interface member; no local workaround (project rule).
+`Reactivity.Effect` returns an `IDisposable` handle (spec 4.3): the effect node itself, so nothing is allocated. The handle is optional; an effect still belongs to its owner, as in Solid. In TS it has `dispose()` and `[Symbol.dispose]()` (`using h = Reactivity.effect(...)` works, see `tests/js/reactive/effect-handle.test.ts`) and passes `IDisposable$runtimeType.test`. `IAsyncDisposable` is still MS0001. `Root(d => Reactivity.Effect(...))` now binds to `Root<IDisposable>`.
 
 ### The F-9 retry
 
@@ -64,7 +59,7 @@ Parked for a follow-up; it predates the Metano 3.2 branch (reproduced on 2150c1e
 
 ## Next steps
 
-1. **`docs/design/0002-dsl-binding.md`:** the DSL binding design, starting from the stub (decisions taken and open questions are there). It must also settle context through the owner chain, a common read abstraction over `Signal<T>` and `Computed<T>`, and the re-entrant `Run` rules. The `CreateRoot` scope is `IDisposable`, which Metano 3.3.0 supports.
+1. **`docs/design/0002-dsl-binding.md`:** the DSL binding design, starting from the stub (decisions taken and open questions are there). It must also settle context through the owner chain, a common read abstraction over `Signal<T>` and `Computed<T>`, and the re-entrant `Run` rules. The `CreateRoot` scope is `IDisposable`, which Metano supports (native `using` since 4.0.0).
 2. **V8 optimisation phase:** F2 (node layout) is the lead hypothesis, then F3 (deep flush) and the defensive `try/finally`. A Metano object-creation benchmark showed that derived classes with declared fields are about 2.4x slower to create on V8. Metano was advised to emit declaration-only fields.
 3. **Remaining follow-ups:**
    - a `TrackingScope` struct for the save/set/restore of the tracking state, if Metano emits it without allocation;
@@ -99,9 +94,9 @@ Origin: a design discussion in the Metano repo session (wave 8). The maintainer 
 
 ### Things to know before coding
 
-Current facts (Metano 3.3.0):
+Current facts (Metano 4.0.0):
 
-- `Metano`, `Metano.Build.TypeScript` and the `Metano.Compiler.TypeScript` tool are all on 3.3.0, and `metano-runtime` on ^3.3.0; `scripts/update-metano.sh` moves them together.
+- `Metano`, `Metano.Build.TypeScript` and the `Metano.Compiler.TypeScript` tool are all on 4.0.0, and `metano-runtime` on ^4.0.0; `scripts/update-metano.sh` moves them together.
 - Metano warnings fail the build (#785), with no exemption.
 - `closed` hierarchies and unions are transpiled since Metano 3.1.0; check what the current release emits before using them in web-targeted code.
 - The open issues and kept workarounds are in "Metano" above and in the audit (section 9).

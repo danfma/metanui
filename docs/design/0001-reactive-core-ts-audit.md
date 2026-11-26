@@ -596,3 +596,19 @@ on both packages.
 - **New: #819.** Internal classes emit no `$runtimeType`, so the effect handle (an internal `SplitEffect`)
   inherits `OwnerNode`'s descriptor (`interfaces: []`) and `IDisposable$runtimeType.test(handle)` is
   false; the inherited `OwnerNode.dispose` that satisfies `IDisposable` is emitted with `@internal`.
+
+## 11. Metano 4.0.0 re-check
+
+Toolchain: Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript and metano-runtime 4.0.0; `tsc --strict`
+with `lib: ["ES2022", "ESNext.Disposable"]` on both packages: 0 diagnostics. `dotnet build`: 0 warnings.
+
+- **#819 (fixed).** `EffectNode`, `SplitEffect` and `RootNode` now emit their own lazy `$runtimeType`;
+  `EffectNode`'s lists `IDisposable`, so `IDisposable$runtimeType.test(handle)` is true. `OwnerNode.dispose`
+  lost its `@internal` tag.
+- **#817.** `EffectNode` gains `[Symbol.dispose]() { disposeResource(this, this.dispose); }`; the runtime
+  helper installs `Symbol.dispose` on engines without it. Metanui's C# has no `using` statement, so the
+  generated packages need no `tslib`.
+- **#818, #797 (fixed).** No stamp workaround is needed any more.
+- Hot path: no change in `dependency-graph.ts`, `computed.ts`, `signal.ts` or `flush-loop.ts`; the new
+  members are static getters evaluated on first use and the dispose alias.
+

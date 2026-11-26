@@ -1,10 +1,12 @@
-import { throwError, toException } from "metano-runtime";
+import { throwError, toException, type ClassType } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import type { ReactiveNode } from "../graph/reactive-node.js";
 import { FlushLoop } from "../scheduling/flush-loop.js";
 import { Tracking } from "../tracking.js";
 import { OwnerNode } from "./owner-node.js";
+
+let RootNode$rt: ClassType<RootNode> | undefined;
 
 export class RootNode extends OwnerNode {
   /** @internal */
@@ -18,6 +20,22 @@ export class RootNode extends OwnerNode {
     this._errorHandler = null;
     this.underComputation = RootNode.isUnderComputation(this.parent);
     this._errorHandler = errorHandler;
+  }
+
+  static override get $runtimeType(): ClassType<RootNode> {
+    return (RootNode$rt ??= {
+      kind: "class",
+      name: "RootNode",
+      fullName: "Metanui.Reactive.Ownership.RootNode",
+      namespace: "Metanui.Reactive.Ownership",
+      ctor: RootNode,
+      base: () => OwnerNode.$runtimeType,
+      interfaces: [],
+      typeParameters: [],
+      isAbstract: false,
+      isValueType: false,
+      test: (v: unknown): v is RootNode => v instanceof RootNode,
+    });
   }
 
   /** @internal */

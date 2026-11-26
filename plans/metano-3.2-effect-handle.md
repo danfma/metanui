@@ -98,6 +98,7 @@ All four were reported to the Metano session. The MS0063 comment fix landed in 0
 - **Known limitation, Metano #819:** the handle passes no nominal `IDisposable` check in TS (internal classes emit no `$runtimeType`), and the inherited `dispose()` is tagged `@internal`. Documented in spec 4.3 and the handoff; no local workaround.
 - **Found upstream during the upgrade:** #818 (a consumer is not transpiled again when only a referenced project changes; touch the consumer or delete its `.metano-stamp`).
 - **Measure:** Bun, local host under load (load average 9 to 20, other sessions running), `main` and the branch interleaved, three runs each; raw outputs and loads in `bench/reactivity/results/local-2026-11-26-metano-3.3/`. On the final HEAD run, Metanui `createComputations` is 78.00 ms vs 80.87 ms on `main` (-3.5%); across all runs the Metanui deltas stay within -15%..+6% while unchanged Solid moves -24%..+32%. No regression above noise.
+- **Metano 4.0.0 (same branch, maintainer request 2026-11-26):** #819 fixed (the handle passes `IDisposable$runtimeType.test`; `OwnerNode.dispose` lost `@internal`), #817 adds `[Symbol.dispose]()` (new hand-written Bun tests: `using` disposes the effect, nominal check), #818/#797 fixed (stamp workaround dropped). No tsconfig is versioned here, so the `ESNext.Disposable` requirement applies to consumers only (handoff). The emitted hot path is unchanged (only lazy `$runtimeType` getters and the dispose alias), so the benchmark was not re-run. Verified on 4.0.0: 121/121 .NET, 125/125 Bun, strict tsc (with `ESNext.Disposable`) clean, bench harness 12/12.
 - **Verified:** `dotnet build` 0 warnings, 121/121 on .NET, 123/123 on Bun, strict tsc clean on both generated packages, bench harness tests 12/12. Reviewers: compiler-man, bob, backend-reviewer and architecture-reviewer approved with notes, all addressed or reported upstream; the scoped re-review of the fixes approved with notes, also addressed.
 
 ---
@@ -160,13 +161,13 @@ Done in the docs commit. `docs/design/0002-dsl-binding.md` is a stub with the de
 All four tasks are complete.
 
 - **Task 1:** Metano 3.2.0 everywhere, with the 3.1.0 workarounds removed.
-- **Task 2:** on Metano 3.3.0, `Reactivity.Effect` returns an `IDisposable` handle (the effect node itself); the MS0063 `NoWarn` and the #794/#796 workarounds are gone; late apply cleanups after self-disposal now run.
+- **Task 2:** on Metano 3.3.0, then 4.0.0, `Reactivity.Effect` returns an `IDisposable` handle (the effect node itself); the MS0063 `NoWarn` and the #794/#796 workarounds are gone; late apply cleanups after self-disposal now run.
 - **Task 3:** the F-9 retry of an errored computed is deferred to the next flush pass, which removed the stale-sibling bug and the in-flush glitch without touching the DependencyGraph walks.
 - **Task 4:** `docs/design/0002-dsl-binding.md` stub and refreshed handoff.
-- **Open Metano issues:** #781, #786, #797, #818, #819 (see the handoff and the audit, section 10).
+- **Open Metano issues:** #781, #786 (see the handoff and the audit, sections 10 and 11).
 
 ## Deployment Plan
 
-- From a clean clone on Metano 3.3.0: `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet test --project tests/Metanui.Reactive.Tests`, `bun install`, `bun test tests/js/reactive`, `scripts/bench-reactivity.sh test`, and strict tsc on both generated packages.
-- After removing or renaming a `.cs` file, or changing the public surface of `Metanui.Reactive`, delete the affected `.metano-stamp` under `targets/js` (or touch a `.cs` file of the consumer) before building (#797, #818).
-- Merge `feat/metano-3.3-effect-handle` into `main` through its PR; `wip/effect-handle` can then be deleted.
+- From a clean clone on Metano 4.0.0: `dotnet tool restore`, `dotnet build` (0 warnings), `dotnet test --project tests/Metanui.Reactive.Tests`, `bun install`, `bun test tests/js/reactive`, `scripts/bench-reactivity.sh test`, and strict tsc on both generated packages.
+- After `scripts/update-metano.sh`, run `dotnet build` before `bun install`: the build rewrites the generated `package.json` files.
+- Merge `feat/metano-3.3-effect-handle` into `main` through PR #3; `wip/effect-handle` can then be deleted.

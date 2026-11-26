@@ -19,4 +19,4 @@ for manifest in tests/js/*/package.json bench/*/package.json; do
 done
 
 grep -H '"metano-runtime"' tests/js/*/package.json bench/*/package.json
-echo "Run 'bun install' to refresh bun.lock."
+echo "Next: 'dotnet build' (rewrites the generated package.json files), then 'bun install'."
