@@ -2,7 +2,57 @@
 
 ## Status
 
-Stub, 2026-11-25. This is not a design. It records the decisions taken so far and the questions the design must answer. Options are compared with prototypes and measurements, not in this document.
+Proposed v1 design, 2026-11-26, awaiting the maintainer's approval (section "Proposed design (v1)"). The rest of the document is the earlier stub: decisions taken, open questions, and the two spikes the proposal argues from.
+
+## Proposed design (v1)
+
+Scope: the platform-neutral DSL core, the web renderer and HTML vocabulary, and enough control flow to build the js-framework-benchmark app later. The shapes below come from the two spikes at the end of this document.
+
+### Model
+
+- **Fine-grained, setup runs once.** A component's body (or `Render`) runs once under the current owner. Only the parts given as functions bind an effect, which writes one platform property or text node. There is no virtual tree, no diffing and no re-render.
+- **Not a React model.** A virtual DOM runtime (Preact, Inferno) would cover only the web, Avalonia would need its own reconciler (as Microsoft UI Reactor wrote one for WinUI), every update would rebuild element descriptors in transpiled C#, and the reactive core would be reduced to a state container.
+
+### Layers and packages
+
+| Layer | Package | Knows |
+|---|---|---|
+| Reactive core | `Metanui.Reactive` (exists) | nothing of UI |
+| DSL core | `Metanui.Ui` | the core and the renderer port; no platform type |
+| Renderer port | `Metanui.Ui` (`IRenderer`) | structural operations only |
+| Platform | `Metanui.Web` (v1), `Metanui.Avalonia` (later) | the port and its platform: DOM adapter, element and attribute vocabulary, scheduler |
+
+- **The port is structural.** `IRenderer`: `CreateElement(string tag)`, `CreateText(string text)`, `SetText(object text, string value)`, `Insert(object parent, object child, object? anchor)`, `Remove(object parent, object child)`. Nodes are `object` handles: the DSL core never inspects them, so it stays non-generic (no `Part<TNode>` in user code), and a cast in a platform part costs nothing in TS.
+- **Attributes and events belong to the platform vocabulary.** A web attribute part knows it writes an `HTMLElement` (`Class`, `Id`, `Style`, `OnClick`, `On(eventName, ...)`, `Value`, `Checked`); an Avalonia vocabulary will write `AvaloniaProperty` values. The port does not carry string-named properties, so no platform pays a lookup per write.
+- **Proof of neutrality.** A `TestRenderer` in the scenarios project implements the port by building a printable tree, so the DSL scenarios run unchanged on .NET (TUnit) and on Bun, as the core scenarios do. A minimal Avalonia adapter is a later phase, not v1.
+
+### Authoring shape
+
+- **Hyperscript-like functions (spike option C).** `Div(Class("card"), H1(Text(() => $"Count: {count.Value}")), Button(OnClick(() => count.Value++), "+1"))`, imported with `using static`. Attributes come first and children follow, in HTML order. A string is a static text child.
+- **Static or reactive by overload.** Every attribute and `Text` has a `T` and a `Func<T>` overload. A lambda cannot become a `Prop<T>` (CS1660), so there is no `Prop<T>` type.
+- **Not in v1:** fluent modifiers (option E) for element-specific escape hatches, grouped `Bind` (option F) as an optimisation, and collection initializers (option D) until Metano #804 removes the per-initializer IIFE.
+
+### Components
+
+- **Function components:** a static method returning `Part`.
+- **Class components:** `sealed class Badge(Func<string> size) : Component { public override Part Render() => ... }`. The constructor takes the props, `Render` runs once. No records: Metano gives them value semantics that a fine-grained renderer never uses.
+- **Reactive props are `Func<T>`.** A parent passes `() => count.Value`. A common read abstraction over `Signal<T>` and `Computed<T>` stays an open question (below), to measure before adding.
+
+### Control flow and mounting
+
+- `Show(Func<bool> when, Func<Part> then, Func<Part>? otherwise = null)`: one root per branch, disposed when the branch changes.
+- `For<T>(Func<IReadOnlyList<T>> items, Func<T, Part> render)`: keyed by item reference, one root per item, moves nodes instead of recreating them (Solid `mapArray` semantics, the minimal-move algorithm to choose in the plan).
+- `Ui.Render(Func<Part> app, object container, IRenderer renderer)` creates the app root and returns an `IDisposable`.
+- The web package ships the microtask `IFlushScheduler`.
+
+### Testing and packaging
+
+- DSL scenarios in C# against `TestRenderer`, run on both runtimes; a web sample (counter, todo list) checked in a browser.
+- The web host bundles with the `bun` condition until generated packages build `dist` (spike finding).
+
+### Out of v1
+
+Context, the `CreateRoot` scope and its re-entrant `Run` rules, analyzers, generated element API (WebIDL/webref), Avalonia, the read abstraction, and js-framework-benchmark.
 
 ## Decisions taken
 
