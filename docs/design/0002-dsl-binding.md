@@ -62,9 +62,9 @@ Section(section =>
 - `Reactivity.Map(source, map)` and `Map(source, key, map)` in the core: keyed by `EqualityComparer<T>.Default` or a key selector, one owner per item kept across reruns, duplicate keys paired in order (Solid `mapArray` semantics on C# equality).
 - `For` over `Map`, between two anchors, moving nodes instead of recreating them.
 - `Show(when, then, otherwise)`: one root per branch, disposed when the branch changes.
-- `Ui.Render(build, container, port)` returns an `IDisposable`; the web package wraps it with its port and the microtask scheduler.
+- `View.Render(build, container, port)` returns an `IDisposable`; the web package wraps it as `WebApp.Render(build, container)` with its port and the microtask scheduler. (`View`, not `Ui`: `Ui` resolves to the namespace inside `Metanui.*`.)
 - **Sample:** `samples/Metanui.Samples.Counter` (C#) and `samples/counter-web` (host). Bundle (`bun build --minify --conditions=bun`, Metano 4.0.3): 77.7 KB minified, 20.4 KB gzipped, against the adapter baseline of 72.7 / 19.2 KB; part of the difference is LINQ `Where` in `CounterList`.
-- Lists are immutable snapshots in a signal (`entries.Value = [.. entries.Value, entry]`), diffed by key. An observable mutable list (`ReactiveList<T>`) is later work and would feed the same `For`.
+- Lists are immutable snapshots in a signal (`entries.Update(list => [.. list, entry])`), diffed by key. An observable mutable list (`ReactiveList<T>`) is later work and would feed the same `For`.
 
 ### Out of v1
 
@@ -83,8 +83,8 @@ Avalonia, WebIDL-generated DOM types, context, analyzers, `ReactiveList<T>`, int
 
 ### Users rarely see roots
 
-- `Render(App, container)` creates the app root.
-- `For` creates one root per item, and `Show` one per branch.
+- `View.Render(App, container, port)` (`WebApp.Render(App, container)` on the web) creates the app root.
+- `For` runs each item under the per-item scope owner of `Map` (an owner that is not a root), and `Show` creates one root per branch.
 - Components run under the current owner and are not roots.
 - Roots that users create are for long-lived state outside the UI.
 
@@ -106,11 +106,11 @@ The core ships no `implicit operator T` and no combining operators. `.Value` sta
   2. a wrapper struct over either node, with a type test or a stored delegate per read;
   3. a virtual `Value` on a non-generic base. The base cannot name `T`, so the read returns `object` (boxing for value types on .NET) or is a generic virtual method, and costs a virtual call per read.
 - **Context per owner.** If context is resolved through the owner chain, where does it live? A field on `OwnerNode` adds a slot to every computed, effect and root, which costs creation time on V8 (handoff F2, node layout). A side table or a context node that only some owners carry must be compared on `createComputations`.
-- **Derived values.** A lambda does not convert to `Prop<T>` (CS1660); v1 uses `Live(() => ...)` for props and `Text(() => ...)` for text. Is there a cheaper spelling?
-- **Props to custom components.** A signal passed to a child is read, and therefore bound, in the child. Is that acceptable, or must the parent bind?
+- **Derived values.** A lambda does not convert to `Prop<T>` (CS1660); v1 uses `Live(() => ...)` for props and `Text(() => ...)` for text. Is there a cheaper spelling? (Still open; the prop model itself is settled, see the next two questions.)
+- **Props to custom components.** *Answered in v1:* a prop that `Render` binds is a `Prop<T>` (static value or `View.Live` reader), read, and therefore bound, in the child; no signal is passed.
 - **Element API.** Generated from WebIDL/webref and Avalonia metadata, or hand-written per platform?
 - **Analyzers.** How are reactive reads outside a tracking scope, and missing keys in `For`, reported?
-- **Effect handle.** `Effect` returns an `IDisposable` (since Metano 3.3.0); does the DSL use it, or does it rely on owners only?
+- **Effect handle.** *Answered in v1:* `Bind` returns the effect's `IDisposable` handle, which disposes the binding before its owner does; owners still dispose it otherwise.
 
 ### Re-entrant `Run`
 
@@ -124,7 +124,9 @@ Each rule needs a scenario before `CreateRoot` lands. The target scenario is nam
 
 ## Layering
 
-- **Renderer port.** The DSL talks to a renderer port with a small set of operations: create element, set property, bind event, insert and remove child. The DOM and Avalonia renderers are adapters of that port. The core knows nothing of either.
+*Historical: this was the first sketch, before "Design (v1)". The delivered layering is the table in "Layers and packages"; where they disagree, "Design (v1)" wins.*
+
+- **Renderer port.** The delivered port is `INodePort`: `CreateText`, `SetText`, `CreateAnchor`, `Insert` and `Remove` on opaque node handles. Elements are not created through the port: each platform exposes its own typed factories (`Div`, `Button`, ...) and properties are plain assignments inside `Bind`, so there is no "create element", "set property" or "bind event" operation. The DOM and Avalonia adapters implement `INodePort` and an `IFlushScheduler`. The core knows nothing of either.
 - **Public core API only.** The DSL and the renderers are separate packages, and Metano emits no `InternalsVisibleTo` across TS packages (#770: internal types are not exported from barrels). They can use only the public core API, so whatever they need, owner capture included, must be public.
 
 ## Options to compare

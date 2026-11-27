@@ -697,7 +697,10 @@ not committed.
   is dropped, TS2345 in `Builder.Create`), #846 (a cast to a type parameter constrained to an `[External]`
   interface should lower to a type assertion, `Html.Create`), #849 (`x is { } y` on a delegate reports MS0045,
   the sample's `Counter.Render`), #851 (a written `default` of a generic struct with a `T` field is MS0001;
-  `Prop<T>`). #836 is fixed in Metano 4.1.0, not yet released.
+  `Prop<T>`), #782 (local functions are not transpiled, MS0001; `CounterList`'s private methods stand in for
+  them), #845 (an `EqualityComparer<T>` field type is not mapped, so `KeyedMap.KeysEqual` calls the default
+  comparer per key instead of caching it in a field; TS emits `defaultEqualityComparerFor().equals(a, b)` on the
+  shared singleton). #836 is fixed in Metano 4.1.0, not yet released.
 - An `IReadOnlyList<T>` parameter is metano-runtime's `IReadOnlyList` (`count`, `get(i)`), not a JS array. So
   hand-written TS must pass a runtime list to `Reactivity.map` (`List.adopt(array, { fixedSize: true })`, as
   `map.ts` does). This is by design in Metano, but the DSL's TS-facing surface must account for it.

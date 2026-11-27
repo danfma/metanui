@@ -1,6 +1,6 @@
 # DSL v1: keyed Map, platform elements and effect bindings
 
-Ship the first usable Metanui UI layer, chosen in `docs/design/0002-dsl-binding.md` as option H. Builder lambdas give the platform element itself; a binding is an effect that writes a plain property; component props are backed by signals. The keyed `Map` primitive comes first in the reactive core, because `For` cannot be built without it (spike finding). The web adapter ships; Avalonia comes later. A `Counter` and a `CounterList` sample show it working.
+Ship the first usable Metanui UI layer, chosen in `docs/design/0002-dsl-binding.md` as option H. Builder lambdas give the platform element itself; a binding is an effect that writes a plain property; a component prop that its `Render` binds is a `Prop<T>` (a static value or a reader, no signal inside). The keyed `Map` primitive comes first in the reactive core, because `For` cannot be built without it (spike finding). The web adapter ships; Avalonia comes later. A `Counter` and a `CounterList` sample show it working.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
@@ -43,7 +43,7 @@ Status: Complete
 
 - [x] Confirm `main` contains `chore/metano-4.0.3` (`git log main --oneline | grep "upgrade Metano to 4.0.3"`); if not, stop and ask the maintainer to merge it.
 - [x] Create `feat/dsl-v1` from `main`. Bring `docs/design/0002-dsl-binding.md` and this plan from `spike/dsl-shapes` (`git checkout spike/dsl-shapes -- docs/design/0002-dsl-binding.md plans/dsl-v1.md`); do not bring `spikes/Metanui.Spike.Dsl` or `spikes/dsl-web`.
-- [x] Rewrite the "Proposed design (v1)" section of 0002 for option H: platform elements, fused `Bind(Action)` and split `Bind(compute, apply)`, signal-backed component props, plain props documented as init-only, `For` over `Map`, `Show`, the `INodePort`, `Metanui.Ui` / `Metanui.Ui.Web`, and the out-of-v1 list (Avalonia, WebIDL generation, context, analyzers, `[Prop]` source generator, `ReactiveList<T>`, interpolated-template binding until Metano #828, js-framework-benchmark). Set the status to "Accepted, 2026-11-27".
+- [x] Rewrite the "Proposed design (v1)" section of 0002 for option H: platform elements, fused `Bind(Action)` and split `Bind(compute, apply)`, component props (signal-backed in this first draft, superseded by Phase 5: `Prop<T>`), plain props documented as init-only, `For` over `Map`, `Show`, the `INodePort`, `Metanui.Ui` / `Metanui.Ui.Web`, and the out-of-v1 list (Avalonia, WebIDL generation, context, analyzers, `[Prop]` source generator, `ReactiveList<T>`, interpolated-template binding until Metano #828, js-framework-benchmark). Set the status to "Accepted, 2026-11-27".
 - [x] Update `docs/handoff.md`: status line and next steps point to this plan.
 
 ### Verification Plan
@@ -80,7 +80,7 @@ Status: Complete
 
 ### Phase Summary
 Done 2026-11-27 (commits 517204f..786496f). `Reactivity.Map(source, map)` and `Map(source, key, map)` in the core (spec 0001 §4.8, placed at the end of §4 to avoid renumbering): `Mapping/KeyedMap.cs` reconciles keys (prefix trim, suffix trim guarded so duplicate keys keep in-order pairing — a documented deviation from Solid), one `Ownership/ScopeOwner` per item plus one for the list, both outside the computed so items survive reruns; `ScopeOwner.CatchesErrors` keeps §4.5 (cleanup errors never reach a handler) while `map` runs. 22 Map scenarios on .NET (143) and Bun (149), strict tsc 0, bench correctness 12/12. Micro bench vs Solid mapArray (1 000 rows): append ~56 vs 38 µs, swap ~103 vs 11 µs (no small-move fast path — follow-up), remove ~37 vs 15 µs (audit §14).
-Metano: #840 (`new T[n]`) worked around with `List<T>`; four more defects reported 2026-11-27 (ctor type args dropped, typed delegate local loses annotation, `out` arg tuple per call, `EqualityComparer<T>` field type unmapped), sites marked "issue number pending". TS callers pass a metano-runtime list (`List.adopt`), not a JS array — relevant to Phase 3's TS surface. Reviews: all five ran; compiler-man's Spec ❌ was fixed in one round; minors are deferred in the SDD ledger for the final review.
+Metano: #840 (`new T[n]`) worked around with `List<T>`; four more defects reported 2026-11-27 (ctor type args dropped, typed delegate local loses annotation, `out` arg tuple per call, `EqualityComparer<T>` field type unmapped), sites marked #838, #843, #844 and #845. TS callers pass a metano-runtime list (`List.adopt`), not a JS array — relevant to Phase 3's TS surface. Reviews: all five ran; compiler-man's Spec ❌ was fixed in one round; minors are deferred in the SDD ledger for the final review.
 
 ## Phase 2: `Signal<T>.Update`
 Status: Complete
@@ -94,7 +94,7 @@ Status: Complete
 - Reviewers run, none `REPROVADO`.
 
 ### Phase Summary
-Done 2026-11-27 (commits ac583a9..e30373e). `Signal<T>.Update(Func<T,T>)` chains on a pending write of the same flush (0001 §4.1), allocates nothing, throws inside a computation before calling the function; deviation from Solid documented: it returns void (Solid's setter returns the written value). Metano emitted duplicate TS members for an override plus a same-named overload, so the internal graph method `Update` became `Refresh` (Computed's private `Refresh` → `RefreshIfStale`), kept after the Metano fix (reported, number pending). .NET 147, Bun 153, strict tsc 0, bench 12/12. Reviews: backend REPROVADO for one blank line, compiler-man two stale names — fixed in one round; minors deferred in the SDD ledger.
+Done 2026-11-27 (commits ac583a9..e30373e). `Signal<T>.Update(Func<T,T>)` chains on a pending write of the same flush (0001 §4.1), allocates nothing, throws inside a computation before calling the function; deviation from Solid documented: it returns void (Solid's setter returns the written value). Metano emitted duplicate TS members for an override plus a same-named overload, so the internal graph method `Update` became `Refresh` (Computed's private `Refresh` → `RefreshIfStale`), kept after the Metano fix (#841). .NET 147, Bun 153, strict tsc 0, bench 12/12. Reviews: backend REPROVADO for one blank line, compiler-man two stale names — fixed in one round; minors deferred in the SDD ledger.
 
 ## Phase 3: `Metanui.Ui` (platform-neutral layer)
 Status: Complete
@@ -104,7 +104,7 @@ Status: Complete
 - [x] `INodePort`: `object CreateText(string text)`, `void SetText(object text, string value)`, `void Insert(object parent, object node, object? anchor)`, `void Remove(object parent, object node)`, `object CreateAnchor()` (comment node on the web). Elements are created by the platform factories, not by the port.
 - [x] Builder scope: the ambient current parent and the port, used by platform factories through a small `Builder.Create(object node, Action build)`-style API, restored in `finally`. `Add(...)` outside a builder throws with a clear message.
 - [x] Bindings: `Bind(Action write)` (fused: write in the tracked compute, for platform properties) and `Bind<T>(Func<T> compute, Action<T> apply)` (split: write in the apply, equality skips unchanged values, required for signal-backed props). XML docs state which one to use and why (a signal write in a fused bind throws).
-- [x] `Component<TSelf>`: props are plain properties; reactive props are signal-backed (`get => _x.Value; set => _x.Value = value`), documented; plain props are init-only. Children are collected into a fragment and placed with the port (no wrapper element). Each component exposes a one-line static factory until Metano #832 lands (`// Metano #832`).
+- [x] `Component<TSelf>`: props are plain properties. *(Superseded by Phase 5 (`Prop<T>`): the signal-backed reactive props and the init-only wording below were replaced; a prop that `Render` binds is a `Prop<T>`, a plain property is read once.)* Reactive props are signal-backed (`get => _x.Value; set => _x.Value = value`), documented; plain props are init-only. Children are collected into a fragment and placed with the port (no wrapper element). Each component exposes a one-line static factory until Metano #832 lands (`// Metano #832`).
 - [x] `For<T>(Func<IReadOnlyList<T>> items, Func<T, …> render)` and the keyed overload, on `Reactivity.Map`, placed between two anchors with `Insert`/`Remove` and minimal moves.
 - [x] `Show(Func<bool> when, Action then, Action? otherwise = null)`, each branch under its own root, swapped between anchors.
 - [x] `Ui.Render(Action build, object container, INodePort port)` returns `IDisposable` that disposes the whole tree and removes its nodes.
@@ -117,7 +117,7 @@ Status: Complete
 
 ### Phase Summary
 Done 2026-11-27 (commits fc7d564..93f5665). `src/Metanui.Ui` (package metanui-ui): `INodePort` (CreateText/SetText/CreateAnchor/Insert/Remove on object handles); `Builder` (adapter extension point: one ambient `Scope` = insertion point (parent, before, collector) + rejection message, saved/restored in `finally`; `Create<TNode>`, `Add`); facade `View` (named `View` because `Ui` resolves to the namespace inside `Metanui.*`): `Bind` fused and split (equality skip), `Text`, `For` (plain/keyed, on `Reactivity.Map`, one end anchor per item, intrusive linked list, `Arrange` moves only out-of-place items; inserts and appends move nothing existing), `Show` (branch under its own root, one end anchor), `Mount`, `Render` (returns IDisposable, removes every node). `Component<TSelf>`: plain properties as props, `Content` render prop (elements created in the props lambda throw "children go in Content"), `public static void Create(Action<T>)` factories (CS0542 forbids a member named like its class; `// Metano #832`). No wrapper elements, no DOM type. Scenarios on a fake port (`src/Metanui.Ui.Scenarios`, 29) on .NET (176 total) and Bun (182); bench 12/12; strict tsc: only #836 ×3 and the reported constraint-drop defect ×2.
-Open: signal-backed props cannot be assigned inside For/Show (writes in a computation throw; a Root under a computation still counts) — documented (option c) pending the maintainer's props-model decision (recommended: accessor props `Func<T>`). Follow-ups in the SDD ledger: compute-only effect in core (fused Bind/For/Show queue an empty apply), LIS-minimal moves, several minors.
+Open then, superseded by Phase 5 (`Prop<T>`): signal-backed props cannot be assigned inside For/Show (writes in a computation throw; a Root under a computation still counts); the maintainer chose accessor props, delivered as `Prop<T>` and `View.Live`. Follow-ups in the SDD ledger: compute-only effect in core (fused Bind/For/Show queue an empty apply), LIS-minimal moves, several minors.
 
 ## Phase 4: `Metanui.Ui.Web`
 Status: Complete
@@ -155,10 +155,39 @@ Status: Complete
 - Final review round with all five reviewers over the whole branch, none `REPROVADO`.
 
 ### Phase Summary
-Done 2026-11-27, reviews pending. Part A: `Prop<T>` (`readonly struct`, static value via implicit conversion, reader via `View.Live`) replaces signal-backed props; scenarios "a prop takes a static value or a live reader" and "a prop assigned inside a For item and a Show branch works". Part B: `samples/Metanui.Samples.Counter` (`Counter`, `CounterList`, `CounterEntry`, `CounterApp.Start/Build`) and `samples/counter-web` (host); smoke test in `tests/js/counter-web` (5 tests). The fake DOM and render fixture moved to the `metanui-fake-dom` workspace package (`tests/js/fake-dom`). Bun 221, .NET 185, bench 12/12, strict tsc: sample 0 (the #826 case does not reproduce on 4.0.3). Bundle 77.7 KB min / 20.4 KB gzip (after fix round 1). Chrome: add, increment, remove, add again, live label from the field; no console errors from the page.
+Done 2026-11-27, reviews final (the five reviewers ran over the whole branch; one fix round for the Phase 5 findings and one final fix wave for docs, markers and tidy-ups; none REPROVADO at the end). Part A: `Prop<T>` (`readonly struct`, static value via implicit conversion, reader via `View.Live`) replaces signal-backed props; scenarios "a prop takes a static value or a live reader" and "a prop assigned inside a For item and a Show branch works". Part B: `samples/Metanui.Samples.Counter` (`Counter`, `CounterList`, `CounterEntry`, `CounterApp.Start/Build`) and `samples/counter-web` (host); smoke test in `tests/js/counter-web` (5 tests). The fake DOM and render fixture moved to the `metanui-fake-dom` workspace package (`tests/js/fake-dom`). Bun 221, .NET 185, bench 12/12, strict tsc: sample 0 (the #826 case does not reproduce on 4.0.3). Bundle 77.7 KB min / 20.4 KB gzip (after fix round 1). Chrome: add, increment, remove, add again, live label from the field; no console errors from the page.
 
 ## Final Recap
-_(write when all phases complete: summary of the entire piece of work)_
+
+DSL v1 is complete on `feat/dsl-v1`: a C# DSL over the fine-grained reactive core that runs natively on .NET and, transpiled by Metano 4.0.3, on the web.
+
+**Packages and folders**
+
+- `Metanui.Reactive` gains `Reactivity.Map` (keyed, one owner per item, `Mapping/KeyedMap.cs`, spec 0001 4.8) and `Signal<T>.Update` (spec 0001 4.1).
+- `Metanui.Ui` (`metanui-ui`): `INodePort` (CreateText, SetText, CreateAnchor, Insert, Remove), `Builder`, `View` (Bind fused and split, Live, Text, For, Show, Mount, Render), `Component<TSelf>`, `Prop<T>`. No platform type.
+- `Metanui.Ui.Scenarios` (`metanui-ui-scenarios`): UI scenarios on a fake port and the reusable `PortContractScenarios`.
+- `Metanui.Ui.Web` (`metanui-ui-web`): the hand-written `[External]` DOM subset, `Html` factories, `HtmlEvents`, `DomNodePort`, `MicrotaskScheduler`, `WebApp.Render`.
+- `samples/Metanui.Samples.Counter` and `samples/counter-web`: `Counter`, `CounterList` and their host.
+- Tests: `tests/Metanui.Ui.Tests`, `tests/js/{ui,ui-web,fake-dom,counter-web,test-support}`.
+
+**Decisions**
+
+- Option H: builder lambdas give the platform element itself; a binding is an effect writing a plain property (fused `Bind(Action)` or split `Bind(compute, apply)`).
+- The facade is named `View`, not `Ui`: inside `Metanui.*` the name `Ui` resolves to the namespace.
+- Component factories are `Create` (CS0542 forbids a member named like its class), until Metano #832 allows a generic `Use`.
+- Component content is a render prop (`Content`), not a collected fragment: the port has no fragment operation and no wrapper element is wanted.
+- Props: signal-backed props (first draft) were replaced by `Prop<T>` (a static value or a reader) and `View.Live`, after the maintainer's decision of 2026-11-27; a plain property is read once, and a `Bind` in a props lambda throws.
+- `For` items run under `Map`'s per-item scope owners (not roots); `Show` builds each branch under its own root.
+- `Update` returns void; `Map` returns a plain `Func<IReadOnlyList<TResult>>`.
+
+**Metano issues filed** (danfma/metano; each workaround site is marked `// Metano #<n>`): #838, #840, #841, #842, #843, #844, #845, #846, #847, #849, #850, #851, #852 and #782; #836 is fixed in 4.1.0 (not yet released). Details in `docs/design/0001-reactive-core-ts-audit.md` section 14 and `docs/handoff.md`.
+
+**Results:** .NET 185, Bun 221, bench 12/12, strict tsc clean except #842 ×2 and #836 ×3 in `metanui-ui`; sample bundle 77.7 KB minified / 20.4 KB gzip. What remains is the "DSL v1 follow-ups" list in `docs/handoff.md` (Next steps).
 
 ## Deployment Plan
-_(write when all phases complete: step-by-step deployment instructions)_
+
+Nothing is published to npm or NuGet.
+
+1. Check `feat/dsl-v1` is clean and green: `dotnet build` (0 warnings), `dotnet test`, `bun install`, `bun test`.
+2. Fast-forward `main`: `git checkout main && git merge --ff-only feat/dsl-v1`, then `git push origin main`.
+3. Run the sample: `cd samples/counter-web && bun run build`, then serve `index.html` (for example `bun ./index.html`, or any static server over `samples/counter-web`) and open it in a browser.
