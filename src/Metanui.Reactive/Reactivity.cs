@@ -157,4 +157,38 @@ public static partial class Reactivity
             Tracking.ActiveObserver = previousObserver;
         }
     }
+
+    /// <summary>
+    /// Maps each item of <paramref name="source" /> once, keyed by the item itself
+    /// (<see cref="EqualityComparer{T}.Default" />: a class by reference, a record by value), and
+    /// returns an accessor of the mapped list (spec 4.8, Solid 2.0.4 <c>mapArray</c>).
+    /// </summary>
+    /// <inheritdoc cref="Map{T, TKey, TResult}" path="/remarks" />
+    public static Func<IReadOnlyList<TResult>> Map<T, TResult>(
+        Func<IReadOnlyList<T>> source,
+        Func<T, TResult> map
+    )
+        where T : notnull => Map(source, static item => item, map);
+
+    /// <summary>
+    /// Maps each item of <paramref name="source" /> once, keyed by <paramref name="key" />
+    /// (compared with <see cref="EqualityComparer{T}.Default" />), and returns an accessor of the
+    /// mapped list (spec 4.8, Solid 2.0.4 <c>mapArray</c> with a key function).
+    /// </summary>
+    /// <remarks>
+    /// Created like a <see cref="Computed{T}" />: owned by the current owner, rejected in an
+    /// effect's apply, and evaluated on the first read. Only <paramref name="source" /> is tracked.
+    /// An item whose key is new runs <paramref name="map" /> once, untracked, under its own owner,
+    /// which lives until its key leaves the source or the current owner is disposed; a kept item
+    /// keeps its result, and the list follows the source's order. Duplicate keys pair in order.
+    /// A rerun that changes no key at any position returns the previous list instance. Writing a
+    /// signal in <paramref name="key" /> or <paramref name="map" /> throws; an exception from
+    /// either leaves the previous mapping untouched and is cached like a computed error.
+    /// </remarks>
+    public static Func<IReadOnlyList<TResult>> Map<T, TKey, TResult>(
+        Func<IReadOnlyList<T>> source,
+        Func<T, TKey> key,
+        Func<T, TResult> map
+    )
+        where TKey : notnull => new KeyedMap<T, TKey, TResult>(source, key, map).Read;
 }

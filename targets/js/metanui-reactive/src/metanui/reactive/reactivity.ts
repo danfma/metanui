@@ -1,13 +1,14 @@
+import type { IEqualityComparer, IReadOnlyList } from "metano-runtime/system/collections";
 import type { IDisposable } from "metano-runtime";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { Computed } from "./computed.js";
 import { SplitEffect } from "./effects/split-effect.js";
 import type { IFlushScheduler } from "./i-flush-scheduler.js";
+import { KeyedMap } from "./mapping/keyed-map.js";
 import { RootNode } from "./ownership/root-node.js";
 import { FlushLoop } from "./scheduling/flush-loop.js";
 import { Signal } from "./signal.js";
 import { Tracking } from "./tracking.js";
-import type { IEqualityComparer } from "metano-runtime/system/collections";
 
 export class Reactivity {
   private constructor() { }
@@ -77,5 +78,29 @@ export class Reactivity {
     } finally {
       Tracking.activeObserver = previousObserver;
     }
+  }
+
+  static mapSourceKeyMap<T, TKey, TResult>(source: () => IReadOnlyList<T>, key: (arg: T) => TKey, map: (arg: T) => TResult): () => IReadOnlyList<TResult> {
+    let $__r: any;
+
+    return ($__r = new KeyedMap(source, key, map), $__r.read.bind($__r));
+  }
+
+  static mapSourceMap<T, TResult>(source: () => IReadOnlyList<T>, map: (arg: T) => TResult): () => IReadOnlyList<TResult> {
+    return Reactivity.mapSourceKeyMap<T, T, TResult>(source, (item: T) => item, map);
+  }
+
+  static map<T, TKey, TResult>(source: () => IReadOnlyList<T>, key: (arg: T) => TKey, map: (arg: T) => TResult): () => IReadOnlyList<TResult>;
+  static map<T, TResult>(source: () => IReadOnlyList<T>, map: (arg: T) => TResult): () => IReadOnlyList<TResult>;
+  static map(...args: unknown[]): any {
+    if (args.length === 3 && typeof args[0] === "function" && typeof args[1] === "function" && typeof args[2] === "function") {
+      return Reactivity.mapSourceKeyMap(args[0] as any, args[1] as any, args[2] as any);
+    }
+
+    if (args.length === 2 && typeof args[0] === "function" && typeof args[1] === "function") {
+      return Reactivity.mapSourceMap(args[0] as any, args[1] as any);
+    }
+
+    throw new Error("No matching overload for map");
   }
 }

@@ -11,5 +11,6 @@ public static class ReactiveScenarios
         .. FlushScenarios.All,
         .. OwnershipScenarios.All,
         .. ErrorScenarios.All,
+        .. MapScenarios.All,
     ];
 }

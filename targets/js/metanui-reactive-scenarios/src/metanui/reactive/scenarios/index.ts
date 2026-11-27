@@ -5,6 +5,7 @@ export { ExpectedMessages } from "./expected-messages.js";
 export { FlushScenarios } from "./flush-scenarios.js";
 export { IExpect$runtimeType } from "./i-expect.js";
 export type { IExpect } from "./i-expect.js";
+export { MapScenarios } from "./map-scenarios.js";
 export { OwnershipScenarios } from "./ownership-scenarios.js";
 export { ReactiveScenarios } from "./reactive-scenarios.js";
 export { ScenarioRunner } from "./scenario-runner.js";
