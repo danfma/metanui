@@ -97,18 +97,18 @@ Status: Complete
 Done 2026-11-27 (commits ac583a9..e30373e). `Signal<T>.Update(Func<T,T>)` chains on a pending write of the same flush (0001 §4.1), allocates nothing, throws inside a computation before calling the function; deviation from Solid documented: it returns void (Solid's setter returns the written value). Metano emitted duplicate TS members for an override plus a same-named overload, so the internal graph method `Update` became `Refresh` (Computed's private `Refresh` → `RefreshIfStale`), kept after the Metano fix (reported, number pending). .NET 147, Bun 153, strict tsc 0, bench 12/12. Reviews: backend REPROVADO for one blank line, compiler-man two stale names — fixed in one round; minors deferred in the SDD ledger.
 
 ## Phase 3: `Metanui.Ui` (platform-neutral layer)
-Status: Not started
+Status: Complete
 
 **Files:** `src/Metanui.Ui/` (new project, `[EmitPackage]` → `targets/js/metanui-ui`), `src/Metanui.Ui.Scenarios/` (scenarios with a fake port, transpiled like `Metanui.Reactive.Scenarios`), `tests/Metanui.Ui.Tests`, `tests/js/ui`, `Metanui.slnx`, root `package.json` workspaces.
 
-- [ ] `INodePort`: `object CreateText(string text)`, `void SetText(object text, string value)`, `void Insert(object parent, object node, object? anchor)`, `void Remove(object parent, object node)`, `object CreateAnchor()` (comment node on the web). Elements are created by the platform factories, not by the port.
-- [ ] Builder scope: the ambient current parent and the port, used by platform factories through a small `Builder.Create(object node, Action build)`-style API, restored in `finally`. `Add(...)` outside a builder throws with a clear message.
-- [ ] Bindings: `Bind(Action write)` (fused: write in the tracked compute, for platform properties) and `Bind<T>(Func<T> compute, Action<T> apply)` (split: write in the apply, equality skips unchanged values, required for signal-backed props). XML docs state which one to use and why (a signal write in a fused bind throws).
-- [ ] `Component<TSelf>`: props are plain properties; reactive props are signal-backed (`get => _x.Value; set => _x.Value = value`), documented; plain props are init-only. Children are collected into a fragment and placed with the port (no wrapper element). Each component exposes a one-line static factory until Metano #832 lands (`// Metano #832`).
-- [ ] `For<T>(Func<IReadOnlyList<T>> items, Func<T, …> render)` and the keyed overload, on `Reactivity.Map`, placed between two anchors with `Insert`/`Remove` and minimal moves.
-- [ ] `Show(Func<bool> when, Action then, Action? otherwise = null)`, each branch under its own root, swapped between anchors.
-- [ ] `Ui.Render(Action build, object container, INodePort port)` returns `IDisposable` that disposes the whole tree and removes its nodes.
-- [ ] Scenarios with a fake C# port that records the node tree as text: static tree, fused and split binds, signal-backed props, init-only prop documented behaviour, `For` add/remove/reorder keeps item state and disposes removed items, `Show` toggling disposes the hidden branch, `Render` dispose removes everything, `Add` outside a builder throws.
+- [x] `INodePort`: `object CreateText(string text)`, `void SetText(object text, string value)`, `void Insert(object parent, object node, object? anchor)`, `void Remove(object parent, object node)`, `object CreateAnchor()` (comment node on the web). Elements are created by the platform factories, not by the port.
+- [x] Builder scope: the ambient current parent and the port, used by platform factories through a small `Builder.Create(object node, Action build)`-style API, restored in `finally`. `Add(...)` outside a builder throws with a clear message.
+- [x] Bindings: `Bind(Action write)` (fused: write in the tracked compute, for platform properties) and `Bind<T>(Func<T> compute, Action<T> apply)` (split: write in the apply, equality skips unchanged values, required for signal-backed props). XML docs state which one to use and why (a signal write in a fused bind throws).
+- [x] `Component<TSelf>`: props are plain properties; reactive props are signal-backed (`get => _x.Value; set => _x.Value = value`), documented; plain props are init-only. Children are collected into a fragment and placed with the port (no wrapper element). Each component exposes a one-line static factory until Metano #832 lands (`// Metano #832`).
+- [x] `For<T>(Func<IReadOnlyList<T>> items, Func<T, …> render)` and the keyed overload, on `Reactivity.Map`, placed between two anchors with `Insert`/`Remove` and minimal moves.
+- [x] `Show(Func<bool> when, Action then, Action? otherwise = null)`, each branch under its own root, swapped between anchors.
+- [x] `Ui.Render(Action build, object container, INodePort port)` returns `IDisposable` that disposes the whole tree and removes its nodes.
+- [x] Scenarios with a fake C# port that records the node tree as text: static tree, fused and split binds, signal-backed props, init-only prop documented behaviour, `For` add/remove/reorder keeps item state and disposes removed items, `Show` toggling disposes the hidden branch, `Render` dispose removes everything, `Add` outside a builder throws.
 
 ### Verification Plan
 - `dotnet build` / `dotnet test` green; `bun test` runs the same Ui scenarios green.
@@ -116,7 +116,8 @@ Status: Not started
 - Reviewers run, none `REPROVADO`; `architecture-reviewer` confirms `Metanui.Ui` has no DOM reference.
 
 ### Phase Summary
-_(write when phase completes)_
+Done 2026-11-27 (commits fc7d564..93f5665). `src/Metanui.Ui` (package metanui-ui): `INodePort` (CreateText/SetText/CreateAnchor/Insert/Remove on object handles); `Builder` (adapter extension point: one ambient `Scope` = insertion point (parent, before, collector) + rejection message, saved/restored in `finally`; `Create<TNode>`, `Add`); facade `View` (named `View` because `Ui` resolves to the namespace inside `Metanui.*`): `Bind` fused and split (equality skip), `Text`, `For` (plain/keyed, on `Reactivity.Map`, one end anchor per item, intrusive linked list, `Arrange` moves only out-of-place items; inserts and appends move nothing existing), `Show` (branch under its own root, one end anchor), `Mount`, `Render` (returns IDisposable, removes every node). `Component<TSelf>`: plain properties as props, `Content` render prop (elements created in the props lambda throw "children go in Content"), `public static void Create(Action<T>)` factories (CS0542 forbids a member named like its class; `// Metano #832`). No wrapper elements, no DOM type. Scenarios on a fake port (`src/Metanui.Ui.Scenarios`, 29) on .NET (176 total) and Bun (182); bench 12/12; strict tsc: only #836 ×3 and the reported constraint-drop defect ×2.
+Open: signal-backed props cannot be assigned inside For/Show (writes in a computation throw; a Root under a computation still counts) — documented (option c) pending the maintainer's props-model decision (recommended: accessor props `Func<T>`). Follow-ups in the SDD ledger: compute-only effect in core (fused Bind/For/Show queue an empty apply), LIS-minimal moves, several minors.
 
 ## Phase 4: `Metanui.Ui.Web`
 Status: Not started
