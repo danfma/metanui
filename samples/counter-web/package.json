@@ -9,8 +9,5 @@
   "dependencies": {
     "metano-runtime": "^4.0.3",
     "metanui-samples-counter": "workspace:*"
-  },
-  "devDependencies": {
-    "metanui-fake-dom": "workspace:*"
   }
 }

@@ -26,9 +26,6 @@
         "metano-runtime": "^4.0.3",
         "metanui-samples-counter": "workspace:*",
       },
-      "devDependencies": {
-        "metanui-fake-dom": "workspace:*",
-      },
     },
     "spikes/counter-web": {
       "name": "metanui-spike-counter-web",
@@ -110,6 +107,14 @@
         "metano-runtime": "^4.0.3",
       },
     },
+    "tests/js/counter-web": {
+      "name": "metanui-counter-web-tests",
+      "dependencies": {
+        "metano-runtime": "^4.0.3",
+        "metanui-fake-dom": "workspace:*",
+        "metanui-samples-counter": "workspace:*",
+      },
+    },
     "tests/js/fake-dom": {
       "name": "metanui-fake-dom",
       "dependencies": {
@@ -164,6 +169,8 @@
     "metanui-bench-micro": ["metanui-bench-micro@workspace:bench/micro"],
 
     "metanui-bench-reactivity": ["metanui-bench-reactivity@workspace:bench/reactivity"],
+
+    "metanui-counter-web-tests": ["metanui-counter-web-tests@workspace:tests/js/counter-web"],
 
     "metanui-fake-dom": ["metanui-fake-dom@workspace:tests/js/fake-dom"],
 
