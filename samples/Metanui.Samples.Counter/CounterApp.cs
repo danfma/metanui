@@ -29,6 +29,6 @@ public static class CounterApp
         });
 
         Counter.Create(counter => counter.Label = Live(() => name.Value));
-        CounterList.Create(static _ => { });
+        CounterList.Create();
     }
 }

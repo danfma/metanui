@@ -9,38 +9,51 @@ namespace Metanui.Samples.Counter;
 /// <summary>Adds counters on demand; each one keeps its state while others come and go.</summary>
 public sealed class CounterList : Component<CounterList>
 {
-    // Metano #832
+    private readonly Signal<IReadOnlyList<CounterEntry>> _entries = Reactivity.Signal<
+        IReadOnlyList<CounterEntry>
+    >([]);
+
+    private int _nextId = 1;
+
+    // Until Metano #832 (generic Use): see Component<TSelf>.
     public static void Create(Action<CounterList> build) => Mount(new CounterList(), build);
 
-    public override void Render()
-    {
-        var nextId = 1;
-        var entries = Reactivity.Signal<IReadOnlyList<CounterEntry>>([]);
+    /// <summary>Creates a list with no props.</summary>
+    public static void Create() => Create(static _ => { });
 
+    public override void Render() =>
         Section(section =>
         {
             section.ClassName = "counter-list";
             H2(heading => heading.TextContent = "Counters");
-            P(summary => Bind(() => summary.TextContent = $"In list: {entries.Value.Count}"));
+            P(summary => Bind(() => summary.TextContent = $"In list: {_entries.Value.Count}"));
 
             Button(add =>
             {
                 add.TextContent = "Add counter";
-                add.OnClick(() => entries.Value = [.. entries.Value, new CounterEntry(nextId++)]);
+                add.OnClick(AddCounter);
             });
 
             For(
-                () => entries.Value,
+                () => _entries.Value,
                 entry => entry.Id,
                 entry =>
                     Counter.Create(counter =>
                     {
                         counter.Label = $"#{entry.Id}";
-
-                        counter.OnRemove = () =>
-                            entries.Value = [.. entries.Value.Where(other => other.Id != entry.Id)];
+                        counter.OnRemove = () => RemoveCounter(entry.Id);
                     })
             );
         });
+
+    private void AddCounter()
+    {
+        var entry = new CounterEntry(_nextId);
+
+        _nextId++;
+        _entries.Update(list => [.. list, entry]);
     }
+
+    private void RemoveCounter(int id) =>
+        _entries.Update(list => [.. list.Where(entry => entry.Id != id)]);
 }

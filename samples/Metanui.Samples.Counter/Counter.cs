@@ -14,17 +14,19 @@ public sealed class Counter : Component<Counter>
     /// <summary>Read once by <see cref="Render" />: without it, the counter has no remove button.</summary>
     public Action? OnRemove { get; set; }
 
-    // Metano #832
+    // Until Metano #832 (generic Use): see Component<TSelf>.
     public static void Create(Action<Counter> build) => Mount(new Counter(), build);
 
     public override void Render()
     {
         var count = Reactivity.Signal(0);
+        // Metano #849: `OnRemove is { } onRemove` on a delegate reports MS0045.
         var onRemove = OnRemove;
 
         Div(row =>
         {
             row.ClassName = "counter";
+            // Label.Value is read inside Bind, so a live label re-renders when its source changes.
             Span(label => Bind(() => label.TextContent = $"{Label.Value}: {count.Value}"));
 
             Button(minus =>

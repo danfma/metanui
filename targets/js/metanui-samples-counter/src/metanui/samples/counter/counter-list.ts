@@ -1,7 +1,7 @@
-import type { ClassType } from "metano-runtime";
 import { List, type IReadOnlyList } from "metano-runtime/system/collections";
+import type { ClassType } from "metano-runtime";
 import { linq, where } from "metano-runtime/system/linq";
-import { Reactivity } from "metanui-reactive/metanui/reactive";
+import { Reactivity, type Signal } from "metanui-reactive/metanui/reactive";
 import { button, h2, onClick, p, section } from "metanui-ui-web/metanui/ui/web";
 import { Component, Prop, View } from "metanui-ui/metanui/ui";
 import { CounterEntry } from "./counter-entry.js";
@@ -10,8 +10,13 @@ import { Counter } from "./counter.js";
 let CounterList$rt: ClassType<CounterList> | undefined;
 
 export class CounterList extends Component<CounterList> {
+  declare private readonly _entries: Signal<IReadOnlyList<CounterEntry>>;
+  declare private _nextId: number;
+
   constructor() {
     super();
+    this._entries = Reactivity.signal<IReadOnlyList<CounterEntry>>(List.adopt<CounterEntry>([], { fixedSize: true }));
+    this._nextId = 1;
   }
 
   static override get $runtimeType(): ClassType<CounterList> {
@@ -31,25 +36,56 @@ export class CounterList extends Component<CounterList> {
     });
   }
 
-  static create(build: (obj: CounterList) => void): void {
+  static createBuild(build: (obj: CounterList) => void): void {
     View.mount(new CounterList(), build);
   }
 
+  static createDefault(): void {
+    CounterList.createBuild((_: CounterList) => {
+    });
+  }
+
+  static create(build: (obj: CounterList) => void): void;
+  static create(): void;
+  static create(...args: unknown[]): void {
+    if (args.length === 1 && typeof args[0] === "function") {
+      CounterList.createBuild(args[0] as (obj: CounterList) => void);
+
+      return;
+    }
+
+    if (args.length === 0) {
+      CounterList.createDefault();
+
+      return;
+    }
+
+    throw new Error("No matching overload for create");
+  }
+
   override render(): void {
-    let nextId = 1;
-    const entries = Reactivity.signal<IReadOnlyList<CounterEntry>>(List.adopt<CounterEntry>([], { fixedSize: true }));
     section((section) => {
       section.className = "counter-list";
       h2((heading) => heading.textContent = "Counters");
-      p((summary) => View.bindWrite(() => summary.textContent = `In list: ${entries.value.count}`));
+      p((summary) => View.bindWrite(() => summary.textContent = `In list: ${this._entries.value.count}`));
       button((add) => {
         add.textContent = "Add counter";
-        onClick(add, () => entries.value = List.adopt<CounterEntry>([...entries.value, new CounterEntry(((nextId = (nextId + 1) | 0) - 1) | 0)], { fixedSize: true }));
+        onClick(add, this.addCounter.bind(this));
       });
-      View.forItemsKeyRender<CounterEntry, number>(() => entries.value, (entry: CounterEntry) => entry.id, (entry: CounterEntry) => Counter.create((counter: Counter) => {
+      View.forItemsKeyRender<CounterEntry, number>(() => this._entries.value, (entry: CounterEntry) => entry.id, (entry: CounterEntry) => Counter.create((counter: Counter) => {
         counter.label = Prop.__implicitFromT(`#${entry.id}`);
-        counter.onRemove = () => entries.value = List.adopt<CounterEntry>([...linq(entries.value, where((other: CounterEntry) => other.id !== entry.id))], { fixedSize: true });
+        counter.onRemove = () => this.removeCounter(entry.id);
       }));
     });
+  }
+
+  private addCounter(): void {
+    const entry = new CounterEntry(this._nextId);
+    this._nextId = (this._nextId + 1) | 0;
+    this._entries.update((list: IReadOnlyList<CounterEntry>) => List.adopt<CounterEntry>([...list, entry], { fixedSize: true }));
+  }
+
+  private removeCounter(id: number): void {
+    this._entries.update((list: IReadOnlyList<CounterEntry>) => List.adopt<CounterEntry>([...linq(list, where((entry: CounterEntry) => entry.id !== id))], { fixedSize: true }));
   }
 }

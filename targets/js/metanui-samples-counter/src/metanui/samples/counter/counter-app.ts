@@ -20,7 +20,6 @@ export class CounterApp {
       onInput(field, (value: string) => name.value = value);
     });
     Counter.create((counter: Counter) => counter.label = View.live(() => name.value));
-    CounterList.create((_: CounterList) => {
-    });
+    CounterList.createDefault();
   }
 }
