@@ -1,6 +1,5 @@
-import { afterAll, afterEach, expect, test } from "bun:test";
-import type { IDisposable } from "metano-runtime";
-import { ManualFlushScheduler, Reactivity } from "metanui-reactive/metanui/reactive";
+import { expect, test } from "bun:test";
+import { Reactivity } from "metanui-reactive/metanui/reactive";
 import { View } from "metanui-ui/metanui/ui";
 import {
   button,
@@ -16,44 +15,18 @@ import {
   section,
   span,
   ul,
-  WebApp,
 } from "metanui-ui-web/metanui/ui/web";
-import {
-  type FakeNode,
-  findTag,
-  flushMicrotasks,
-  installFakeDocument,
-  printChildren,
-} from "./fake-dom.ts";
+import { findTag, flushMicrotasks, printChildren } from "./fake-dom.ts";
+import { attachRenderFixture } from "./render-fixture.ts";
 
 // The element factories and the event extensions, built through WebApp.render into a fake DOM.
 
-const fakeDocument = installFakeDocument();
-const views: IDisposable[] = [];
-
-const container = () => fakeDocument.document.createElement("main");
-
-const renderInto = (target: FakeNode, build: () => void) => {
-  views.push(WebApp.render(build, target as unknown as HTMLElement));
-};
-
-afterEach(() => {
-  for (const view of views.splice(0)) {
-    view.dispose();
-  }
-
-  Reactivity.useScheduler(new ManualFlushScheduler());
-  Reactivity.flush();
-});
-
-afterAll(() => {
-  fakeDocument.uninstall();
-});
+const { container, render } = attachRenderFixture();
 
 test("each factory creates its element at the insertion point, with no wrapper", () => {
   const target = container();
 
-  renderInto(target, () => {
+  render(target, () => {
     div(() => {});
     span(() => {});
     p(() => {});
@@ -76,7 +49,7 @@ test("each factory creates its element at the insertion point, with no wrapper",
 test("the builder receives its element, and children attach to it", () => {
   const target = container();
 
-  renderInto(target, () => {
+  render(target, () => {
     section((card) => {
       card.className = "card";
 
@@ -98,7 +71,7 @@ test("a factory outside a builder throws", () => {
 test("input and button hand their typed element to the builder", () => {
   const target = container();
 
-  renderInto(target, () => {
+  render(target, () => {
     input((field) => {
       field.value = "draft";
       field.checked = true;
@@ -122,7 +95,7 @@ test("onClick runs the handler on each click, and the bound text follows on the 
   const target = container();
   const count = Reactivity.signal(0);
 
-  renderInto(target, () => {
+  render(target, () => {
     button((action) => {
       View.bind(() => {
         action.textContent = `Count: ${count.value}`;
@@ -149,7 +122,7 @@ test("onInput passes the element's current value to the handler", () => {
   const target = container();
   const received: string[] = [];
 
-  renderInto(target, () => {
+  render(target, () => {
     input((field) => onInput(field, (value: string) => received.push(value)));
   });
 

@@ -40,6 +40,8 @@ export function createFakeNode(nodeName: string, data = ""): FakeNode {
     node.parentNode?.removeChild(node);
   };
 
+  const nextSibling = (child: FakeNode) => childNodes[childNodes.indexOf(child) + 1] ?? null;
+
   const node: FakeNode = {
     nodeName,
     childNodes,
@@ -55,6 +57,12 @@ export function createFakeNode(nodeName: string, data = ""): FakeNode {
     },
 
     set textContent(value: string) {
+      if (nodeName === TEXT) {
+        node.data = value;
+
+        return;
+      }
+
       for (const child of childNodes.splice(0)) {
         child.parentNode = null;
       }
@@ -69,9 +77,12 @@ export function createFakeNode(nodeName: string, data = ""): FakeNode {
         throw new Error("insertBefore: the reference node is not a child");
       }
 
+      // DOM: inserting a node before itself uses its next sibling as the reference, a no-op.
+      const reference = before === child ? nextSibling(child) : before;
+
       detach(child);
 
-      const index = before === null ? childNodes.length : childNodes.indexOf(before);
+      const index = reference === null ? childNodes.length : childNodes.indexOf(reference);
 
       childNodes.splice(index, 0, child);
       child.parentNode = node;
@@ -97,7 +108,12 @@ export function createFakeNode(nodeName: string, data = ""): FakeNode {
     },
 
     addEventListener(type: string, listener: Listener): void {
-      listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+      const registered = listeners.get(type) ?? [];
+
+      // DOM: a listener already registered for the type is not added again.
+      if (!registered.includes(listener)) {
+        listeners.set(type, [...registered, listener]);
+      }
     },
 
     dispatch(type: string): void {
