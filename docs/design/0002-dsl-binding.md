@@ -63,7 +63,7 @@ Section(section =>
 - `For` over `Map`, between two anchors, moving nodes instead of recreating them.
 - `Show(when, then, otherwise)`: one root per branch, disposed when the branch changes.
 - `Ui.Render(build, container, port)` returns an `IDisposable`; the web package wraps it with its port and the microtask scheduler.
-- **Sample:** `samples/Metanui.Samples.Counter` (C#) and `samples/counter-web` (host). Bundle (`bun build --minify --conditions=bun`, Metano 4.0.3): 76.8 KB minified, 20.2 KB gzipped, against the adapter baseline of 72.7 / 19.2 KB; part of the difference is LINQ `Where` in `CounterList`.
+- **Sample:** `samples/Metanui.Samples.Counter` (C#) and `samples/counter-web` (host). Bundle (`bun build --minify --conditions=bun`, Metano 4.0.3): 77.7 KB minified, 20.4 KB gzipped, against the adapter baseline of 72.7 / 19.2 KB; part of the difference is LINQ `Where` in `CounterList`.
 - Lists are immutable snapshots in a signal (`entries.Value = [.. entries.Value, entry]`), diffed by key. An observable mutable list (`ReactiveList<T>`) is later work and would feed the same `For`.
 
 ### Out of v1

@@ -31,6 +31,7 @@ public static class Builder
     /// <exception cref="InvalidOperationException">
     /// No builder is active, or the call runs in a component's props lambda.
     /// </exception>
+    // Metano #842: the `class` constraint is dropped in TS, so `node` is not assignable to `Object` (TS2345).
     public static void Create<TNode>(TNode node, Action<TNode> build)
         where TNode : class
     {

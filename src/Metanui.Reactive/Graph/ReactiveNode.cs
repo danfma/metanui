@@ -9,7 +9,7 @@ public abstract class ReactiveNode
     internal Link? SubsTail;
     internal ReactiveFlags Flags;
 
-    // Metano (reported 2026-11-27, issue number pending): an override and a same-named overload emit
+    // Metano #841: an override and a same-named overload emit
     // duplicate TS members. Kept as Refresh after the fix: Update is Signal<T>'s public write API.
 
     /// <summary>

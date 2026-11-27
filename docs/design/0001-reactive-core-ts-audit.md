@@ -677,20 +677,27 @@ not committed.
 
 - **#840. `new T[n]` for a type parameter is not supported (MS0001).** `new int[n]` transpiles. The keys and the
   results are `List<T>` built with capacity instead, and each site is marked `// Metano #840`.
-- **Reported 2026-11-27, issue number pending: `new Computed<T>(...)` drops its type arguments.** TS infers `T` from the arguments, so a
+- **#838. `new Computed<T>(...)` drops its type arguments.** TS infers `T` from the arguments, so a
   comparer whose `Equals` takes `T?` makes `T` nullable, and strict `tsc` fails on the field assignment.
   Repro: `new Box<string>("a", new ByReference())` emits `new Box("a", new ByReference())`. Workaround: the
-  comparer comes from a method typed as the interface (`KeyedMap.ResultComparer`), marked `// Metano (reported 2026-11-27, issue number pending)`. A generic
+  comparer comes from a method typed as the interface (`KeyedMap.ResultComparer`), marked `// Metano #838`. A generic
   method call keeps its type arguments (`Reactivity.mapSourceKeyMap<T, T, TResult>`). Calling
   `Reactivity.Computed<T>` instead would create a cyclic import (MS0005).
-- **Reported 2026-11-27, issue number pending: an explicitly typed delegate local loses its type.** `Func<IReadOnlyList<string>> read = () => [];`
+- **#843. An explicitly typed delegate local loses its type.** `Func<IReadOnlyList<string>> read = () => [];`
   emits `let read = () => List.adopt<string>([], …)`, so a later assignment of an `IReadOnlyList` lambda fails
   strict `tsc`. The scenarios avoid the shape: the map comes back from the `Root` body.
-- **Reported 2026-11-27, issue number pending: an `out` argument lowers to a tuple array per call.** `dictionary.TryGetValue(key, out var v)`
+- **#844. An `out` argument lowers to a tuple array per call.** `dictionary.TryGetValue(key, out var v)`
   emits `const [$found, v] = dictionary.tryGetValue(key, 0)`, which allocates an array per lookup. `KeyedMap`
   uses `GetValueOrDefault(key, NoPosition)` instead, and the comment there explains why.
-- `private const int NoPosition = -1` emits a `static readonly` field read through the class instead of the
+- **#847.** `private const int NoPosition = -1` emits a `static readonly` field read through the class instead of the
   literal. This is the same family as N7 (constants not folded), and it is cold enough to leave.
+- **#841.** An override and a same-named overload emit duplicate TS members; `ReactiveNode.Refresh` keeps that
+  name (and stays `Refresh` after the fix, since `Update` is `Signal<T>`'s public write API).
+- Reported later in the DSL phases (2026-11-27), listed here with the others: #842 (a `class`/`notnull` constraint
+  is dropped, TS2345 in `Builder.Create`), #846 (a cast to a type parameter constrained to an `[External]`
+  interface should lower to a type assertion, `Html.Create`), #849 (`x is { } y` on a delegate reports MS0045,
+  the sample's `Counter.Render`), #851 (a written `default` of a generic struct with a `T` field is MS0001;
+  `Prop<T>`). #836 is fixed in Metano 4.1.0, not yet released.
 - An `IReadOnlyList<T>` parameter is metano-runtime's `IReadOnlyList` (`count`, `get(i)`), not a JS array. So
   hand-written TS must pass a runtime list to `Reactivity.map` (`List.adopt(array, { fixedSize: true })`, as
   `map.ts` does). This is by design in Metano, but the DSL's TS-facing surface must account for it.

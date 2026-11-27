@@ -15,8 +15,9 @@ internal sealed class KeyedMap<T, TKey, TResult>
     where TKey : notnull
 {
     /// <summary>A key with no (further) position, as <c>GetValueOrDefault</c> returns it.</summary>
-    // Metano (reported 2026-11-27, issue number pending): an `out` argument lowers to a tuple
-    // array allocated per call, so lookups use `GetValueOrDefault`, not `TryGetValue`.
+    // Metano #847: a private const is read as a static field, not folded to its literal (cold path).
+    // Metano #844: an `out` argument lowers to a tuple array allocated per call, so lookups use
+    // `GetValueOrDefault(key, NoPosition)`, not `TryGetValue`.
     private const int NoPosition = -1;
 
     private readonly Func<IReadOnlyList<T>> _source;
@@ -433,7 +434,7 @@ internal sealed class KeyedMap<T, TKey, TResult>
     /// The comparer of the result lists, typed as the interface, so TS infers the computed's type
     /// from it.
     /// </summary>
-    // Metano (reported 2026-11-27, issue number pending): `new Computed<T>(...)` drops its type
+    // Metano #838: `new Computed<T>(...)` drops its type
     // arguments, so TS would infer `T` from the comparer's nullable parameters.
     private static IEqualityComparer<IReadOnlyList<TResult>> ResultComparer() =>
         new ListIdentityComparer<TResult>();

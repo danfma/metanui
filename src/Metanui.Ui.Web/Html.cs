@@ -47,7 +47,8 @@ public static class Html
     /// <summary>Creates an <c>li</c>.</summary>
     public static void Li(Action<HTMLElement> build) => Create("li", build);
 
-    // `class`: Builder.Create takes reference types only, and an interface constraint alone admits a struct.
+    // `class`: Builder.Create takes reference types only, and an interface constraint alone admits a
+    // struct. Metano #842: TS drops the constraint.
     private static void Create<TElement>(string tagName, Action<TElement> build)
         where TElement : class, HTMLElement =>
         // Metano #846: a cast to a type parameter constrained to an [External] interface should lower to a type assertion.

@@ -331,7 +331,7 @@ public static class MapScenarios
         var disposals = 0;
         var dispose = () => { };
 
-        // Metano (reported 2026-11-27, issue number pending): an explicitly typed delegate local
+        // Metano #843: an explicitly typed delegate local
         // loses its type in TS, so the map comes back from the root body instead.
         var mapped = Reactivity.Root(disposeRoot =>
         {
@@ -566,7 +566,7 @@ public static class MapScenarios
         var disposals = 0;
         var dispose = () => { };
 
-        // Metano (reported 2026-11-27, issue number pending): an explicitly typed delegate local
+        // Metano #843: an explicitly typed delegate local
         // loses its type in TS, so the map comes back from the root body instead.
         var mapped = Reactivity.Root(disposeRoot =>
         {
