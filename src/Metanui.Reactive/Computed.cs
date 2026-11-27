@@ -36,7 +36,7 @@ public sealed class Computed<T> : ComputedNode
     {
         get
         {
-            Refresh();
+            RefreshIfStale();
 
             var observer = Tracking.ActiveObserver;
 
@@ -57,7 +57,7 @@ public sealed class Computed<T> : ComputedNode
     /// <summary>Returns the up-to-date value without subscribing the current observer.</summary>
     public T Peek()
     {
-        Refresh();
+        RefreshIfStale();
 
         if ((Flags & ReactiveFlags.Errored) != 0)
         {
@@ -83,7 +83,7 @@ public sealed class Computed<T> : ComputedNode
     /// effect. A disposed computed with no flags left is not one that never ran: <see cref="RunFirst" />
     /// checks <see cref="OwnerNode.IsDisposed" />.
     /// </remarks>
-    internal override bool Update()
+    internal override bool Refresh()
     {
         if (IsDisposed)
         {
@@ -156,7 +156,7 @@ public sealed class Computed<T> : ComputedNode
             return false;
         }
 
-        Update();
+        Refresh();
 
         return (Flags & ReactiveFlags.Errored) == 0;
     }
@@ -219,7 +219,7 @@ public sealed class Computed<T> : ComputedNode
         _comparer = null;
     }
 
-    private void Refresh()
+    private void RefreshIfStale()
     {
         var flags = Flags;
 
@@ -273,7 +273,7 @@ public sealed class Computed<T> : ComputedNode
 
     private void Recompute()
     {
-        if (!Update())
+        if (!Refresh())
         {
             return;
         }

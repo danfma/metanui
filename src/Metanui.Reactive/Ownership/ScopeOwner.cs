@@ -18,8 +18,8 @@ internal sealed class ScopeOwner : OwnerNode
     internal override bool CatchesErrors => true;
 
     /// <summary>An owner subscribes to nothing, so no dependency walk ever asks it to update.</summary>
-    internal override bool Update() =>
-        throw new InvalidOperationException("A scope owner cannot be updated.");
+    internal override bool Refresh() =>
+        throw new InvalidOperationException("A scope owner cannot be refreshed.");
 
     /// <summary>An owner subscribes to nothing, so propagation never reaches it.</summary>
     internal override void Notify() =>

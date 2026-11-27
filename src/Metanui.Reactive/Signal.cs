@@ -86,7 +86,7 @@ public sealed class Signal<T> : SignalNode
     public T Peek() => _value;
 
     /// <summary>Commits the pending value, if any, and reports whether the committed value changed.</summary>
-    internal override bool Update()
+    internal override bool Refresh()
     {
         if (!_hasPending)
         {

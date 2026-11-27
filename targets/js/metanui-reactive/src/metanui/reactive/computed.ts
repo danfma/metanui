@@ -46,7 +46,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   get value(): T {
-    this.refresh();
+    this.refreshIfStale();
     const observer = Tracking.activeObserver;
 
     if ((this.flags & ReactiveFlags.Errored) !== 0) {
@@ -61,7 +61,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   peek(): T {
-    this.refresh();
+    this.refreshIfStale();
 
     if ((this.flags & ReactiveFlags.Errored) !== 0) {
       throw this._error!;
@@ -71,7 +71,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   /** @internal */
-  override update(): boolean {
+  override refresh(): boolean {
     if (this.isDisposed) {
       this.settleDisposedFlags();
 
@@ -119,7 +119,7 @@ export class Computed<T> extends ComputedNode {
       return false;
     }
 
-    this.update();
+    this.refresh();
 
     return (this.flags & ReactiveFlags.Errored) === 0;
   }
@@ -157,7 +157,7 @@ export class Computed<T> extends ComputedNode {
     this._comparer = null;
   }
 
-  private refresh(): void {
+  private refreshIfStale(): void {
     const flags = this.flags;
 
     if ((flags & ReactiveFlags.Dirty) !== 0) {
@@ -190,7 +190,7 @@ export class Computed<T> extends ComputedNode {
   }
 
   private recompute(): void {
-    if (!this.update()) {
+    if (!this.refresh()) {
       return;
     }
 

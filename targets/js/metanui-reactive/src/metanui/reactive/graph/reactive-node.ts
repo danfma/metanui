@@ -44,7 +44,7 @@ export abstract class ReactiveNode {
   }
 
   /** @internal */
-  abstract update(): boolean;
+  abstract refresh(): boolean;
 
   /** @internal */
   abstract notify(): void;

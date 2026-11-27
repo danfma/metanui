@@ -206,8 +206,8 @@ internal abstract class EffectNode : OwnerNode, IDisposable
     void IDisposable.Dispose() => Dispose();
 
     /// <summary>Effects are subscribers only, so no dependency walk ever asks them to update.</summary>
-    internal override bool Update() =>
-        throw new InvalidOperationException("An effect cannot be updated.");
+    internal override bool Refresh() =>
+        throw new InvalidOperationException("An effect cannot be refreshed.");
 
     /// <summary>Runs the user compute and keeps its result for the next apply.</summary>
     protected abstract void Compute();

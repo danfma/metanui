@@ -398,7 +398,7 @@ internal static class FlushLoop
             {
                 var node = DequeuePendingWrite();
 
-                if (!node.Update())
+                if (!node.Refresh())
                 {
                     continue;
                 }

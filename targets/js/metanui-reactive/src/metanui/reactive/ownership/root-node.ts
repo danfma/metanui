@@ -93,8 +93,8 @@ export class RootNode extends OwnerNode {
   }
 
   /** @internal */
-  override update(): boolean {
-    return throwError(new InvalidOperationException("A root cannot be updated."));
+  override refresh(): boolean {
+    return throwError(new InvalidOperationException("A root cannot be refreshed."));
   }
 
   /** @internal */

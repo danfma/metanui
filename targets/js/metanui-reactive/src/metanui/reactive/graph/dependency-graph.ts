@@ -175,7 +175,7 @@ export class DependencyGraph {
       } else if ((flags & (ReactiveFlags.Mutable | ReactiveFlags.Dirty)) === (ReactiveFlags.Mutable | ReactiveFlags.Dirty)) {
         const subs = dep.subs!;
 
-        if (dep.update()) {
+        if (dep.refresh()) {
           if (subs.nextSub != null) {
             DependencyGraph.shallowPropagate(subs);
           }
@@ -206,7 +206,7 @@ export class DependencyGraph {
         if (dirty) {
           const subs = sub.subs!;
 
-          if (sub.update()) {
+          if (sub.refresh()) {
             if (subs.nextSub != null) {
               DependencyGraph.shallowPropagate(subs);
             }

@@ -32,8 +32,8 @@ export class ScopeOwner extends OwnerNode {
   }
 
   /** @internal */
-  override update(): boolean {
-    return throwError(new InvalidOperationException("A scope owner cannot be updated."));
+  override refresh(): boolean {
+    return throwError(new InvalidOperationException("A scope owner cannot be refreshed."));
   }
 
   /** @internal */

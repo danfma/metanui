@@ -163,8 +163,8 @@ export abstract class EffectNode extends OwnerNode implements IDisposable {
   }
 
   /** @internal */
-  override update(): boolean {
-    return throwError(new InvalidOperationException("An effect cannot be updated."));
+  override refresh(): boolean {
+    return throwError(new InvalidOperationException("An effect cannot be refreshed."));
   }
 
   protected abstract compute(): void;

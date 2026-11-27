@@ -88,7 +88,7 @@ export class Signal<T> extends SignalNode {
   }
 
   /** @internal */
-  override update(): boolean {
+  override refresh(): boolean {
     if (!this._hasPending) {
       return false;
     }

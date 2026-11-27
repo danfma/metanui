@@ -247,7 +247,7 @@ export class FlushLoop {
       while (FlushLoop._head != null) {
         const node = FlushLoop.dequeuePendingWrite();
 
-        if (!node.update()) {
+        if (!node.refresh()) {
           continue;
         }
 

@@ -282,7 +282,7 @@ internal static class DependencyGraph
             {
                 var subs = dep.Subs!;
 
-                if (dep.Update())
+                if (dep.Refresh())
                 {
                     if (subs.NextSub is not null)
                     {
@@ -327,7 +327,7 @@ internal static class DependencyGraph
                 {
                     var subs = sub.Subs!;
 
-                    if (sub.Update())
+                    if (sub.Refresh())
                     {
                         if (subs.NextSub is not null)
                         {

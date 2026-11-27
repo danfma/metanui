@@ -103,8 +103,8 @@ internal sealed class RootNode : OwnerNode
     }
 
     /// <summary>A root has no dependencies, so no dependency walk ever asks it to update.</summary>
-    internal override bool Update() =>
-        throw new InvalidOperationException("A root cannot be updated.");
+    internal override bool Refresh() =>
+        throw new InvalidOperationException("A root cannot be refreshed.");
 
     /// <summary>A root subscribes to nothing, so propagation never reaches it.</summary>
     internal override void Notify() =>
