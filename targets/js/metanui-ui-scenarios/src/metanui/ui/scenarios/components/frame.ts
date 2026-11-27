@@ -1,5 +1,5 @@
 import type { ClassType } from "metano-runtime";
-import { Component, View } from "metanui-ui/metanui/ui";
+import { Component } from "metanui-ui/metanui/ui";
 import { FakeViews } from "../fakes/fake-views.js";
 
 let Frame$rt: ClassType<Frame> | undefined;
@@ -24,10 +24,6 @@ export class Frame extends Component<Frame> {
       create: () => new Frame(),
       test: (v: unknown): v is Frame => v instanceof Frame,
     });
-  }
-
-  static create(build: (obj: Frame) => void): void {
-    View.mount(new Frame(), build);
   }
 
   override render(): void {

@@ -14,8 +14,6 @@ public sealed class Counter : Component<Counter>
     /// <summary>Read once by <see cref="Render" />: without it, the counter has no remove button.</summary>
     public Action? OnRemove { get; set; }
 
-    // Until Metano #832 (generic Use): see Component<TSelf>.
-    public static void Create(Action<Counter> build) => Mount(new Counter(), build);
 
     public override void Render()
     {

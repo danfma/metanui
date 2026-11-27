@@ -32,10 +32,6 @@ export class Counter extends Component<Counter> {
     });
   }
 
-  static create(build: (obj: Counter) => void): void {
-    View.mount(new Counter(), build);
-  }
-
   override render(): void {
     const count = Reactivity.signal(0);
     const onRemove = this.onRemove;

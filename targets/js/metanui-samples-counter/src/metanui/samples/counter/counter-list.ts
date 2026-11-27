@@ -36,33 +36,6 @@ export class CounterList extends Component<CounterList> {
     });
   }
 
-  static createBuild(build: (obj: CounterList) => void): void {
-    View.mount(new CounterList(), build);
-  }
-
-  static createDefault(): void {
-    CounterList.createBuild((_: CounterList) => {
-    });
-  }
-
-  static create(build: (obj: CounterList) => void): void;
-  static create(): void;
-  static create(...args: unknown[]): void {
-    if (args.length === 1 && typeof args[0] === "function") {
-      CounterList.createBuild(args[0] as (obj: CounterList) => void);
-
-      return;
-    }
-
-    if (args.length === 0) {
-      CounterList.createDefault();
-
-      return;
-    }
-
-    throw new Error("No matching overload for create");
-  }
-
   override render(): void {
     section((section) => {
       section.className = "counter-list";
@@ -72,7 +45,7 @@ export class CounterList extends Component<CounterList> {
         add.textContent = "Add counter";
         onClick(add, this.addCounter.bind(this));
       });
-      View.forItemsKeyRender<CounterEntry, number>(() => this._entries.value, (entry: CounterEntry) => entry.id, (entry: CounterEntry) => Counter.create((counter: Counter) => {
+      View.forItemsKeyRender<CounterEntry, number>(() => this._entries.value, (entry: CounterEntry) => entry.id, (entry: CounterEntry) => Counter.createBuild((counter: Counter) => {
         counter.label = Prop.__implicitFromT(`#${entry.id}`);
         counter.onRemove = () => this.removeCounter(entry.id);
       }));

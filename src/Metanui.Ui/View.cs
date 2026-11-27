@@ -129,7 +129,7 @@ public static class View
     /// <paramref name="build" /> creates a node: children go in <c>Content</c>.
     /// </exception>
     public static void Mount<TComponent>(TComponent component, Action<TComponent> build)
-        where TComponent : Component<TComponent>
+        where TComponent : Component<TComponent>, new()
     {
         Builder.RunRejectingChildren(build, component);
         component.Render();

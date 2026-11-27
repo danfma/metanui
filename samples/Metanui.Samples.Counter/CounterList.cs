@@ -15,11 +15,6 @@ public sealed class CounterList : Component<CounterList>
 
     private int _nextId = 1;
 
-    // Until Metano #832 (generic Use): see Component<TSelf>.
-    public static void Create(Action<CounterList> build) => Mount(new CounterList(), build);
-
-    /// <summary>Creates a list with no props.</summary>
-    public static void Create() => Create(static _ => { });
 
     public override void Render() =>
         Section(section =>

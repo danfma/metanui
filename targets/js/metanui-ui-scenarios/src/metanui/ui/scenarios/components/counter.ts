@@ -1,5 +1,5 @@
 import type { ClassType } from "metano-runtime";
-import { Component, View } from "metanui-ui/metanui/ui";
+import { Component } from "metanui-ui/metanui/ui";
 import type { FakeElement } from "../fakes/fake-element.js";
 import { FakeViews } from "../fakes/fake-views.js";
 
@@ -28,10 +28,6 @@ export class Counter extends Component<Counter> {
       create: () => new Counter(),
       test: (v: unknown): v is Counter => v instanceof Counter,
     });
-  }
-
-  static create(build: (obj: Counter) => void): void {
-    View.mount(new Counter(), build);
   }
 
   override render(): void {

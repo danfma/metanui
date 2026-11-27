@@ -55,7 +55,7 @@ Section(section =>
   - Assigning a `Prop<T>` writes no signal, so it works in a factory lambda inside a `For` item or a `Show` branch, where a signal-backed prop threw (spec 0001).
   - Emitted TS: the conversion is a static call (`Prop.__implicitFromT("Solo")`), `Live` a static call that builds one `Prop` at setup; a read is `prop.value`, a field test plus the reader call, with no allocation per update. Metano emits `equals`/`hashCode` for any struct, unused here. A written `default(Prop<T>)` or an uninitialized `Prop<T>` property is refused in TS (MS0001, Metano #851), and the emitted `$default()` reads `null`; on .NET `default` reads as `default(T)`.
 - **A plain property is read-once configuration:** `Render` reads it once, right after the props lambda (spike: a later binding was lost, `Count: 1 (Start = 106)`). `Bind` (both forms) therefore throws inside a props lambda, pointing to `Live`, whether it targets a `Prop<T>` or a plain property; `Content` runs inside `Render` and is unaffected. Events stay plain delegates (`Action? OnRemove`).
-- Each component exposes a one-line static factory until Metano #832 lets `Component<TSelf>.Use(...)` construct `TSelf`.
+- `Component<TSelf>` (`where TSelf : Component<TSelf>, new()`) provides `Create(build)` and `Create()`, called on the concrete class (`Card.Create(card => card.Title = "Hi")`). Metano 4.1.0 (#832) emits them as self-typed statics (`this: new () => TSelf`, `new this()`); the call sites bind statically to `createBuild`/`createDefault`, with no overload dispatch at run time. (Until 4.1.0 each component had its own one-line factory.)
 
 ### Control flow and mounting
 
@@ -68,7 +68,7 @@ Section(section =>
 
 ### Out of v1
 
-Avalonia, WebIDL-generated DOM types, context, analyzers, `ReactiveList<T>`, interpolated-template binding (`Bind($"Count: {count}")`, after Metano #828), the read abstraction over `Signal`/`Computed`, and js-framework-benchmark.
+Avalonia, WebIDL-generated DOM types, context, analyzers, `ReactiveList<T>`, interpolated-template binding (`Bind($"Count: {count}")`; Metano 4.1.0 fixed #828, so this is now a design decision, not a blocker), the read abstraction over `Signal`/`Computed`, and js-framework-benchmark.
 
 ## Decisions taken
 

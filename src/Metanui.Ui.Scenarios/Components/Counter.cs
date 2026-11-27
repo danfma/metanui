@@ -8,8 +8,6 @@ public sealed class Counter : Component<Counter>
 {
     public int Start { get; set; }
 
-    // Metano #832
-    public static void Create(Action<Counter> build) => Mount(new Counter(), build);
 
     public override void Render() => Label(label => label.Text = $"start={Start}");
 }

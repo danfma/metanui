@@ -19,8 +19,8 @@ export class ComponentScenarios {
     const host = new FakeHost();
     const name = Reactivity.signal("Ada");
     host.render(() => {
-      Card.create((card: Card) => card.title = Prop.__implicitFromT("Static"));
-      Card.create((card: Card) => card.title = View.live(() => name.value));
+      Card.createBuild((card: Card) => card.title = Prop.__implicitFromT("Static"));
+      Card.createBuild((card: Card) => card.title = View.live(() => name.value));
     });
     expect.equal("box\"card\"(label\"Static\") box\"card\"(label\"Ada\")", host.print(), "before any flush");
     name.value = "Grace";
@@ -35,8 +35,8 @@ export class ComponentScenarios {
     let propError = null as Exception | null;
     let plainError = null as Exception | null;
     host.render(() => {
-      propError = ScenarioRunner.catch(() => Card.create((card: Card) => View.bindWrite(() => card.title = Prop.__implicitFromT(name.value))));
-      plainError = ScenarioRunner.catch(() => Counter.create((counter: Counter) => View.bindComputeApply<number>(() => start.value, (value: number) => counter.start = value)));
+      propError = ScenarioRunner.catch(() => Card.createBuild((card: Card) => View.bindWrite(() => card.title = Prop.__implicitFromT(name.value))));
+      plainError = ScenarioRunner.catch(() => Counter.createBuild((counter: Counter) => View.bindComputeApply<number>(() => start.value, (value: number) => counter.start = value)));
       FakeViews.labelText("next");
     });
     expect.equal(ExpectedUiMessages.bindingInPropsLambda, propError?.message ?? null, "prop");
@@ -46,7 +46,7 @@ export class ComponentScenarios {
 
   private static contentLandsInsideTheComponentsElement(expect: IExpect): void {
     const host = new FakeHost();
-    host.render(() => Card.create((card: Card) => {
+    host.render(() => Card.createBuild((card: Card) => {
       card.title = Prop.__implicitFromT("T");
       card.content = () => {
         FakeViews.labelText("one");
@@ -61,7 +61,7 @@ export class ComponentScenarios {
     const host = new FakeHost();
     host.render(() => {
       FakeViews.labelText("first");
-      Frame.create((frame: Frame) => frame.content = () => FakeViews.labelText("inside"));
+      Frame.createBuild((frame: Frame) => frame.content = () => FakeViews.labelText("inside"));
       FakeViews.labelText("last");
     });
     expect.equal("label\"first\" label\"before\" label\"inside\" label\"after\" label\"last\"", host.print(), "no wrapper element");
@@ -72,7 +72,7 @@ export class ComponentScenarios {
     const host = new FakeHost();
     let error = null as Exception | null;
     host.render(() => {
-      error = ScenarioRunner.catch(() => Card.create((card: Card) => FakeViews.labelText("child")));
+      error = ScenarioRunner.catch(() => Card.createBuild((card: Card) => FakeViews.labelText("child")));
       FakeViews.labelText("next");
     });
     expect.equal(ExpectedUiMessages.childrenGoInContent, error?.message ?? null, "error");
@@ -85,12 +85,12 @@ export class ComponentScenarios {
     const suffix = Reactivity.signal("!");
     host.render(() => {
       View.forItemsRender<string>(() => items.value, (item: string) => {
-        Card.create((card: Card) => card.title = Prop.__implicitFromT(item));
-        Card.create((card: Card) => card.title = View.live(() => item + suffix.value));
+        Card.createBuild((card: Card) => card.title = Prop.__implicitFromT(item));
+        Card.createBuild((card: Card) => card.title = View.live(() => item + suffix.value));
       });
       View.show(() => true, () => {
-        Card.create((card: Card) => card.title = Prop.__implicitFromT("shown"));
-        Card.create((card: Card) => card.title = View.live(() => "shown" + suffix.value));
+        Card.createBuild((card: Card) => card.title = Prop.__implicitFromT("shown"));
+        Card.createBuild((card: Card) => card.title = View.live(() => "shown" + suffix.value));
       });
     });
     expect.equal("box\"card\"(label\"a\") box\"card\"(label\"a!\") " + "box\"card\"(label\"shown\") box\"card\"(label\"shown!\")", host.print(), "initial");
@@ -103,7 +103,7 @@ export class ComponentScenarios {
     const host = new FakeHost();
     const on = Reactivity.signal(true);
     const name = Reactivity.signal("Ada");
-    host.render(() => View.show(() => on.value, () => Card.create((card: Card) => card.title = View.live(() => name.value))));
+    host.render(() => View.show(() => on.value, () => Card.createBuild((card: Card) => card.title = View.live(() => name.value))));
     expect.equal("box\"card\"(label\"Ada\")", host.print(), "on");
     on.value = false;
     Reactivity.flush();

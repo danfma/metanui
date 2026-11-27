@@ -21,16 +21,24 @@ namespace Metanui.Ui;
 /// </para>
 /// <para>
 /// Children go in <see cref="Content" />, a render prop that <see cref="Render" /> invokes where they
-/// belong; no wrapper element is created. Each component exposes a one-line static factory named
-/// <c>Create</c> over <see cref="View.Mount{TComponent}" />
-/// (<c>public static void Create(Action&lt;Card&gt; build) =&gt; View.Mount(new Card(), build);</c>,
-/// called as <c>Card.Create(card =&gt; ...)</c>) until Metano #832 lets a generic <c>Use</c>
-/// construct <typeparamref name="TSelf" />.
+/// belong; no wrapper element is created.
 /// </para>
 /// </remarks>
 public abstract class Component<TSelf>
-    where TSelf : Component<TSelf>
+    where TSelf : Component<TSelf>, new()
 {
+    /// <summary>
+    /// Creates the component, sets its props in <paramref name="build" />, and mounts it at the
+    /// ambient insertion point (<c>Card.Create(card =&gt; card.Title = "Hi")</c>).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="build" /> creates a node: children go in <see cref="Content" />.
+    /// </exception>
+    public static void Create(Action<TSelf> build) => View.Mount(new TSelf(), build);
+
+    /// <summary>Creates the component with no props and mounts it at the ambient insertion point.</summary>
+    public static void Create() => View.Mount(new TSelf(), static _ => { });
+
     /// <summary>
     /// The children, built where <see cref="Render" /> invokes it (<c>Content?.Invoke()</c>), in the
     /// insertion point active there.

@@ -30,10 +30,6 @@ export class Card extends Component<Card> {
     });
   }
 
-  static create(build: (obj: Card) => void): void {
-    View.mount(new Card(), build);
-  }
-
   override render(): void {
     FakeViews.box((card: FakeElement) => {
       card.text = "card";

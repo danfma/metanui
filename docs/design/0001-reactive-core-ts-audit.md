@@ -700,7 +700,8 @@ not committed.
   `Prop<T>`), #782 (local functions are not transpiled, MS0001; `CounterList`'s private methods stand in for
   them), #845 (an `EqualityComparer<T>` field type is not mapped, so `KeyedMap.KeysEqual` calls the default
   comparer per key instead of caching it in a field; TS emits `defaultEqualityComparerFor().equals(a, b)` on the
-  shared singleton). #836 is fixed in Metano 4.1.0, not yet released.
+  shared singleton). Fixed in Metano 4.1.0: #836 (strict-tsc clean `Component` descriptor) and #832 (`Component<TSelf>.Create`
+  is a self-typed static, `this: new () => TSelf` and `new this()`, called on the concrete class).
 - An `IReadOnlyList<T>` parameter is metano-runtime's `IReadOnlyList` (`count`, `get(i)`), not a JS array. So
   hand-written TS must pass a runtime list to `Reactivity.map` (`List.adopt(array, { fixedSize: true })`, as
   `map.ts` does). This is by design in Metano, but the DSL's TS-facing surface must account for it.
