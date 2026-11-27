@@ -200,7 +200,7 @@ Custom components, C vs G (the same `Card`: title static or reactive, reactive `
 | Forwarding a prop to an element | Wrap or call it (`Text(title)`) | Assign it (`heading.TextContent = Title`) |
 | Setup allocations | One `AttributePart` and closure per attribute, one array per element | One `Bindable` per static value, one closure and one scope per element |
 
-- Metano 4.0.2 emits a named `params` argument given as an array (`content: [P("x")]`) as one rest element, so the callee receives a nested array (strict tsc TS2345); reported upstream. The spike passes the skipped optional prop positionally instead.
+- Metano 4.0.2 emits a named `params` argument given as an array (`content: [P("x")]`) as one rest element, so the callee receives a nested array (strict tsc TS2345; Metano #829). The spike passes the skipped optional prop positionally instead.
 - G's `Mount` collects the children in a detached `div` before `Render` runs, so the content gets a wrapper element; the renderer port's insert-before-anchor removes it.
 
 Other findings:

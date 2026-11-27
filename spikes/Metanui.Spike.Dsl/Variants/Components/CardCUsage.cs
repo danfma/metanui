@@ -17,7 +17,7 @@ public static class CardCUsage
             Class("variant"),
             H2("C. Components"),
             // Idiomatic C#: new CardC(() => "Static title", onClose: ..., content: [P("Static body")]).
-            // Metano 4.0.2 emits the named params array as one rest element (nested array), so the
+            // Metano 4.0.2 emits the named params array as one rest element (nested array, #829), so the
             // spike skips the optional prop positionally instead.
             new CardC(() => "Static title", null, () => closed.Value++, P("Static body")),
             new CardC(
