@@ -23,12 +23,12 @@ internal sealed class SwitchRegion(INodePort port, object parent, object end) : 
     /// </summary>
     internal static void Start(Func<bool> when, Action then, Action? otherwise)
     {
-        var port = Builder.Port;
-        var anchor = port.CreateAnchor();
-        var region = new SwitchRegion(port, Builder.Parent, anchor);
+        var target = Builder.Target;
+        var anchor = target.Port.CreateAnchor();
+        var region = new SwitchRegion(target.Port, target.Parent, anchor);
         var condition = Reactivity.Computed(when);
 
-        Builder.AddRegion(region, anchor);
+        target.InsertRegion(region, anchor);
         Reactivity.OnCleanup(region.RemoveEnd);
         FusedBinding.Start(() => region.Present(condition.Value ? then : otherwise));
     }
@@ -39,18 +39,32 @@ internal sealed class SwitchRegion(INodePort port, object parent, object end) : 
         Port.Insert(Parent, end, anchor);
     }
 
-    /// <summary>Builds <paramref name="branch" />, if any, as the active branch.</summary>
-    private void Present(Action? branch) =>
-        _branch = branch is null ? null : Reactivity.Root(_ => BuildBranch(branch));
+    /// <summary>
+    /// Builds <paramref name="branch" />, if any, as the active branch. The previous branch's root
+    /// was disposed when this compute started, so it is forgotten first.
+    /// </summary>
+    private void Present(Action? branch)
+    {
+        _branch = null;
 
-    private Fragment BuildBranch(Action branch)
+        if (branch is not null)
+        {
+            Reactivity.Root(_ => BuildBranch(branch));
+        }
+    }
+
+    /// <summary>
+    /// Tracks the branch's fragment before building it, so a branch that throws midway still
+    /// accounts for the nodes it inserted: they move with the region and its root's next disposal
+    /// removes them.
+    /// </summary>
+    private void BuildBranch(Action branch)
     {
         var fragment = new Fragment(Port, Parent, null);
 
+        _branch = fragment;
         Reactivity.OnCleanup(fragment.Remove);
         Builder.Run(Port, Parent, end, fragment, branch);
-
-        return fragment;
     }
 
     private void RemoveEnd() => Port.Remove(Parent, end);

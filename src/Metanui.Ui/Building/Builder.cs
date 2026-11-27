@@ -3,46 +3,26 @@ using Metanui.Ui.Regions;
 namespace Metanui.Ui.Building;
 
 /// <summary>
-/// The ambient insertion point that builder lambdas build into: a port, a parent, the node to
-/// insert before (null for last) and the region that records the top-level nodes. Platform element
-/// factories use <see cref="Create{TNode}" /> and <see cref="Add" />; every change of the scope is
-/// restored in <c>finally</c>.
+/// The extension point for platform adapters: their element factories create the platform element
+/// and hand it to <see cref="Create{TNode}" /> (or a leaf node to <see cref="Add" />), which builds
+/// it into the ambient insertion point. The rest of the UI layer (<c>For</c>, <c>Show</c>,
+/// components, <c>View.Render</c>) changes that insertion point through the internal members.
 /// </summary>
 /// <remarks>
 /// The scope is process-wide static state, like the reactive core's tracking state: building runs
-/// on one thread.
+/// on one thread. Every change of the scope is restored in <c>finally</c>.
 /// </remarks>
 public static class Builder
 {
-    private const string NoBuilderMessage =
-        "No builder is active: create nodes inside View.Render or inside an element's builder.";
-
-    private const string ChildrenGoInContentMessage =
-        "Children go in Content: a component's props lambda only sets props; assign the children to Content.";
-
     private static readonly Action<Action> InvokeBody = static body => body();
 
-    private static INodePort? _port;
-    private static object? _parent;
-    private static object? _before;
-    private static Fragment? _collector;
-    private static string? _rejection;
+    private static Scope _current = Scope.None;
 
-    /// <summary>The port of the active scope.</summary>
-    /// <exception cref="InvalidOperationException">No builder is active.</exception>
-    internal static INodePort Port
-    {
-        get
-        {
-            RequireParent();
-
-            return _port!;
-        }
-    }
-
-    /// <summary>The parent of the active scope.</summary>
-    /// <exception cref="InvalidOperationException">No builder is active.</exception>
-    internal static object Parent => RequireParent();
+    /// <summary>The insertion point of the active builder.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// No builder is active, or the call runs in a component's props lambda.
+    /// </exception>
+    internal static InsertionPoint Target => _current.Require();
 
     /// <summary>
     /// Runs <paramref name="build" /> with <paramref name="node" /> as the parent of what it creates,
@@ -54,39 +34,17 @@ public static class Builder
     public static void Create<TNode>(TNode node, Action<TNode> build)
         where TNode : class
     {
-        var parent = RequireParent();
-        var port = _port!;
-        var before = _before;
-        var collector = _collector;
+        var target = Target;
 
-        Run(port, node, null, null, null, build, node);
-        port.Insert(parent, node, before);
-        collector?.Add(node);
+        RunIn(Scope.Building(target.Port, node, null, null), build, node);
+        target.Insert(node);
     }
 
     /// <summary>Inserts a leaf node at the ambient insertion point.</summary>
     /// <exception cref="InvalidOperationException">
     /// No builder is active, or the call runs in a component's props lambda.
     /// </exception>
-    public static void Add(object node)
-    {
-        var parent = RequireParent();
-
-        _port!.Insert(parent, node, _before);
-        _collector?.Add(node);
-    }
-
-    /// <summary>
-    /// Inserts the end anchor of <paramref name="region" /> at the ambient insertion point and records
-    /// the region, so a region around it moves the nodes the region holds at that time.
-    /// </summary>
-    internal static void AddRegion(Region region, object end)
-    {
-        var parent = RequireParent();
-
-        _port!.Insert(parent, end, _before);
-        _collector?.Add(region);
-    }
+    public static void Add(object node) => Target.Insert(node);
 
     /// <summary>
     /// Runs <paramref name="body" /> building into <paramref name="parent" /> before
@@ -98,46 +56,33 @@ public static class Builder
         object? before,
         Fragment? collector,
         Action body
-    ) => Run(port, parent, before, collector, null, InvokeBody, body);
+    ) => RunIn(Scope.Building(port, parent, before, collector), InvokeBody, body);
 
-    /// <inheritdoc cref="Run(INodePort, object, object?, Fragment?, Action)" />
-    internal static void Run<T>(
+    /// <summary>
+    /// <see cref="Run" /> with a body that takes <paramref name="argument" />, so the caller needs no
+    /// closure.
+    /// </summary>
+    internal static void RunWith<T>(
         INodePort port,
         object parent,
         object? before,
         Fragment? collector,
         Action<T> body,
         T argument
-    ) => Run(port, parent, before, collector, null, body, argument);
+    ) => RunIn(Scope.Building(port, parent, before, collector), body, argument);
 
     /// <summary>
     /// Runs a component's props lambda: every node created there is rejected with a message that
     /// points to <c>Content</c>.
     /// </summary>
     internal static void RunRejectingChildren<T>(Action<T> body, T argument) =>
-        Run(_port, null, null, null, ChildrenGoInContentMessage, body, argument);
+        RunIn(Scope.RejectingChildren, body, argument);
 
-    private static void Run<T>(
-        INodePort? port,
-        object? parent,
-        object? before,
-        Fragment? collector,
-        string? rejection,
-        Action<T> body,
-        T argument
-    )
+    private static void RunIn<T>(Scope scope, Action<T> body, T argument)
     {
-        var savedPort = _port;
-        var savedParent = _parent;
-        var savedBefore = _before;
-        var savedCollector = _collector;
-        var savedRejection = _rejection;
+        var saved = _current;
 
-        _port = port;
-        _parent = parent;
-        _before = before;
-        _collector = collector;
-        _rejection = rejection;
+        _current = scope;
 
         try
         {
@@ -145,14 +90,7 @@ public static class Builder
         }
         finally
         {
-            _port = savedPort;
-            _parent = savedParent;
-            _before = savedBefore;
-            _collector = savedCollector;
-            _rejection = savedRejection;
+            _current = saved;
         }
     }
-
-    private static object RequireParent() =>
-        _parent ?? throw new InvalidOperationException(_rejection ?? NoBuilderMessage);
 }

@@ -38,11 +38,11 @@ export class View {
   }
 
   static textString(value: string): void {
-    Builder.add(Builder.port.createText(value));
+    Builder.add(Builder.target.port.createText(value));
   }
 
   static textFuncOfString(value: () => string): void {
-    const port = Builder.port;
+    const port = Builder.target.port;
     const node = port.createText("");
     Builder.add(node);
     FusedBinding.start(() => port.setText(node, value()));

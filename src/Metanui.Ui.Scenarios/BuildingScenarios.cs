@@ -32,6 +32,7 @@ public static class BuildingScenarios
                 Box(inner => Label("b"));
                 Text("hi");
             });
+
             Label("c");
         });
 

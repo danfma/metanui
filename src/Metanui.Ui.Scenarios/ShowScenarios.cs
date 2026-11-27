@@ -23,6 +23,10 @@ public static class ShowScenarios
             "show without otherwise renders nothing when false",
             ShowWithoutOtherwiseRendersNothingWhenFalse
         ),
+        new Scenario(
+            "a branch that throws inside a boundary moves and hides with its region",
+            ABranchThatThrowsInsideABoundaryMovesAndHidesWithItsRegion
+        ),
     ];
 
     private static void ShowRendersTheActiveBranchAndDisposesTheHiddenOne(IExpect expect)
@@ -35,6 +39,7 @@ public static class ShowScenarios
         host.Render(() =>
         {
             Label("before");
+
             Show(
                 () => on.Value,
                 () =>
@@ -44,6 +49,7 @@ public static class ShowScenarios
                 },
                 () => Label("off")
             );
+
             Label("after");
         });
 
@@ -84,6 +90,62 @@ public static class ShowScenarios
         Reactivity.Flush();
 
         expect.Equal(1, renders, "an unchanged condition keeps the branch");
+    }
+
+    /// <summary>
+    /// The branch of item <c>a</c> throws after inserting a node: the node stays tracked by the
+    /// region, so it moves with the item and is removed when the branch is hidden.
+    /// </summary>
+    private static void ABranchThatThrowsInsideABoundaryMovesAndHidesWithItsRegion(IExpect expect)
+    {
+        var host = new FakeHost();
+        var items = Reactivity.Signal<IReadOnlyList<string>>(["a", "b"]);
+        var on = Reactivity.Signal(false);
+        var errors = new List<string>();
+
+        Reactivity.ErrorBoundary(
+            () =>
+                host.Render(() =>
+                    For(
+                        () => items.Value,
+                        item =>
+                        {
+                            Label(item);
+                            Show(() => on.Value, () => ShowMarked(item));
+                        }
+                    )
+                ),
+            error => errors.Add(error.Message)
+        );
+
+        on.Value = true;
+        Reactivity.Flush();
+
+        expect.Equal("boom", string.Join(",", errors), "routed to the boundary");
+
+        items.Value = ["b", "a"];
+        Reactivity.Flush();
+
+        expect.Equal(
+            "label\"b\" label\"b!\" label\"a\" label\"a!\"",
+            host.Print(),
+            "the partial branch moved with its item"
+        );
+
+        on.Value = false;
+        Reactivity.Flush();
+
+        expect.Equal("label\"b\" label\"a\"", host.Print(), "both branches hidden");
+    }
+
+    private static void ShowMarked(string item)
+    {
+        Label($"{item}!");
+
+        if (item == "a")
+        {
+            throw new InvalidOperationException("boom");
+        }
     }
 
     private static void ShowWithoutOtherwiseRendersNothingWhenFalse(IExpect expect)

@@ -37,7 +37,7 @@ public static class View
         Reactivity.Effect(compute, new SplitBinding<T>(apply).Apply);
 
     /// <summary>Inserts a static text node at the ambient insertion point.</summary>
-    public static void Text(string value) => Builder.Add(Builder.Port.CreateText(value));
+    public static void Text(string value) => Builder.Add(Builder.Target.Port.CreateText(value));
 
     /// <summary>
     /// Inserts a text node at the ambient insertion point whose content follows
@@ -45,7 +45,7 @@ public static class View
     /// </summary>
     public static void Text(Func<string> value)
     {
-        var port = Builder.Port;
+        var port = Builder.Target.Port;
         var node = port.CreateText("");
 
         Builder.Add(node);

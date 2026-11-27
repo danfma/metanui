@@ -17,6 +17,14 @@ public static class ForScenarios
         ),
         new Scenario("for moves only the items out of place", ForMovesOnlyTheItemsOutOfPlace),
         new Scenario(
+            "a prepend or a middle insert moves no kept item",
+            APrependOrAMiddleInsertMovesNoKeptItem
+        ),
+        new Scenario(
+            "an item that throws inside a boundary leaves the list consistent",
+            AnItemThatThrowsInsideABoundaryLeavesTheListConsistent
+        ),
+        new Scenario(
             "keyed for keeps an item whose record changes",
             KeyedForKeepsAnItemWhoseRecordChanges
         ),
@@ -92,6 +100,7 @@ public static class ForScenarios
             host.Print(),
             "swapped"
         );
+
         expect.Equal(4, host.Port.Moves, "two items move");
 
         items.Value = ["e", "b", "c", "d", "a"];
@@ -102,7 +111,79 @@ public static class ForScenarios
             host.Print(),
             "reversed"
         );
+
         expect.Equal(12, host.Port.Moves, "four more items move");
+    }
+
+    /// <summary>
+    /// A new item is rendered last, then moved once into place: its node and its end anchor, two
+    /// port moves, and no kept item moves.
+    /// </summary>
+    private static void APrependOrAMiddleInsertMovesNoKeptItem(IExpect expect)
+    {
+        var host = new FakeHost();
+        var items = Reactivity.Signal<IReadOnlyList<string>>(["a", "b", "c"]);
+
+        host.Render(() => For(() => items.Value, item => Label(item)));
+
+        items.Value = ["d", "a", "b", "c"];
+        Reactivity.Flush();
+
+        expect.Equal("label\"d\" label\"a\" label\"b\" label\"c\"", host.Print(), "prepended");
+        expect.Equal(2, host.Port.Moves, "only the prepended item moves");
+
+        items.Value = ["d", "a", "x", "b", "c"];
+        Reactivity.Flush();
+
+        expect.Equal(
+            "label\"d\" label\"a\" label\"x\" label\"b\" label\"c\"",
+            host.Print(),
+            "inserted in the middle"
+        );
+
+        expect.Equal(4, host.Port.Moves, "only the inserted item moves");
+    }
+
+    /// <summary>
+    /// A failed map run keeps the previous mapping and disposes the items it created, which were
+    /// never linked; the list then follows the next change.
+    /// </summary>
+    private static void AnItemThatThrowsInsideABoundaryLeavesTheListConsistent(IExpect expect)
+    {
+        var host = new FakeHost();
+        var items = Reactivity.Signal<IReadOnlyList<string>>(["a", "b"]);
+        var errors = new List<string>();
+
+        Reactivity.ErrorBoundary(
+            () =>
+                host.Render(() =>
+                    For(
+                        () => items.Value,
+                        item =>
+                        {
+                            Label(item);
+
+                            if (item == "x")
+                            {
+                                throw new InvalidOperationException("boom");
+                            }
+                        }
+                    )
+                ),
+            error => errors.Add(error.Message)
+        );
+
+        items.Value = ["a", "x", "b"];
+        Reactivity.Flush();
+
+        expect.Equal("boom", string.Join(",", errors), "routed to the boundary");
+        expect.Equal("label\"a\" label\"b\"", host.Print(), "the failed item left no node");
+
+        items.Value = ["b", "a"];
+        Reactivity.Flush();
+
+        expect.Equal("label\"b\" label\"a\"", host.Print(), "the list follows the next change");
+        expect.Equal(5, host.Container.ChildCount, "two labels, two item anchors, the list anchor");
     }
 
     private static void KeyedForKeepsAnItemWhoseRecordChanges(IExpect expect)
@@ -239,6 +320,7 @@ public static class ForScenarios
         Reactivity.Flush();
 
         expect.Equal("label\"first\" label\"a\" label\"b\" label\"last\"", host.Print(), "tree");
+        expect.Equal(0, host.Port.Moves, "an append moves nothing");
     }
 
     private sealed record Entry(int Id, string Name);

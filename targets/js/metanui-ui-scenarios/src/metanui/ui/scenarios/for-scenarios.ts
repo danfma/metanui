@@ -1,5 +1,7 @@
 import { HashCode, copyRecordWith } from "metano-runtime";
 import { List, type IReadOnlyList } from "metano-runtime/system/collections";
+import type { Exception } from "metano-runtime/system/exceptions/exception";
+import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Scenario, type IExpect } from "metanui-reactive-scenarios/metanui/reactive/scenarios";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
 import { View } from "metanui-ui/metanui/ui";
@@ -38,7 +40,7 @@ class ForScenarios$Entry {
 }
 
 export class ForScenarios {
-  static readonly all: Scenario[] = [new Scenario("for keeps item state across add, remove and reorder", ForScenarios.forKeepsItemStateAcrossAddRemoveAndReorder), new Scenario("for moves only the items out of place", ForScenarios.forMovesOnlyTheItemsOutOfPlace), new Scenario("keyed for keeps an item whose record changes", ForScenarios.keyedForKeepsAnItemWhoseRecordChanges), new Scenario("moved items take their nested regions along", ForScenarios.movedItemsTakeTheirNestedRegionsAlong), new Scenario("an item rendering several nodes moves them together", ForScenarios.anItemRenderingSeveralNodesMovesThemTogether), new Scenario("clearing the list removes every item node", ForScenarios.clearingTheListRemovesEveryItemNode), new Scenario("for stays between its siblings", ForScenarios.forStaysBetweenItsSiblings)];
+  static readonly all: Scenario[] = [new Scenario("for keeps item state across add, remove and reorder", ForScenarios.forKeepsItemStateAcrossAddRemoveAndReorder), new Scenario("for moves only the items out of place", ForScenarios.forMovesOnlyTheItemsOutOfPlace), new Scenario("a prepend or a middle insert moves no kept item", ForScenarios.aPrependOrAMiddleInsertMovesNoKeptItem), new Scenario("an item that throws inside a boundary leaves the list consistent", ForScenarios.anItemThatThrowsInsideABoundaryLeavesTheListConsistent), new Scenario("keyed for keeps an item whose record changes", ForScenarios.keyedForKeepsAnItemWhoseRecordChanges), new Scenario("moved items take their nested regions along", ForScenarios.movedItemsTakeTheirNestedRegionsAlong), new Scenario("an item rendering several nodes moves them together", ForScenarios.anItemRenderingSeveralNodesMovesThemTogether), new Scenario("clearing the list removes every item node", ForScenarios.clearingTheListRemovesEveryItemNode), new Scenario("for stays between its siblings", ForScenarios.forStaysBetweenItsSiblings)];
 
   private constructor() { }
 
@@ -80,6 +82,41 @@ export class ForScenarios {
     Reactivity.flush();
     expect.equal("label\"e\" label\"b\" label\"c\" label\"d\" label\"a\"", host.print(), "reversed");
     expect.equal(12, host.port.moves, "four more items move");
+  }
+
+  private static aPrependOrAMiddleInsertMovesNoKeptItem(expect: IExpect): void {
+    const host = new FakeHost();
+    const items = Reactivity.signal<IReadOnlyList<string>>(List.adopt<string>(["a", "b", "c"], { fixedSize: true }));
+    host.render(() => View.forItemsRender<string>(() => items.value, (item: string) => FakeViews.labelText(item)));
+    items.value = List.adopt<string>(["d", "a", "b", "c"], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("label\"d\" label\"a\" label\"b\" label\"c\"", host.print(), "prepended");
+    expect.equal(2, host.port.moves, "only the prepended item moves");
+    items.value = List.adopt<string>(["d", "a", "x", "b", "c"], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("label\"d\" label\"a\" label\"x\" label\"b\" label\"c\"", host.print(), "inserted in the middle");
+    expect.equal(4, host.port.moves, "only the inserted item moves");
+  }
+
+  private static anItemThatThrowsInsideABoundaryLeavesTheListConsistent(expect: IExpect): void {
+    const host = new FakeHost();
+    const items = Reactivity.signal<IReadOnlyList<string>>(List.adopt<string>(["a", "b"], { fixedSize: true }));
+    const errors = new List<string>();
+    Reactivity.errorBoundary(() => host.render(() => View.forItemsRender<string>(() => items.value, (item: string) => {
+      FakeViews.labelText(item);
+
+      if (item === "x") {
+        throw new InvalidOperationException("boom");
+      }
+    })), (error: Exception) => errors.add(error.message));
+    items.value = List.adopt<string>(["a", "x", "b"], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("boom", [...errors].join(","), "routed to the boundary");
+    expect.equal("label\"a\" label\"b\"", host.print(), "the failed item left no node");
+    items.value = List.adopt<string>(["b", "a"], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("label\"b\" label\"a\"", host.print(), "the list follows the next change");
+    expect.equal(5, host.container.childCount, "two labels, two item anchors, the list anchor");
   }
 
   private static keyedForKeepsAnItemWhoseRecordChanges(expect: IExpect): void {
@@ -152,5 +189,6 @@ export class ForScenarios {
     items.value = List.adopt<string>(["a", "b"], { fixedSize: true });
     Reactivity.flush();
     expect.equal("label\"first\" label\"a\" label\"b\" label\"last\"", host.print(), "tree");
+    expect.equal(0, host.port.moves, "an append moves nothing");
   }
 }

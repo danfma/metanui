@@ -9,12 +9,16 @@ export class ListItem extends Fragment {
   /** @internal */
   declare next: ListItem | null;
 
+  /** @internal */
+  declare linked: boolean;
+
   declare private readonly _list: ListRegion;
 
   constructor(port: INodePort, parent: Object, end: Object, list: ListRegion) {
     super(port, parent, end);
     this.previous = null;
     this.next = null;
+    this.linked = false;
     this._list = list;
   }
 

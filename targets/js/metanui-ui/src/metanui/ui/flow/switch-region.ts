@@ -22,11 +22,11 @@ export class SwitchRegion extends Region {
 
   /** @internal */
   static start(when: () => boolean, then: () => void, otherwise: (() => void) | null): void {
-    const port = Builder.port;
-    const anchor = port.createAnchor();
-    const region = new SwitchRegion(port, Builder.parent, anchor);
+    const target = Builder.target;
+    const anchor = target.port.createAnchor();
+    const region = new SwitchRegion(target.port, target.parent, anchor);
     const condition = Reactivity.computed(when);
-    Builder.addRegion(region, anchor);
+    target.insertRegion(region, anchor);
     Reactivity.onCleanup(region.removeEnd.bind(region));
     FusedBinding.start(() => region.present(condition.value ? then : otherwise));
   }
@@ -38,15 +38,18 @@ export class SwitchRegion extends Region {
   }
 
   private present(branch: (() => void) | null): void {
-    this._branch = branch == null ? null : Reactivity.rootBody<Fragment>((_: () => void) => this.buildBranch(branch));
+    this._branch = null;
+
+    if (branch != null) {
+      Reactivity.rootVoid((_: () => void) => this.buildBranch(branch));
+    }
   }
 
-  private buildBranch(branch: () => void): Fragment {
+  private buildBranch(branch: () => void): void {
     const fragment = new Fragment(this.port, this.parent, null);
+    this._branch = fragment;
     Reactivity.onCleanup(fragment.remove.bind(fragment));
-    Builder.runPortParentBeforeCollectorBody(this.port, this.parent, this._end, fragment, branch);
-
-    return fragment;
+    Builder.run(this.port, this.parent, this._end, fragment, branch);
   }
 
   private removeEnd(): void {

@@ -45,6 +45,7 @@ public static class ComponentScenarios
             Card.Create(card => card.Title = "Static");
             Card.Create(card => Bind(() => name.Value, value => card.Title = value));
         });
+
         Reactivity.Flush();
 
         expect.Equal(
@@ -77,6 +78,7 @@ public static class ComponentScenarios
             Counter.Create(counter => counter.Start = 7);
             Counter.Create(counter => Bind(() => start.Value, value => counter.Start = value));
         });
+
         Reactivity.Flush();
 
         expect.Equal("label\"start=7\" label\"start=0\"", host.Print(), "the bound value is lost");
@@ -98,6 +100,7 @@ public static class ComponentScenarios
                 };
             })
         );
+
         Reactivity.Flush();
 
         expect.Equal("box\"card\"(label\"T\" label\"one\" label\"two\")", host.Print(), "tree");
@@ -119,6 +122,7 @@ public static class ComponentScenarios
             host.Print(),
             "no wrapper element"
         );
+
         expect.Equal(5, host.Container.ChildCount, "no extra node");
     }
 

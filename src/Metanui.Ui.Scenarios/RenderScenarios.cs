@@ -32,6 +32,7 @@ public static class RenderScenarios
         var view = host.Render(() =>
         {
             Reactivity.OnCleanup(() => cleanups++);
+
             Box(box =>
                 Bind(() =>
                 {
@@ -39,6 +40,7 @@ public static class RenderScenarios
                     box.Text = $"{count.Value}";
                 })
             );
+
             Text("text");
             For(() => items.Value, item => Label(item));
             Show(() => count.Value >= 0, () => Label("shown"));

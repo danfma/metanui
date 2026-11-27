@@ -1,3 +1,6 @@
+import { List, type IReadOnlyList } from "metano-runtime/system/collections";
+import type { Exception } from "metano-runtime/system/exceptions/exception";
+import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Scenario, type IExpect } from "metanui-reactive-scenarios/metanui/reactive/scenarios";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
 import { View } from "metanui-ui/metanui/ui";
@@ -6,7 +9,7 @@ import { FakeHost } from "./fakes/fake-host.js";
 import { FakeViews } from "./fakes/fake-views.js";
 
 export class ShowScenarios {
-  static readonly all: Scenario[] = [new Scenario("show renders the active branch and disposes the hidden one", ShowScenarios.showRendersTheActiveBranchAndDisposesTheHiddenOne), new Scenario("show keeps its branch while the condition result is unchanged", ShowScenarios.showKeepsItsBranchWhileTheConditionResultIsUnchanged), new Scenario("show without otherwise renders nothing when false", ShowScenarios.showWithoutOtherwiseRendersNothingWhenFalse)];
+  static readonly all: Scenario[] = [new Scenario("show renders the active branch and disposes the hidden one", ShowScenarios.showRendersTheActiveBranchAndDisposesTheHiddenOne), new Scenario("show keeps its branch while the condition result is unchanged", ShowScenarios.showKeepsItsBranchWhileTheConditionResultIsUnchanged), new Scenario("show without otherwise renders nothing when false", ShowScenarios.showWithoutOtherwiseRendersNothingWhenFalse), new Scenario("a branch that throws inside a boundary moves and hides with its region", ShowScenarios.aBranchThatThrowsInsideABoundaryMovesAndHidesWithItsRegion)];
 
   private constructor() { }
 
@@ -46,6 +49,34 @@ export class ShowScenarios {
     count.value = 2;
     Reactivity.flush();
     expect.equal(1, renders, "an unchanged condition keeps the branch");
+  }
+
+  private static aBranchThatThrowsInsideABoundaryMovesAndHidesWithItsRegion(expect: IExpect): void {
+    const host = new FakeHost();
+    const items = Reactivity.signal<IReadOnlyList<string>>(List.adopt<string>(["a", "b"], { fixedSize: true }));
+    const on = Reactivity.signal(false);
+    const errors = new List<string>();
+    Reactivity.errorBoundary(() => host.render(() => View.forItemsRender<string>(() => items.value, (item: string) => {
+      FakeViews.labelText(item);
+      View.show(() => on.value, () => ShowScenarios.showMarked(item));
+    })), (error: Exception) => errors.add(error.message));
+    on.value = true;
+    Reactivity.flush();
+    expect.equal("boom", [...errors].join(","), "routed to the boundary");
+    items.value = List.adopt<string>(["b", "a"], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("label\"b\" label\"b!\" label\"a\" label\"a!\"", host.print(), "the partial branch moved with its item");
+    on.value = false;
+    Reactivity.flush();
+    expect.equal("label\"b\" label\"a\"", host.print(), "both branches hidden");
+  }
+
+  private static showMarked(item: string): void {
+    FakeViews.labelText(`${item}!`);
+
+    if (item === "a") {
+      throw new InvalidOperationException("boom");
+    }
   }
 
   private static showWithoutOtherwiseRendersNothingWhenFalse(expect: IExpect): void {

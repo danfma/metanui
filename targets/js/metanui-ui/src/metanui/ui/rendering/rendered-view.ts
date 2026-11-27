@@ -18,7 +18,7 @@ export class RenderedView implements IDisposable {
       const topLevel = new Fragment(port, container, null);
       Reactivity.onCleanup(topLevel.remove.bind(topLevel));
       try {
-        Builder.runPortParentBeforeCollectorBody(port, container, null, topLevel, build);
+        Builder.run(port, container, null, topLevel, build);
       } catch (_err) {
         view.dispose();
         throw _err;
