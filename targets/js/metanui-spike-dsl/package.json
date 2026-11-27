@@ -24,6 +24,11 @@
       "bun": "./src/metanui/spike/dsl/variants/initializers/index.ts",
       "types": "./dist/metanui/spike/dsl/variants/initializers/index.d.ts",
       "import": "./dist/metanui/spike/dsl/variants/initializers/index.js"
+    },
+    "./metanui/spike/dsl/variants/builder": {
+      "bun": "./src/metanui/spike/dsl/variants/builder/index.ts",
+      "types": "./dist/metanui/spike/dsl/variants/builder/index.d.ts",
+      "import": "./dist/metanui/spike/dsl/variants/builder/index.js"
     }
   },
   "dependencies": {

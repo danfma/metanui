@@ -168,7 +168,7 @@ What it taught:
 
 ## Spike: DSL shapes (2026-11-26)
 
-Throwaway prototype `spikes/Metanui.Spike.Dsl` + `spikes/dsl-web`: the same app (counter, reactive class, a `Badge` class component with a reactive prop) in five shapes, side by side. All five work in Chrome. Reference: Microsoft UI Reactor is a React model (class `Component`/`Component<TProps>` with `Render()`, hooks such as `UseState`, a virtual tree and reconciler), with positional factories (`Button("+", onClick)`, `VStack(8, a, b)`) plus fluent modifiers; its samples show the inversion (`.Padding(...).Grid(row: 0, column: 0)` after a whole child block).
+Throwaway prototype `spikes/Metanui.Spike.Dsl` + `spikes/dsl-web`: the same app (counter, reactive class, a `Badge` class component with a reactive prop) in seven shapes, side by side (B, the builder lambda, became G). All of them work in Chrome, except G's form 4b on the web (Metano #828). Reference: Microsoft UI Reactor is a React model (class `Component`/`Component<TProps>` with `Render()`, hooks such as `UseState`, a virtual tree and reconciler), with positional factories (`Button("+", onClick)`, `VStack(8, a, b)`) plus fluent modifiers; its samples show the inversion (`.Padding(...).Grid(row: 0, column: 0)` after a whole child block).
 
 | Shape | Source | Emitted TS | Verdict |
 |---|---|---|---|
@@ -177,6 +177,15 @@ Throwaway prototype `spikes/Metanui.Spike.Dsl` + `spikes/dsl-web`: the same app 
 | D. Collection initializer `new P(Class(...)) { "x" }` | Reads like markup, but `new` everywhere and one class per element | On Metano 4.0.1, one IIFE per element; on 4.0.2 (#804), a hoisted `const` plus `add` calls, no closure | Viable since Metano 4.0.2; alternative to C |
 | E. Fluent `P("x").WithClass(() => …)` | Typed per element, discoverable; attributes after children (inverted for large trees) | Straight calls | Kept for element-specific escape hatches |
 | F. Grouped `Bind(P(), () => [TextContent(...), ClassName(...)])` | Groups several properties under one effect | Each run allocates the array and setters and rewrites every property of the group | Possible optimisation (fewer effect nodes), not the default |
+| G. Builder lambda `P(p => { p.TextContent = ...; p.ClassName <<= () => ...; })` | Typed per element, element refs for free, setup code inline; children attach through an ambient scope; attributes and children are statements, so the tree reads less like markup | One closure per element at setup; with `Bindable<T>` properties every static write and every apply of forms 1–2 allocates a wrapper | Viable; the binding forms below need care |
+
+Option G binding forms (maintainer's proposal; C# semantics checked in a standalone probe, then in the spike):
+
+1. `Bind(count, value => p.TextContent = $"...{value}")`: works. Explicit source, so the dependency is declared twice (source and body).
+2. `Bind(count, () => p.TextContent = $"...{count.Value}")`: works; the body runs untracked, so a signal read in the body but not declared as the source never updates the element (the dependency-list footgun of React's `useEffect`).
+3. `p.ClassName <<= () => ...`: works only through a static `operator <<` plus the property setter (`p.ClassName = p.ClassName << f`). C# 14 instance compound operators are never applied to a property receiver (CS0019 with a setter, CS0200 without one). Needs every property typed `Bindable<T>`, and the right side must be a lambda to be reactive; it is sugar for form 4a.
+4. `p.TextContent = Bind($"...{count.Value}")` cannot be reactive: the hole is evaluated before the call, so an interpolated string handler receives the `int`. `Bind(() => $"...")` (4a) works through an implicit `Binding<T>` → `Bindable<T>` conversion. `Bind($"...{count}")` (4b) works on .NET through a custom `[InterpolatedStringHandler]` that keeps signal holes live, but Metano 4.0.2 emits a template literal and passes a string (#828); and `{count}` vs `{count.Value}` silently decides between live and frozen.
+5. A fused `Bind(() => p.TextContent = ...)` next to `Bind<T>(Func<T>)` silently binds to the `Func` overload (the assignment has a value), so it returns a reader and binds nothing. The two need different names.
 
 Other findings:
 

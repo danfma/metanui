@@ -2,11 +2,12 @@ using Metanui.Reactive;
 using Metanui.Spike.Counter.Dom;
 using Metanui.Spike.Counter.Ui;
 using Metanui.Spike.Dsl.Variants;
+using Metanui.Spike.Dsl.Variants.Builder;
 using Metanui.Spike.Dsl.Variants.Initializers;
 
 namespace Metanui.Spike.Dsl;
 
-/// <summary>Mounts the five variants side by side.</summary>
+/// <summary>Mounts the variants side by side.</summary>
 public static class Gallery
 {
     public static void Main()
@@ -21,6 +22,7 @@ public static class Gallery
             CollectionInitializerVariant.Counter().AttachTo(body);
             FluentVariant.Counter().AttachTo(body);
             new GroupedBindCounter().AttachTo(body);
+            BuilderVariant.Counter().AttachTo(body);
         });
     }
 }

@@ -35,7 +35,7 @@ The project is on Metano **4.0.3** (tool, NuGet packages and `metano-runtime`), 
 - Consumer requirements: `"ESNext.Disposable"` in tsconfig `lib` for every TS project that consumes the generated code or metano-runtime; below target ESNext, enable `importHelpers` and depend on `tslib` ^2.6.0. No tsconfig is versioned here (Bun runs the TS directly), so the hand-written tests are not type-checked.
 - `MetanoUsingLowering=tryFinally` restores the try/finally lowering if a target needs it (per the Metano 4.0.0 release notes).
 
-**Open issues (danfma/metano):** #781, #786. Fixed in 4.0.3: #822 (claimer shapes not used by Metanui), #826 and #827 (strict-tsc failures in the DSL spike output). #804 is fixed in 4.0.2: initializers lower without IIFEs, which unblocks DSL option D. #821 is fixed in 4.0.1: `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits its own `override dispose()`, so `Computed<T>` exposes no `dispose()`.
+**Open issues (danfma/metano):** #781, #786, #828 (an interpolated string passed to a custom `[InterpolatedStringHandler]` is emitted as a template literal). Fixed in 4.0.3: #822 (claimer shapes not used by Metanui), #826 and #827 (strict-tsc failures in the DSL spike output). #804 is fixed in 4.0.2: initializers lower without IIFEs, which unblocks DSL option D. #821 is fixed in 4.0.1: `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits its own `override dispose()`, so `Computed<T>` exposes no `dispose()`.
 
 ### Effect handle
 
