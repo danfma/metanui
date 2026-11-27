@@ -1,0 +1,25 @@
+{
+  "name": "metanui-ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/ui/building": {
+      "bun": "./src/metanui/ui/building/index.ts",
+      "types": "./dist/metanui/ui/building/index.d.ts",
+      "import": "./dist/metanui/ui/building/index.js"
+    },
+    "./metanui/ui": {
+      "bun": "./src/metanui/ui/index.ts",
+      "types": "./dist/metanui/ui/index.d.ts",
+      "import": "./dist/metanui/ui/index.js"
+    }
+  },
+  "peerDependencies": {
+    "metano-runtime": "^4.0.3"
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0"
+  }
+}
