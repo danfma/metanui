@@ -7,7 +7,6 @@
     "dev": "bun run build && bun ./index.html"
   },
   "dependencies": {
-    "metano-runtime": "^4.0.3",
     "metanui-samples-counter": "workspace:*"
   }
 }

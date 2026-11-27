@@ -397,11 +397,14 @@ internal sealed class KeyedMap<T, TKey, TResult>
 
         Tracking.CurrentOwner = _listOwner;
 
-        var owner = new ScopeOwner();
-
-        Tracking.CurrentOwner = previousOwner;
-
-        return owner;
+        try
+        {
+            return new ScopeOwner();
+        }
+        finally
+        {
+            Tracking.CurrentOwner = previousOwner;
+        }
     }
 
     /// <summary>
@@ -441,8 +444,11 @@ internal sealed class KeyedMap<T, TKey, TResult>
 
     /// <summary>
     /// Key equality as <see cref="EqualityComparer{T}.Default" /> defines it, called directly so
-    /// .NET devirtualizes it and TS emits a plain function call, with no interface dispatch per key.
+    /// .NET devirtualizes it. TS emits <c>defaultEqualityComparerFor().equals(left, right)</c> on the
+    /// shared default-comparer singleton: no allocation, but still an <c>equals</c> call per key.
     /// </summary>
+    // Metano #845: an `EqualityComparer<T>` field type is not mapped, so the comparer is not cached
+    // in a field.
     private static bool KeysEqual(TKey left, TKey right) =>
         EqualityComparer<TKey>.Default.Equals(left, right);
 

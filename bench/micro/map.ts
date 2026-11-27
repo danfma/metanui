@@ -70,6 +70,7 @@ function sample(): StepTimes {
 
   const [source, dispose] = reactivity.root((disposeRoot) => {
     const list = reactivity.signal(readOnly([]));
+
     const mapped = reactivity.map(
       () => list.value,
       (row) => row.id,

@@ -33,8 +33,11 @@ internal readonly record struct Scope(InsertionPoint? Target, string Rejection, 
     ) => new(new InsertionPoint(port, parent, before, collector), NoBuilderMessage, false);
 
     /// <summary>The insertion point.</summary>
-    /// <exception cref="InvalidOperationException">There is none; the message says why.</exception>
-    public InsertionPoint Require() => Target ?? throw new InvalidOperationException(Rejection);
+    /// <exception cref="InvalidOperationException">
+    /// There is none; the message says why (a <c>default</c> scope reports that no builder is active).
+    /// </exception>
+    public InsertionPoint Require() =>
+        Target ?? throw new InvalidOperationException(Rejection ?? NoBuilderMessage);
 
     /// <summary>Rejects a binding in a component's props lambda.</summary>
     /// <exception cref="InvalidOperationException">This is a props lambda.</exception>

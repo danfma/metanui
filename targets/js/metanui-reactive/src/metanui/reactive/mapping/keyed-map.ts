@@ -238,10 +238,11 @@ export class KeyedMap<T, TKey, TResult> {
   private createItemOwner(): ScopeOwner {
     const previousOwner = Tracking.currentOwner;
     Tracking.currentOwner = this._listOwner;
-    const owner = new ScopeOwner();
-    Tracking.currentOwner = previousOwner;
-
-    return owner;
+    try {
+      return new ScopeOwner();
+    } finally {
+      Tracking.currentOwner = previousOwner;
+    }
   }
 
   private mapUnder(owner: ScopeOwner, item: T): TResult {

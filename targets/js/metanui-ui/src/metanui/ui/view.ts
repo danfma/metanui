@@ -6,7 +6,7 @@ import { SplitBinding } from "./binding/split-binding.js";
 import { Builder } from "./building/builder.js";
 import type { Component } from "./component.js";
 import { ListRegion } from "./flow/list-region.js";
-import { SwitchRegion } from "./flow/switch-region.js";
+import { ShowRegion } from "./flow/show-region.js";
 import type { INodePort } from "./i-node-port.js";
 import { Prop } from "./prop.js";
 import { RenderedView } from "./rendering/rendered-view.js";
@@ -101,7 +101,7 @@ export class View {
   }
 
   static show(when: () => boolean, then: () => void, otherwise: (() => void) | null = null): void {
-    SwitchRegion.start(when, then, otherwise);
+    ShowRegion.start(when, then, otherwise);
   }
 
   static mount<TComponent extends Component<TComponent>>(component: TComponent, build: (obj: TComponent) => void): void {

@@ -25,7 +25,7 @@ export class Scope {
   }
 
   require(): InsertionPoint {
-    return this.target ?? throwError(new InvalidOperationException(this.rejection));
+    return this.target ?? throwError(new InvalidOperationException(this.rejection ?? Scope.noBuilderMessage));
   }
 
   rejectBinding(): void {

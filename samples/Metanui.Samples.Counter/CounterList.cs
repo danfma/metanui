@@ -46,6 +46,7 @@ public sealed class CounterList : Component<CounterList>
             );
         });
 
+    // Metano #782: local functions are not transpiled, so these are private methods.
     private void AddCounter()
     {
         var entry = new CounterEntry(_nextId);

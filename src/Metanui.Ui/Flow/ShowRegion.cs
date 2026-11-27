@@ -10,7 +10,7 @@ namespace Metanui.Ui.Flow;
 /// built under its own root, created in the region's effect compute, so the compute's next run (a
 /// change of the condition's result) disposes it, and the branch's cleanup removes its nodes.
 /// </summary>
-internal sealed class SwitchRegion(INodePort port, object parent, object end) : Region(port, parent)
+internal sealed class ShowRegion(INodePort port, object parent, object end) : Region(port, parent)
 {
     private Fragment? _branch;
 
@@ -25,7 +25,7 @@ internal sealed class SwitchRegion(INodePort port, object parent, object end) : 
     {
         var target = Builder.Target;
         var anchor = target.Port.CreateAnchor();
-        var region = new SwitchRegion(target.Port, target.Parent, anchor);
+        var region = new ShowRegion(target.Port, target.Parent, anchor);
         var condition = Reactivity.Computed(when);
 
         target.InsertRegion(region, anchor);

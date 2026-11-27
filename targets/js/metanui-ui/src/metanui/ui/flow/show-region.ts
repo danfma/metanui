@@ -5,7 +5,7 @@ import type { INodePort } from "../i-node-port.js";
 import { Fragment } from "../regions/fragment.js";
 import { Region } from "../regions/region.js";
 
-export class SwitchRegion extends Region {
+export class ShowRegion extends Region {
   declare private _branch: Fragment | null;
   declare private readonly _end: Object;
 
@@ -24,7 +24,7 @@ export class SwitchRegion extends Region {
   static start(when: () => boolean, then: () => void, otherwise: (() => void) | null): void {
     const target = Builder.target;
     const anchor = target.port.createAnchor();
-    const region = new SwitchRegion(target.port, target.parent, anchor);
+    const region = new ShowRegion(target.port, target.parent, anchor);
     const condition = Reactivity.computed(when);
     target.insertRegion(region, anchor);
     Reactivity.onCleanup(region.removeEnd.bind(region));

@@ -20,7 +20,9 @@ public static class View
     /// </summary>
     /// <remarks>
     /// The write runs inside a computation, so writing a signal there throws (spec 0001). To make a
-    /// component prop reactive, assign it <see cref="Live{T}" /> instead of binding it.
+    /// component prop reactive, assign it <see cref="Live{T}" /> instead of binding it. Binding
+    /// <c>TextContent</c> on an element that also hosts a <c>For</c> or <c>Show</c> wipes the
+    /// region's anchors.
     /// </remarks>
     /// <returns>The effect's handle, which disposes the binding before its owner does.</returns>
     /// <exception cref="InvalidOperationException">
@@ -111,8 +113,12 @@ public static class View
     /// branch is built under its own root, disposed, with its nodes removed, when the condition's
     /// result changes. A source change that keeps the result rebuilds nothing.
     /// </summary>
+    /// <remarks>
+    /// A branch builds inside a computation, so a signal write there throws (at the top level of
+    /// <c>Render</c> it works): use <see cref="Live{T}" /> or write in event handlers.
+    /// </remarks>
     public static void Show(Func<bool> when, Action then, Action? otherwise = null) =>
-        SwitchRegion.Start(when, then, otherwise);
+        ShowRegion.Start(when, then, otherwise);
 
     /// <summary>
     /// Mounts <paramref name="component" />: <paramref name="build" /> sets its props and

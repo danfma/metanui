@@ -10,6 +10,8 @@
     <PackageReference Include="Metano.Build.TypeScript" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Metanui.Reactive/Metanui.Reactive.csproj" />
+    <ProjectReference Include="../../src/Metanui.Ui/Metanui.Ui.csproj" />
     <ProjectReference Include="../../src/Metanui.Ui.Web/Metanui.Ui.Web.csproj" />
   </ItemGroup>
 </Project>

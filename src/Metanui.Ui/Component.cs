@@ -38,5 +38,10 @@ public abstract class Component<TSelf>
     public Action? Content { get; set; }
 
     /// <summary>Builds the component once, into the ambient insertion point.</summary>
+    /// <remarks>
+    /// A signal write in <c>Render</c> works at the top level but throws inside a <c>For</c> item or a
+    /// <c>Show</c> branch, which build inside a computation: use <c>Prop</c>/<c>Live</c>, or write in
+    /// event handlers.
+    /// </remarks>
     public abstract void Render();
 }

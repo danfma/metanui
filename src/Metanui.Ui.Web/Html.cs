@@ -49,8 +49,9 @@ public static class Html
 
     // `class`: Builder.Create takes reference types only, and an interface constraint alone admits a
     // struct. Metano #842: TS drops the constraint.
+    // Metano #846: a cast to a type parameter constrained to an [External] interface should lower to
+    // a type assertion.
     private static void Create<TElement>(string tagName, Action<TElement> build)
         where TElement : class, HTMLElement =>
-        // Metano #846: a cast to a type parameter constrained to an [External] interface should lower to a type assertion.
         Builder.Create(Browser.Document.CreateElement(tagName).UnsafeCast<TElement>(), build);
 }

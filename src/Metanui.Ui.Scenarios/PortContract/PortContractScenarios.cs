@@ -5,7 +5,8 @@ namespace Metanui.Ui.Scenarios.PortContract;
 /// <summary>
 /// The <see cref="INodePort" /> contract as scenarios, runnable against any implementation: each
 /// scenario takes a fresh port and observes the tree through the platform's
-/// <see cref="INodePortProbe" />. Children print as their text, anchors as <c>^</c>.
+/// <see cref="INodePortProbe" />. Children print as their text, anchors as <c>^</c>. A new platform
+/// adapter (a port plus its scheduler) runs these against its own port to prove the contract.
 /// </summary>
 public static class PortContractScenarios
 {

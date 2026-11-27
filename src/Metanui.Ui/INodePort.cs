@@ -6,10 +6,6 @@ namespace Metanui.Ui;
 /// own factories; the port creates text nodes and anchors and places nodes for <c>For</c>,
 /// <c>Show</c>, components and <see cref="View.Render" />.
 /// </summary>
-/// <remarks>
-/// <c>PortContractScenarios</c> (in <c>Metanui.Ui.Scenarios</c>) states this contract as scenarios
-/// that any implementation can run.
-/// </remarks>
 public interface INodePort
 {
     /// <summary>Creates a detached text node holding <paramref name="text" />.</summary>

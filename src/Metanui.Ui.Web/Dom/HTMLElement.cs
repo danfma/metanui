@@ -6,7 +6,10 @@ namespace Metanui.Ui.Web.Dom;
 [External]
 public interface HTMLElement : Node
 {
-    /// <summary>The element's text; writing it replaces every child with one text node.</summary>
+    /// <summary>
+    /// The element's text; writing it replaces every child with one text node, so binding it on an
+    /// element that also hosts a <c>For</c> or <c>Show</c> wipes the region's anchors.
+    /// </summary>
     string TextContent { get; set; }
 
     /// <summary>The element's <c>class</c> attribute.</summary>
