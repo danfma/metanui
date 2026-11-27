@@ -1,5 +1,4 @@
 import type { ClassType } from "metano-runtime";
-import type { HTMLElement } from "metanui-spike-counter/metanui/spike/counter/dom";
 
 let Setter$rt: ClassType<Setter> | undefined;
 

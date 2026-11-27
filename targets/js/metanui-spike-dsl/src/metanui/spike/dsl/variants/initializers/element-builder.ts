@@ -1,6 +1,5 @@
 import { List, throwModified } from "metano-runtime/system/collections";
 import type { ClassType } from "metano-runtime";
-import type { HTMLElement } from "metanui-spike-counter/metanui/spike/counter/dom";
 import { El } from "../../core/el.js";
 import { Part } from "../../core/part.js";
 

@@ -19,7 +19,7 @@ export class Bindable<T> {
       name: "Bindable`1",
       fullName: "Metanui.Spike.Dsl.Variants.Builder.Bindable`1",
       namespace: "Metanui.Spike.Dsl.Variants.Builder",
-      ctor: Bindable,
+      ctor: Bindable as never,
       interfaces: [],
       typeParameters: ["T"],
       isAbstract: false,

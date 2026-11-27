@@ -1,6 +1,5 @@
 import type { ClassType } from "metano-runtime";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
-import type { HTMLElement } from "metanui-spike-counter/metanui/spike/counter/dom";
 import { Part } from "./part.js";
 
 let ReactiveTextPart$rt: ClassType<ReactiveTextPart> | undefined;

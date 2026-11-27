@@ -3,7 +3,6 @@ import { throwError } from "metano-runtime";
 import { linq, toList, where } from "metano-runtime/system/linq";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
-import type { HTMLElement } from "metanui-spike-counter/metanui/spike/counter/dom";
 import { El } from "../../core/el.js";
 import type { Part } from "../../core/part.js";
 import type { Component } from "./component.js";

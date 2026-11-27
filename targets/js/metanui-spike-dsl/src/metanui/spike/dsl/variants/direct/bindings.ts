@@ -1,6 +1,5 @@
 import type { IDisposable } from "metano-runtime";
 import { Reactivity, type Signal } from "metanui-reactive/metanui/reactive";
-import type { HTMLElement } from "metanui-spike-counter/metanui/spike/counter/dom";
 
 export function bindTo<T>(source: Signal<T>, apply: (obj: T) => void): IDisposable {
   return Reactivity.effect(() => source.value, (value: T, previous: T) => apply(value));

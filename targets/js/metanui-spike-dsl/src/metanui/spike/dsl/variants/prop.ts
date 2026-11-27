@@ -18,7 +18,7 @@ export class Prop<T> {
       name: "Prop`1",
       fullName: "Metanui.Spike.Dsl.Variants.Prop`1",
       namespace: "Metanui.Spike.Dsl.Variants",
-      ctor: Prop,
+      ctor: Prop as never,
       interfaces: [],
       typeParameters: ["T"],
       isAbstract: false,
