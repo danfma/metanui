@@ -14,9 +14,10 @@ namespace Metanui.Ui;
 /// static value reaches <see cref="Render" /> with no flush.
 /// </para>
 /// <para>
-/// A plain property is read-once configuration: <see cref="Render" /> reads it once, so a later write
-/// (a split <c>Bind</c> applies at the end of the flush, after <see cref="Render" />) is lost
-/// silently. Events stay plain delegates (<c>public Action? OnRemove { get; set; }</c>).
+/// A plain property is read-once configuration: <see cref="Render" /> reads it once, right after
+/// the props lambda. A <c>Bind</c> in the props lambda would be lost, so it throws, whether it targets
+/// a <see cref="Prop{T}" /> or a plain property. Events stay plain delegates
+/// (<c>public Action? OnRemove { get; set; }</c>).
 /// </para>
 /// <para>
 /// Children go in <see cref="Content" />, a render prop that <see cref="Render" /> invokes where they

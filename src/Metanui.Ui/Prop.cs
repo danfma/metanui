@@ -11,8 +11,8 @@ namespace Metanui.Ui;
 /// runs inside a <c>For</c> item or a <c>Show</c> branch, and a static value reaches
 /// <see cref="Component{TSelf}.Render" /> at once, with no flush. A <c>struct</c> (no allocation on
 /// .NET) and not a <c>record</c> (no record members). <c>default</c> reads as <c>default(T)</c> on
-/// .NET; Metano requires a <see cref="Prop{T}" /> property to be initialized (MS0001), so the
-/// default never reaches TypeScript.
+/// .NET. In TypeScript a written <c>default</c>, or an uninitialized <see cref="Prop{T}" /> property,
+/// is refused (MS0001, Metano #851); the emitted <c>$default()</c> reads <c>null</c>.
 /// </remarks>
 public readonly struct Prop<T>
 {

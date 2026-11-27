@@ -23,7 +23,15 @@ public static class View
     /// component prop reactive, assign it <see cref="Live{T}" /> instead of binding it.
     /// </remarks>
     /// <returns>The effect's handle, which disposes the binding before its owner does.</returns>
-    public static IDisposable Bind(Action write) => FusedBinding.Start(write);
+    /// <exception cref="InvalidOperationException">
+    /// The call runs in a component's props lambda: assign <see cref="Live{T}" /> to the prop instead.
+    /// </exception>
+    public static IDisposable Bind(Action write)
+    {
+        Builder.RejectBindingInPropsLambda();
+
+        return FusedBinding.Start(write);
+    }
 
     /// <summary>
     /// Split binding: <paramref name="compute" /> is tracked; <paramref name="apply" /> writes its
@@ -32,8 +40,15 @@ public static class View
     /// its sources.
     /// </summary>
     /// <returns>The effect's handle, which disposes the binding before its owner does.</returns>
-    public static IDisposable Bind<T>(Func<T> compute, Action<T> apply) =>
-        Reactivity.Effect(compute, new SplitBinding<T>(apply).Apply);
+    /// <exception cref="InvalidOperationException">
+    /// The call runs in a component's props lambda: assign <see cref="Live{T}" /> to the prop instead.
+    /// </exception>
+    public static IDisposable Bind<T>(Func<T> compute, Action<T> apply)
+    {
+        Builder.RejectBindingInPropsLambda();
+
+        return Reactivity.Effect(compute, new SplitBinding<T>(apply).Apply);
+    }
 
     /// <summary>
     /// A reactive <see cref="Prop{T}" />: <paramref name="read" /> runs on every read of

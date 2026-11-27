@@ -11,7 +11,7 @@ import { FakeHost } from "./fakes/fake-host.js";
 import { FakeViews } from "./fakes/fake-views.js";
 
 export class ComponentScenarios {
-  static readonly all: Scenario[] = [new Scenario("a prop takes a static value or a live reader", ComponentScenarios.aPropTakesAStaticValueOrALiveReader), new Scenario("plain prop is init-only: a split bind to it is lost", ComponentScenarios.plainPropIsInitOnly), new Scenario("content lands inside the component's element", ComponentScenarios.contentLandsInsideTheComponentsElement), new Scenario("content of a component without an element lands between its siblings", ComponentScenarios.contentOfAComponentWithoutAnElementLandsBetweenItsSiblings), new Scenario("an element created in the props lambda throws", ComponentScenarios.anElementCreatedInThePropsLambdaThrows), new Scenario("a prop assigned inside a For item and a Show branch works", ComponentScenarios.aPropAssignedInsideAForItemAndAShowBranchWorks)];
+  static readonly all: Scenario[] = [new Scenario("a prop takes a static value or a live reader", ComponentScenarios.aPropTakesAStaticValueOrALiveReader), new Scenario("a bind in the props lambda throws", ComponentScenarios.aBindInThePropsLambdaThrows), new Scenario("content lands inside the component's element", ComponentScenarios.contentLandsInsideTheComponentsElement), new Scenario("content of a component without an element lands between its siblings", ComponentScenarios.contentOfAComponentWithoutAnElementLandsBetweenItsSiblings), new Scenario("an element created in the props lambda throws", ComponentScenarios.anElementCreatedInThePropsLambdaThrows), new Scenario("a prop assigned inside a For item and a Show branch works", ComponentScenarios.aPropAssignedInsideAForItemAndAShowBranchWorks), new Scenario("a live prop in a Show branch is bound again when the branch comes back", ComponentScenarios.aLivePropInAShowBranchIsBoundAgainWhenTheBranchComesBack)];
 
   private constructor() { }
 
@@ -28,15 +28,20 @@ export class ComponentScenarios {
     expect.equal("box\"card\"(label\"Static\") box\"card\"(label\"Grace\")", host.print(), "after the change");
   }
 
-  private static plainPropIsInitOnly(expect: IExpect): void {
+  private static aBindInThePropsLambdaThrows(expect: IExpect): void {
     const host = new FakeHost();
+    const name = Reactivity.signal("Ada");
     const start = Reactivity.signal(5);
+    let propError = null as Exception | null;
+    let plainError = null as Exception | null;
     host.render(() => {
-      Counter.create((counter: Counter) => counter.start = 7);
-      Counter.create((counter: Counter) => View.bindComputeApply<number>(() => start.value, (value: number) => counter.start = value));
+      propError = ScenarioRunner.catch(() => Card.create((card: Card) => View.bindWrite(() => card.title = Prop.__implicitFromT(name.value))));
+      plainError = ScenarioRunner.catch(() => Counter.create((counter: Counter) => View.bindComputeApply<number>(() => start.value, (value: number) => counter.start = value)));
+      FakeViews.labelText("next");
     });
-    Reactivity.flush();
-    expect.equal("label\"start=7\" label\"start=0\"", host.print(), "the bound value is lost");
+    expect.equal(ExpectedUiMessages.bindingInPropsLambda, propError?.message ?? null, "prop");
+    expect.equal(ExpectedUiMessages.bindingInPropsLambda, plainError?.message ?? null, "plain property");
+    expect.equal("label\"next\"", host.print(), "the scope is restored");
   }
 
   private static contentLandsInsideTheComponentsElement(expect: IExpect): void {
@@ -92,5 +97,24 @@ export class ComponentScenarios {
     suffix.value = "?";
     Reactivity.flush();
     expect.equal("box\"card\"(label\"a\") box\"card\"(label\"a?\") " + "box\"card\"(label\"shown\") box\"card\"(label\"shown?\")", host.print(), "after the change");
+  }
+
+  private static aLivePropInAShowBranchIsBoundAgainWhenTheBranchComesBack(expect: IExpect): void {
+    const host = new FakeHost();
+    const on = Reactivity.signal(true);
+    const name = Reactivity.signal("Ada");
+    host.render(() => View.show(() => on.value, () => Card.create((card: Card) => card.title = View.live(() => name.value))));
+    expect.equal("box\"card\"(label\"Ada\")", host.print(), "on");
+    on.value = false;
+    Reactivity.flush();
+    name.value = "Grace";
+    Reactivity.flush();
+    expect.equal("", host.print(), "off");
+    on.value = true;
+    Reactivity.flush();
+    expect.equal("box\"card\"(label\"Grace\")", host.print(), "on again");
+    name.value = "Ada";
+    Reactivity.flush();
+    expect.equal("box\"card\"(label\"Ada\")", host.print(), "re-bound");
   }
 }

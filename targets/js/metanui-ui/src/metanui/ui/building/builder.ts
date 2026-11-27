@@ -39,6 +39,11 @@ export class Builder {
     Builder.runIn(Scope.rejectingChildren, body, argument);
   }
 
+  /** @internal */
+  static rejectBindingInPropsLambda(): void {
+    Builder._current.rejectBinding();
+  }
+
   private static runIn<T>(scope: Scope, body: (obj: T) => void, argument: T): void {
     const saved = Builder._current;
     Builder._current = scope;

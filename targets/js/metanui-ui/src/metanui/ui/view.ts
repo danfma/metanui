@@ -16,11 +16,14 @@ export class View {
 
   static bindComputeApply<T>(compute: () => T, apply: (obj: T) => void): IDisposable {
     let $__r: any;
+    Builder.rejectBindingInPropsLambda();
 
     return Reactivity.effect(compute, ($__r = new SplitBinding(apply), $__r.apply.bind($__r)));
   }
 
   static bindWrite(write: () => void): IDisposable {
+    Builder.rejectBindingInPropsLambda();
+
     return FusedBinding.start(write);
   }
 

@@ -16,7 +16,7 @@ public static class ComponentScenarios
             "a prop takes a static value or a live reader",
             APropTakesAStaticValueOrALiveReader
         ),
-        new Scenario("plain prop is init-only: a split bind to it is lost", PlainPropIsInitOnly),
+        new Scenario("a bind in the props lambda throws", ABindInThePropsLambdaThrows),
         new Scenario(
             "content lands inside the component's element",
             ContentLandsInsideTheComponentsElement
@@ -32,6 +32,10 @@ public static class ComponentScenarios
         new Scenario(
             "a prop assigned inside a For item and a Show branch works",
             APropAssignedInsideAForItemAndAShowBranchWorks
+        ),
+        new Scenario(
+            "a live prop in a Show branch is bound again when the branch comes back",
+            ALivePropInAShowBranchIsBoundAgainWhenTheBranchComesBack
         ),
     ];
 
@@ -67,23 +71,37 @@ public static class ComponentScenarios
     }
 
     /// <summary>
-    /// Documented v1 behaviour (spike: <c>Count: 1 (Start = 106)</c>): Render reads a plain prop
-    /// once, before the split bind's first apply, so the bound value never shows.
+    /// <c>Render</c> reads the props once, right after the props lambda, so a binding there would be
+    /// lost silently, whether it targets a <see cref="Prop{T}" /> or a plain property; it throws.
     /// </summary>
-    private static void PlainPropIsInitOnly(IExpect expect)
+    private static void ABindInThePropsLambdaThrows(IExpect expect)
     {
         var host = new FakeHost();
+        var name = Reactivity.Signal("Ada");
         var start = Reactivity.Signal(5);
+        Exception? propError = null;
+        Exception? plainError = null;
 
         host.Render(() =>
         {
-            Counter.Create(counter => counter.Start = 7);
-            Counter.Create(counter => Bind(() => start.Value, value => counter.Start = value));
+            propError = ScenarioRunner.Catch(() =>
+                Card.Create(card => Bind(() => card.Title = name.Value))
+            );
+
+            plainError = ScenarioRunner.Catch(() =>
+                Counter.Create(counter => Bind(() => start.Value, value => counter.Start = value))
+            );
+
+            Label("next");
         });
 
-        Reactivity.Flush();
-
-        expect.Equal("label\"start=7\" label\"start=0\"", host.Print(), "the bound value is lost");
+        expect.Equal(ExpectedUiMessages.BindingInPropsLambda, propError?.Message, "prop");
+        expect.Equal(
+            ExpectedUiMessages.BindingInPropsLambda,
+            plainError?.Message,
+            "plain property"
+        );
+        expect.Equal("label\"next\"", host.Print(), "the scope is restored");
     }
 
     private static void ContentLandsInsideTheComponentsElement(IExpect expect)
@@ -191,5 +209,35 @@ public static class ComponentScenarios
             host.Print(),
             "after the change"
         );
+    }
+
+    private static void ALivePropInAShowBranchIsBoundAgainWhenTheBranchComesBack(IExpect expect)
+    {
+        var host = new FakeHost();
+        var on = Reactivity.Signal(true);
+        var name = Reactivity.Signal("Ada");
+
+        host.Render(() =>
+            Show(() => on.Value, () => Card.Create(card => card.Title = Live(() => name.Value)))
+        );
+
+        expect.Equal("box\"card\"(label\"Ada\")", host.Print(), "on");
+
+        on.Value = false;
+        Reactivity.Flush();
+        name.Value = "Grace";
+        Reactivity.Flush();
+
+        expect.Equal("", host.Print(), "off");
+
+        on.Value = true;
+        Reactivity.Flush();
+
+        expect.Equal("box\"card\"(label\"Grace\")", host.Print(), "on again");
+
+        name.Value = "Ada";
+        Reactivity.Flush();
+
+        expect.Equal("box\"card\"(label\"Ada\")", host.Print(), "re-bound");
     }
 }

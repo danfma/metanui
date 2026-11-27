@@ -78,6 +78,13 @@ public static class Builder
     internal static void RunRejectingChildren<T>(Action<T> body, T argument) =>
         RunIn(Scope.RejectingChildren, body, argument);
 
+    /// <summary>
+    /// Rejects a binding in a component's props lambda, where <c>Render</c> would never see what it
+    /// writes.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The call runs in a component's props lambda.</exception>
+    internal static void RejectBindingInPropsLambda() => _current.RejectBinding();
+
     private static void RunIn<T>(Scope scope, Action<T> body, T argument)
     {
         var saved = _current;
