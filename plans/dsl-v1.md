@@ -54,11 +54,11 @@ Status: Complete
 Done 2026-11-27. `main` holds Metano 4.0.3 (pushed by the agent; the maintainer allows the agent to merge and rebase). `feat/dsl-v1` branches from it with only `docs/` and `plans/` changes. 0002's v1 section now describes option H (it was renamed "Design (v1)", status "Accepted, 2026-11-27"); the rest of 0002 keeps the stub and the spike record. Verification: `git diff main --stat` lists `docs/design/0002-dsl-binding.md`, `docs/handoff.md`, `plans/dsl-v1.md` only; the grep finds the status line.
 
 ## Phase 1: Keyed `Map` in the reactive core
-Status: Not started
+Status: Complete
 
 **Files:** `docs/design/0001-reactive-core.md` (new section), `src/Metanui.Reactive/Reactivity.cs` (public entry), a new internal node under `src/Metanui.Reactive/` (e.g. `Mapping/KeyedMap.cs`), `src/Metanui.Reactive.Scenarios/MapScenarios.cs`, `tests/Metanui.Reactive.Tests`, `tests/js/reactive`.
 
-- [ ] Spec it first in 0001 (new section after effects), against Solid 2.0.4 `mapArray`:
+- [x] Spec it first in 0001 (new section after effects), against Solid 2.0.4 `mapArray`:
   - `public static Func<IReadOnlyList<TResult>> Map<T, TResult>(Func<IReadOnlyList<T>> source, Func<T, TResult> map)` keys by `EqualityComparer<T>.Default` (class: reference, record: value).
   - Overload with `Func<T, TKey> key` (keys by `EqualityComparer<TKey>.Default`).
   - Each mapped item runs `map` once, untracked, under its own owner that survives the source's reruns; an item whose key leaves the list has its owner disposed (cleanups run); a kept item keeps its result and state; the result list follows the new order.
@@ -66,10 +66,10 @@ Status: Not started
   - Disposal of the owner that created the `Map` disposes every item owner.
   - The source read is tracked; `map` reads are not tracked by the `Map` node.
   - Equality of the result list: a new `IReadOnlyList<TResult>` only when the mapping changed (order, insertions, removals); an unchanged source rerun keeps the previous list instance so observers do not rerun.
-- [ ] Implement the node: reconcile old and new keys in O(n) with a `Dictionary<TKey, …>` plus an in-order duplicate queue; no per-item closure on the update path beyond `map` itself. Item owners are created by the node, not in an effect apply or compute that would dispose them.
-- [ ] Scenarios (run on .NET and Bun through the scenarios package): add/append, remove first/middle/last, reorder, replace all, clear, duplicate records, key selector with mutable items, owner disposal disposes items, cleanups run once per removed item, unchanged rerun keeps the list instance, item state (a signal created in `map`) survives unrelated additions.
-- [ ] Reproduce the spike failure as a scenario first (items created in a compute die on rerun), then show `Map` passes it.
-- [ ] Bench: add a `Map` case to `bench/micro` (append 1 000 items, swap two, remove one) and record the numbers in the audit doc.
+- [x] Implement the node: reconcile old and new keys in O(n) with a `Dictionary<TKey, …>` plus an in-order duplicate queue; no per-item closure on the update path beyond `map` itself. Item owners are created by the node, not in an effect apply or compute that would dispose them.
+- [x] Scenarios (run on .NET and Bun through the scenarios package): add/append, remove first/middle/last, reorder, replace all, clear, duplicate records, key selector with mutable items, owner disposal disposes items, cleanups run once per removed item, unchanged rerun keeps the list instance, item state (a signal created in `map`) survives unrelated additions.
+- [x] Reproduce the spike failure as a scenario first (items created in a compute die on rerun), then show `Map` passes it.
+- [x] Bench: add a `Map` case to `bench/micro` (append 1 000 items, swap two, remove one) and record the numbers in the audit doc.
 
 ### Verification Plan
 - `dotnet build` → 0 warnings, 0 errors; `dotnet test` → all pass (121 + the new Map scenarios).
@@ -79,7 +79,8 @@ Status: Not started
 - Reviewers run, none `REPROVADO`.
 
 ### Phase Summary
-_(write when phase completes)_
+Done 2026-11-27 (commits 517204f..786496f). `Reactivity.Map(source, map)` and `Map(source, key, map)` in the core (spec 0001 §4.8, placed at the end of §4 to avoid renumbering): `Mapping/KeyedMap.cs` reconciles keys (prefix trim, suffix trim guarded so duplicate keys keep in-order pairing — a documented deviation from Solid), one `Ownership/ScopeOwner` per item plus one for the list, both outside the computed so items survive reruns; `ScopeOwner.CatchesErrors` keeps §4.5 (cleanup errors never reach a handler) while `map` runs. 22 Map scenarios on .NET (143) and Bun (149), strict tsc 0, bench correctness 12/12. Micro bench vs Solid mapArray (1 000 rows): append ~56 vs 38 µs, swap ~103 vs 11 µs (no small-move fast path — follow-up), remove ~37 vs 15 µs (audit §14).
+Metano: #840 (`new T[n]`) worked around with `List<T>`; four more defects reported 2026-11-27 (ctor type args dropped, typed delegate local loses annotation, `out` arg tuple per call, `EqualityComparer<T>` field type unmapped), sites marked "issue number pending". TS callers pass a metano-runtime list (`List.adopt`), not a JS array — relevant to Phase 3's TS surface. Reviews: all five ran; compiler-man's Spec ❌ was fixed in one round; minors are deferred in the SDD ledger for the final review.
 
 ## Phase 2: `Signal<T>.Update`
 Status: Not started
