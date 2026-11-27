@@ -6,7 +6,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "metano-runtime": "^4.0.3",
+    "metano-runtime": "^4.1.0",
     "metanui-reactive": "workspace:*",
     "metanui-ui-web": "workspace:*"
   }

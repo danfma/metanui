@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "metano-runtime": "^4.0.3",
+    "metano-runtime": "^4.1.0",
     "metanui-reactive": "workspace:*",
     "metanui-reactive-scenarios": "workspace:*",
     "metanui-test-support": "workspace:*"

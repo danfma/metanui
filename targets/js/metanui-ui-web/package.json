@@ -16,6 +16,6 @@
     "metanui-ui": "^1.0.0"
   },
   "peerDependencies": {
-    "metano-runtime": "^4.0.3"
+    "metano-runtime": "^4.1.0"
   }
 }

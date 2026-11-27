@@ -5,7 +5,7 @@
   "dependencies": {
     "@solidjs/signals": "2.0.4",
     "alien-signals": "3.2.1",
-    "metano-runtime": "^4.0.3",
+    "metano-runtime": "^4.1.0",
     "metanui-reactive": "workspace:*"
   }
 }

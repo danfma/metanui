@@ -1,6 +1,6 @@
 import type { ClassType } from "metano-runtime";
 
-let Component$rt: ClassType<Component<unknown>> | undefined;
+let Component$rt: ClassType<Component<any>> | undefined;
 
 export abstract class Component<TSelf extends Component<TSelf>> {
   declare content: (() => void) | null;
@@ -9,7 +9,7 @@ export abstract class Component<TSelf extends Component<TSelf>> {
     this.content = null;
   }
 
-  static get $runtimeType(): ClassType<Component<unknown>> {
+  static get $runtimeType(): ClassType<Component<any>> {
     return (Component$rt ??= {
       kind: "class",
       name: "Component`1",
@@ -20,7 +20,7 @@ export abstract class Component<TSelf extends Component<TSelf>> {
       typeParameters: ["TSelf"],
       isAbstract: true,
       isValueType: false,
-      test: (v: unknown): v is Component<unknown> => v instanceof Component,
+      test: (v: unknown): v is Component<any> => v instanceof Component,
     });
   }
 
