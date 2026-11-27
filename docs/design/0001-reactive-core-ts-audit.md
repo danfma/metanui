@@ -633,3 +633,59 @@ sources of both packages are byte-identical to 4.0.1; `tsc --strict` (same optio
 Toolchain: Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript and metano-runtime 4.0.3. The generated
 sources of both packages are byte-identical to 4.0.2; `tsc --strict`: 0 diagnostics. .NET 121 and Bun 127 tests
 pass; the benchmark correctness suite passes 12/12. #826, #827 and #822 are fixed; none touched the core output.
+
+## 14. Keyed `Map` (DSL v1, Phase 1)
+
+`Reactivity.Map` (spec 4.8) adds `Mapping/KeyedMap.cs`, `MapOwner.cs` and `ListIdentityComparer.cs` to the core.
+Toolchain: Metano 4.0.3. `tsc --strict` over both packages: 0 diagnostics. .NET 140 and Bun 146 tests pass; the
+benchmark correctness suite passes 12/12.
+
+### Benchmark
+
+`bench/micro/map.ts`: a fresh map over 1 000 rows (plain objects, keyed by reference), observed by one effect.
+Each sample times three flushes: append 1 000 rows to the empty source, swap the second and the second-to-last
+rows, remove the middle row. The values are medians over 200 samples (after 50 warm-up samples), with three
+processes on Bun 1.4.2, Apple Silicon, on a machine that was not idle. The `@solidjs/signals` 2.0.4 `mapArray`
+column comes from an equivalent throwaway probe (`createSignal`, `mapArray`, `createEffect`, `flush`), which is
+not committed.
+
+| Step (µs) | Metanui `Map` | Solid `mapArray` |
+|---|---|---|
+| append 1 000 | 54.5 / 54.7 / 55.0 | 38.2 / 38.1 / 40.7 |
+| swap two | 103.9 / 104.3 / 104.5 | 11.3 / 11.1 / 11.1 |
+| remove one | 36.4 / 36.6 / 37.6 | 15.6 / 15.1 / 15.3 |
+
+- Append is about 1.4× Solid. The insertion path builds no index. Its cost is the owner per row plus metano-runtime
+  `List` adds, which are about 1.35× a native array push in isolation.
+- Swap is about 9× Solid. Solid takes its small-move fast path. Metanui indexes the 998-key window between the two
+  rows in a metano-runtime `Dictionary`, which costs about 2× a native `Map` in isolation (45 µs against 22 µs for
+  1 000 set, get and clear). Porting the small-move path is a follow-up.
+- Remove is about 2.4× Solid. Both trims apply. The suffix trim is guarded: it stays out of the pairing only when
+  no key of the window occurs in the suffix. That costs at most about one comparison per item and keeps the
+  in-order pairing of duplicates, which Solid's unguarded trim does not.
+- Before the suffix trim and the insertion fast path, the numbers were 103, 105 and 67 µs.
+- `bench/micro/prepare.ts` fails on variant E ("Variant patch is stale: link-stack.ts"). This already happens at
+  `HEAD` (the generated `link-stack.ts` is unchanged by this phase), so `map.ts` runs on variant A, the shipped
+  code.
+
+### New Metano findings
+
+- **#840. `new T[n]` for a type parameter is not supported (MS0001).** `new int[n]` transpiles. The keys and the
+  results are `List<T>` built with capacity instead, and each site is marked `// Metano #840`.
+- **Not filed yet: `new Computed<T>(...)` drops its type arguments.** TS infers `T` from the arguments, so a
+  comparer whose `Equals` takes `T?` makes `T` nullable, and strict `tsc` fails on the field assignment.
+  Repro: `new Box<string>("a", new ByReference())` emits `new Box("a", new ByReference())`. Workaround: the
+  comparer comes from a method typed as the interface (`KeyedMap.ResultComparer`), with a comment. A generic
+  method call keeps its type arguments (`Reactivity.mapSourceKeyMap<T, T, TResult>`). Calling
+  `Reactivity.Computed<T>` instead would create a cyclic import (MS0005).
+- **Not filed yet: an explicitly typed delegate local loses its type.** `Func<IReadOnlyList<string>> read = () => [];`
+  emits `let read = () => List.adopt<string>([], …)`, so a later assignment of an `IReadOnlyList` lambda fails
+  strict `tsc`. The scenarios avoid the shape: the map comes back from the `Root` body.
+- **Not filed yet: an `out` argument lowers to a tuple array per call.** `dictionary.TryGetValue(key, out var v)`
+  emits `const [$found, v] = dictionary.tryGetValue(key, 0)`, which allocates an array per lookup. `KeyedMap`
+  uses `GetValueOrDefault(key, NoPosition)` instead, and the comment there explains why.
+- `private const int NoPosition = -1` emits a `static readonly` field read through the class instead of the
+  literal. This is the same family as N7 (constants not folded), and it is cold enough to leave.
+- An `IReadOnlyList<T>` parameter is metano-runtime's `IReadOnlyList` (`count`, `get(i)`), not a JS array. So
+  hand-written TS must pass a runtime list to `Reactivity.map` (`List.adopt(array, { fixedSize: true })`, as
+  `map.ts` does). This is by design in Metano, but the DSL's TS-facing surface must account for it.

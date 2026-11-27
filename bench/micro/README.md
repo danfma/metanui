@@ -5,7 +5,8 @@ on the generated TypeScript:
 
 - the cost of the defensive `try/finally` and the wrapper call that `DependencyGraph.propagate`/`checkDirty` add around the walk;
 - the cost of `ReactiveFlags` property loads against literals;
-- the cost of `?? null` on `LinkStack` reads.
+- the cost of `?? null` on `LinkStack` reads;
+- the cost of a keyed `Reactivity.map` reconcile (`map.ts`, section 14 of the audit).
 
 The generated sources under `targets/js` are only read. `prepare.ts` copies
 `targets/js/metanui-reactive/src` into `.work/<variant>/` (gitignored) and applies each variant to the
@@ -33,6 +34,7 @@ bun run.ts 3 A,B,C      # wrapper and try/finally: 3 interleaved rounds, one pro
 bun run.ts 3 A,D        # literal flags
 bun run.ts 3 A,E        # no `?? null`
 for v in A B C; do bun per-call.ts $v; done   # per-call overhead, in ns
+bun map.ts A            # keyed Reactivity.map: append 1 000, swap two, remove one (audit section 14)
 ```
 
 Single measurements:
