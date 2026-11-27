@@ -10,6 +10,10 @@ public static class SignalScenarios
         new Scenario("last write wins", LastWriteWins),
         new Scenario("flush without writes is a no-op", FlushWithoutWritesIsNoOp),
         new Scenario("custom comparer is used", CustomComparerIsUsed),
+        new Scenario("update chains on the pending write", UpdateChainsOnPendingWrite),
+        new Scenario("update builds on a plain write", UpdateBuildsOnPlainWrite),
+        new Scenario("update inside a computation throws", UpdateInsideComputationThrows),
+        new Scenario("update to an equal value is skipped", UpdateToEqualValueIsSkipped),
     ];
 
     private static void ReadsInitialValue(IExpect expect)
@@ -63,6 +67,77 @@ public static class SignalScenarios
         Reactivity.Flush();
 
         expect.Equal("a", signal.Value, "equal under the comparer keeps the committed value");
+    }
+
+    private static void UpdateChainsOnPendingWrite(IExpect expect)
+    {
+        var count = Reactivity.Signal(0);
+
+        count.Update(c => c + 1);
+        count.Update(c => c + 1);
+
+        expect.Equal(0, count.Value, "value before flush");
+
+        Reactivity.Flush();
+
+        expect.Equal(2, count.Value, "two updates in one tick");
+    }
+
+    private static void UpdateBuildsOnPlainWrite(IExpect expect)
+    {
+        var count = Reactivity.Signal(0);
+
+        count.Value = 10;
+        count.Update(c => c + 1);
+        Reactivity.Flush();
+
+        expect.Equal(11, count.Value, "update after a plain write");
+    }
+
+    private static void UpdateInsideComputationThrows(IExpect expect)
+    {
+        var target = Reactivity.Signal(0);
+        var updateRuns = 0;
+
+        var writer = Reactivity.Computed(() =>
+        {
+            target.Update(c =>
+            {
+                updateRuns++;
+
+                return c + 1;
+            });
+
+            return 0;
+        });
+
+        var error = ScenarioRunner.Catch(() => _ = writer.Value);
+
+        expect.IsTrue(error is InvalidOperationException, "reading an updating computed throws");
+        expect.Equal(0, updateRuns, "update function never runs");
+    }
+
+    private static void UpdateToEqualValueIsSkipped(IExpect expect)
+    {
+        var count = Reactivity.Signal(5);
+        var runs = 0;
+
+        Reactivity.Effect(() => count.Value, (value, previous) => runs++);
+
+        Reactivity.Flush();
+
+        var baseline = runs;
+
+        count.Update(c => c + 1);
+        count.Update(c => c - 1);
+        Reactivity.Flush();
+
+        expect.Equal(5, count.Value, "value is unchanged");
+        expect.Equal(
+            baseline,
+            runs,
+            "an update that nets out to the committed value notifies nothing"
+        );
     }
 
     private sealed class CaseInsensitiveComparer : IEqualityComparer<string>

@@ -61,6 +61,18 @@ export class Signal<T> extends SignalNode {
       Signal.rejectWriteInsideComputation();
     }
 
+    this.queueWrite(value);
+  }
+
+  update(update: (arg: T) => T): void {
+    if (Tracking.currentOwner != null) {
+      Signal.rejectWriteInsideComputation();
+    }
+
+    this.queueWrite(update(this._hasPending ? this._pending : this._value));
+  }
+
+  private queueWrite(value: T): void {
     this._pending = value;
 
     if (!this._hasPending) {

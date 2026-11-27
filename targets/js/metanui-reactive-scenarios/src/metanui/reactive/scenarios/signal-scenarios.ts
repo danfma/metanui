@@ -1,6 +1,8 @@
 import { HashCode, copyRecordWith, valueHashCode } from "metano-runtime";
+import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
 import type { IExpect } from "./i-expect.js";
+import { ScenarioRunner } from "./scenario-runner.js";
 import { Scenario } from "./scenario.js";
 
 class SignalScenarios$CaseInsensitiveComparer {
@@ -44,7 +46,7 @@ class SignalScenarios$Point {
 }
 
 export class SignalScenarios {
-  static readonly all: Scenario[] = [new Scenario("signal reads its initial value", SignalScenarios.readsInitialValue), new Scenario("write is invisible until flush", SignalScenarios.writeIsInvisibleUntilFlush), new Scenario("last write wins", SignalScenarios.lastWriteWins), new Scenario("flush without writes is a no-op", SignalScenarios.flushWithoutWritesIsNoOp), new Scenario("custom comparer is used", SignalScenarios.customComparerIsUsed)];
+  static readonly all: Scenario[] = [new Scenario("signal reads its initial value", SignalScenarios.readsInitialValue), new Scenario("write is invisible until flush", SignalScenarios.writeIsInvisibleUntilFlush), new Scenario("last write wins", SignalScenarios.lastWriteWins), new Scenario("flush without writes is a no-op", SignalScenarios.flushWithoutWritesIsNoOp), new Scenario("custom comparer is used", SignalScenarios.customComparerIsUsed), new Scenario("update chains on the pending write", SignalScenarios.updateChainsOnPendingWrite), new Scenario("update builds on a plain write", SignalScenarios.updateBuildsOnPlainWrite), new Scenario("update inside a computation throws", SignalScenarios.updateInsideComputationThrows), new Scenario("update to an equal value is skipped", SignalScenarios.updateToEqualValueIsSkipped)];
 
   private constructor() { }
 
@@ -84,5 +86,54 @@ export class SignalScenarios {
     signal.value = "A";
     Reactivity.flush();
     expect.equal("a", signal.value, "equal under the comparer keeps the committed value");
+  }
+
+  private static updateChainsOnPendingWrite(expect: IExpect): void {
+    const count = Reactivity.signal(0);
+    count.update((c: number) => (c + 1) | 0);
+    count.update((c: number) => (c + 1) | 0);
+    expect.equal(0, count.value, "value before flush");
+    Reactivity.flush();
+    expect.equal(2, count.value, "two updates in one tick");
+  }
+
+  private static updateBuildsOnPlainWrite(expect: IExpect): void {
+    const count = Reactivity.signal(0);
+    count.value = 10;
+    count.update((c: number) => (c + 1) | 0);
+    Reactivity.flush();
+    expect.equal(11, count.value, "update after a plain write");
+  }
+
+  private static updateInsideComputationThrows(expect: IExpect): void {
+    const target = Reactivity.signal(0);
+    let updateRuns = 0;
+    const writer = Reactivity.computed(() => {
+      target.update((c: number) => {
+        updateRuns = (updateRuns + 1) | 0;
+
+        return (c + 1) | 0;
+      });
+
+      return 0;
+    });
+    const error = ScenarioRunner.catch(() => {
+      writer.value;
+    });
+    expect.isTrue(error instanceof InvalidOperationException, "reading an updating computed throws");
+    expect.equal(0, updateRuns, "update function never runs");
+  }
+
+  private static updateToEqualValueIsSkipped(expect: IExpect): void {
+    const count = Reactivity.signal(5);
+    let runs = 0;
+    Reactivity.effect(() => count.value, (value: number, previous: number) => runs = (runs + 1) | 0);
+    Reactivity.flush();
+    const baseline = runs;
+    count.update((c: number) => (c + 1) | 0);
+    count.update((c: number) => (c - 1) | 0);
+    Reactivity.flush();
+    expect.equal(5, count.value, "value is unchanged");
+    expect.equal(baseline, runs, "an update that nets out to the committed value notifies nothing");
   }
 }

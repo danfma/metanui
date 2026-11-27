@@ -45,18 +45,37 @@ public sealed class Signal<T> : SignalNode
                 RejectWriteInsideComputation();
             }
 
-            _pending = value;
-
-            if (!_hasPending)
-            {
-                _hasPending = true;
-                FlushLoop.Enqueue(this);
-            }
-
-            // Requested on every write, not only the first: if the scheduler threw, the write
-            // stayed queued with no flush scheduled, and a later write must schedule it.
-            FlushLoop.RequestFlush();
+            QueueWrite(value);
         }
+    }
+
+    /// <summary>
+    /// Writes <c>update(latest)</c>: <c>latest</c> is the pending value when a write is queued and not
+    /// yet committed, the committed value otherwise, so several updates in one tick chain.
+    /// </summary>
+    public void Update(Func<T, T> update)
+    {
+        if (Tracking.CurrentOwner is not null)
+        {
+            RejectWriteInsideComputation();
+        }
+
+        QueueWrite(update(_hasPending ? _pending : _value));
+    }
+
+    private void QueueWrite(T value)
+    {
+        _pending = value;
+
+        if (!_hasPending)
+        {
+            _hasPending = true;
+            FlushLoop.Enqueue(this);
+        }
+
+        // Requested on every write, not only the first: if the scheduler threw, the write
+        // stayed queued with no flush scheduled, and a later write must schedule it.
+        FlushLoop.RequestFlush();
     }
 
     /// <summary>
