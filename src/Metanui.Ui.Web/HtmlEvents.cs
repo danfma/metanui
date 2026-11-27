@@ -6,10 +6,18 @@ namespace Metanui.Ui.Web;
 /// Event extensions on the DOM elements, meant to be called in an element's builder.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A listener is never removed: it lives as long as its element, and disposing the view (or the
 /// <c>For</c> item or <c>Show</c> branch) that built the element only removes the element. A
-/// handler that captures long-lived state keeps it alive while the element is referenced. Handlers
-/// run outside every computation, so they may write signals.
+/// handler that captures long-lived state keeps it alive while the element is referenced.
+/// </para>
+/// <para>
+/// Registering the same delegate twice for the same event on one element is a no-op in browsers
+/// (<c>addEventListener</c> ignores a duplicate), so the handler still runs once per event.
+/// </para>
+/// <para>
+/// Handlers dispatched by the browser run outside every computation, so they may write signals.
+/// </para>
 /// </remarks>
 public static class HtmlEvents
 {
