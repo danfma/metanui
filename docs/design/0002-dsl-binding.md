@@ -209,7 +209,7 @@ Option H (maintainer's proposal): builder lambdas over the platform element itse
 - Component props backed by signals (`public string Title { get => _title.Value; set => _title.Value = value; }`) take a static assignment or a split `Bind` from the consumer and react inside `Render`.
 - A fused `Bind` that writes a signal-backed prop throws ("Writing to a signal inside a computation is not allowed", spec 0001); the failed effect stays subscribed and throws again, out of the flush, on every change of what it read.
 - A plain prop (`public int Start { get; set; }`) bound with a split `Bind` silently loses the value: `Render` reads the default before the first apply, which runs at the end of the flush; the counter showed `Count: 1 (Start = 106)`. With G's `Bindable<T>`, binding a plain-typed prop is a compile error instead.
-- A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter), so each component exposes a one-line factory.
+- A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter; Metano #832 proposes `new this()`), so each component exposes a one-line factory until then.
 
 Other findings:
 
