@@ -1,3 +1,4 @@
+using Metanui.Reactive;
 using Metanui.Spike.Counter.Dom;
 using Metanui.Spike.Dsl.Core;
 
@@ -17,6 +18,36 @@ public static class DirectBuilders
     public static El P(Action<HTMLElement> build) => Create("p", build);
 
     public static El Button(Action<HTMLElement> build) => Create("button", build);
+
+    public static El Span(Action<HTMLElement> build) => Create("span", build);
+
+    /// <summary>
+    /// Keyed list: each item renders once, under its own root, and keeps its node while its key stays
+    /// in the list; a removed key disposes its root and removes its node. The items live in a host
+    /// element (the renderer port's anchors would remove it).
+    /// </summary>
+    public static El For<T>(Func<IReadOnlyList<T>> items, Func<T, int> key, Func<T, El> render) =>
+        Create("div", host =>
+        {
+            var views = new Dictionary<int, ItemView>();
+
+            // Items are created in the compute, under the effect: an apply has no owner, so a root
+            // created there could never be disposed (the core rejects it).
+            Reactivity.Effect(
+                () =>
+                {
+                    var list = items();
+
+                    return Reactivity.Untrack(() =>
+                    {
+                        Reconcile(host, views, list, key, render);
+
+                        return list.Count;
+                    });
+                },
+                (count, previous) => { }
+            );
+        });
 
     public static void Add(Part part) =>
         part.AttachTo(
@@ -56,6 +87,61 @@ public static class DirectBuilders
         }
     }
 
+    private static void Reconcile<T>(
+        HTMLElement host,
+        Dictionary<int, ItemView> views,
+        IReadOnlyList<T> list,
+        Func<T, int> key,
+        Func<T, El> render
+    )
+    {
+        var kept = new HashSet<int>();
+
+        foreach (var item in list)
+        {
+            kept.Add(key(item));
+        }
+
+        foreach (var stale in views.Keys.Where(id => !kept.Contains(id)).ToList())
+        {
+            var view = views[stale];
+
+            views.Remove(stale);
+            host.RemoveChild(view.Node);
+            view.Dispose();
+        }
+
+        foreach (var item in list)
+        {
+            var id = key(item);
+
+            if (!views.TryGetValue(id, out var view))
+            {
+                view = RenderItem(item, render);
+                views[id] = view;
+            }
+
+            host.AppendChild(view.Node);
+        }
+    }
+
+    private static ItemView RenderItem<T>(T item, Func<T, El> render) =>
+        Reactivity.Root(dispose =>
+        {
+            var parent = _current;
+
+            _current = null;
+
+            try
+            {
+                return new ItemView(render(item).Node, dispose);
+            }
+            finally
+            {
+                _current = parent;
+            }
+        });
+
     private static El Create(string tagName, Action<HTMLElement> build)
     {
         var node = Browser.Document.CreateElement(tagName);
@@ -76,4 +162,12 @@ public static class DirectBuilders
 
         return new El(node);
     }
+}
+
+/// <summary>A rendered list item: its node and the disposer of its root.</summary>
+public sealed class ItemView(HTMLElement node, Action dispose)
+{
+    public HTMLElement Node => node;
+
+    public void Dispose() => dispose();
 }

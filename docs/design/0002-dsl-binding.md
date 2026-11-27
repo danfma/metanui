@@ -211,6 +211,13 @@ Option H (maintainer's proposal): builder lambdas over the platform element itse
 - A plain prop (`public int Start { get; set; }`) bound with a split `Bind` silently loses the value: `Render` reads the default before the first apply, which runs at the end of the flush; the counter showed `Count: 1 (Start = 106)`. With G's `Bindable<T>`, binding a plain-typed prop is a compile error instead.
 - A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter; Metano #832 proposes `new this()`), so each component exposes a one-line factory until then.
 
+Option H, `Counter` and `CounterList` (smoke test `spikes/dsl-web/counter-list.smoke.test.ts`, on a fake DOM, because the browser extension was offline):
+
+- `Counter` (label prop, own count, remove callback) works standalone.
+- `CounterList` adds counters through a keyed `For`, but a keyed list cannot be built on the Phase 1 core alone. An item root created in an effect's apply is rejected ("the apply has no owner"); created in the compute, it is owned by the effect and disposed when the compute runs again (probed: two reruns, two disposals). Adding a counter therefore kills the earlier counters' bindings while their rows stay in the DOM. `For` needs a core primitive: Solid's `mapArray` (per-item owners kept across runs), or an owner the list keeps and runs item roots under. The list test is marked `test.failing` until then.
+- Two `count.Value++` in the same tick count once: a read after a write returns the committed value until the flush (spec 0001, Solid 2.0). Real clicks flush in between; a handler that writes twice needs a read-modify-write helper (Solid 2.0's function setter), which the core does not have yet.
+- A component body runs inside the list's computation, so a signal write in `Render` throws, as in Solid 2.0.
+
 Other findings:
 
 - A base class with an implicit conversion that creates a subclass forms an import cycle (MS0005, a real ESM TDZ hazard); the subclass is nested in the base.

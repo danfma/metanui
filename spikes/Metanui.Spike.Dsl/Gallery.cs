@@ -28,6 +28,8 @@ public static class Gallery
             CardCUsage.Cards().AttachTo(body);
             CardGUsage.Cards().AttachTo(body);
             DirectUsage.Gallery().AttachTo(body);
+            Variants.Direct.Counter.Create(counter => counter.Label = "Solo").AttachTo(body);
+            CounterList.Create(list => { }).AttachTo(body);
         });
     }
 }

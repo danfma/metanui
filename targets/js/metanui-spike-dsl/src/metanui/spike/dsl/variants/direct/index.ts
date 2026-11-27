@@ -1,6 +1,10 @@
 export { bind, bindComputeApply, bindTo, bindWrite, onClick } from "./bindings.js";
 export { CardH } from "./card-h.js";
 export { Component } from "./component.js";
+export { CounterEntry } from "./counter-entry.js";
 export { CounterH } from "./counter-h.js";
+export { CounterList } from "./counter-list.js";
+export { Counter } from "./counter.js";
 export { DirectBuilders } from "./direct-builders.js";
 export { DirectUsage } from "./direct-usage.js";
+export { ItemView } from "./item-view.js";

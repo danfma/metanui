@@ -9,6 +9,8 @@ namespace Metanui.Spike.Counter.Dom;
 public interface Node
 {
     Node AppendChild(Node child);
+
+    Node RemoveChild(Node child);
 }
 
 [External]

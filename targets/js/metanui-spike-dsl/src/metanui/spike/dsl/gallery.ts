@@ -4,6 +4,8 @@ import { AttributeListVariant } from "./variants/attribute-list-variant.js";
 import { BuilderVariant } from "./variants/builder/builder-variant.js";
 import { CardGUsage } from "./variants/builder/card-g-usage.js";
 import { CardCUsage } from "./variants/components/card-c-usage.js";
+import { CounterList } from "./variants/direct/counter-list.js";
+import { Counter } from "./variants/direct/counter.js";
 import { DirectUsage } from "./variants/direct/direct-usage.js";
 import { FluentVariant } from "./variants/fluent-variant.js";
 import { GroupedBindCounter } from "./variants/grouped-bind-counter.js";
@@ -26,6 +28,9 @@ export class Gallery {
       CardCUsage.cards().attachTo(body);
       CardGUsage.cards().attachTo(body);
       DirectUsage.gallery().attachTo(body);
+      Counter.create((counter: Counter) => counter.label = "Solo").attachTo(body);
+      CounterList.create((list: CounterList) => {
+      }).attachTo(body);
     });
   }
 }
