@@ -77,6 +77,17 @@
         "metano-runtime": "^4.0.3",
       },
     },
+    "targets/js/metanui-ui-web": {
+      "name": "metanui-ui-web",
+      "version": "1.0.0",
+      "dependencies": {
+        "metanui-reactive": "^1.0.0",
+        "metanui-ui": "^1.0.0",
+      },
+      "peerDependencies": {
+        "metano-runtime": "^4.0.3",
+      },
+    },
     "tests/js/reactive": {
       "name": "metanui-reactive-tests",
       "dependencies": {
@@ -92,6 +103,15 @@
         "metanui-reactive-scenarios": "workspace:*",
         "metanui-ui": "workspace:*",
         "metanui-ui-scenarios": "workspace:*",
+      },
+    },
+    "tests/js/ui-web": {
+      "name": "metanui-ui-web-tests",
+      "dependencies": {
+        "metano-runtime": "^4.0.3",
+        "metanui-reactive": "workspace:*",
+        "metanui-ui": "workspace:*",
+        "metanui-ui-web": "workspace:*",
       },
     },
   },
@@ -127,5 +147,9 @@
     "metanui-ui-scenarios": ["metanui-ui-scenarios@workspace:targets/js/metanui-ui-scenarios"],
 
     "metanui-ui-tests": ["metanui-ui-tests@workspace:tests/js/ui"],
+
+    "metanui-ui-web": ["metanui-ui-web@workspace:targets/js/metanui-ui-web"],
+
+    "metanui-ui-web-tests": ["metanui-ui-web-tests@workspace:tests/js/ui-web"],
   }
 }
