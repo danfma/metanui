@@ -20,9 +20,11 @@ namespace Metanui.Ui;
 /// </para>
 /// <para>
 /// Children go in <see cref="Content" />, a render prop that <see cref="Render" /> invokes where they
-/// belong; no wrapper element is created. Each component exposes a one-line static factory over
-/// <see cref="View.Mount{TComponent}" /> until Metano #832 lets a generic <c>Use</c> construct
-/// <typeparamref name="TSelf" />.
+/// belong; no wrapper element is created. Each component exposes a one-line static factory named
+/// <c>Create</c> over <see cref="View.Mount{TComponent}" />
+/// (<c>public static void Create(Action&lt;Card&gt; build) =&gt; View.Mount(new Card(), build);</c>,
+/// called as <c>Card.Create(card =&gt; ...)</c>) until Metano #832 lets a generic <c>Use</c>
+/// construct <typeparamref name="TSelf" />.
 /// </para>
 /// </remarks>
 public abstract class Component<TSelf>

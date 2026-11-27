@@ -26,7 +26,7 @@ export class Frame extends Component<Frame> {
     });
   }
 
-  static framed(build: (obj: Frame) => void): void {
+  static create(build: (obj: Frame) => void): void {
     View.mount(new Frame(), build);
   }
 

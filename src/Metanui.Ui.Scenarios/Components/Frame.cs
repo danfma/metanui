@@ -7,7 +7,7 @@ namespace Metanui.Ui.Scenarios.Components;
 public sealed class Frame : Component<Frame>
 {
     // Metano #832
-    public static void Framed(Action<Frame> build) => Mount(new Frame(), build);
+    public static void Create(Action<Frame> build) => Mount(new Frame(), build);
 
     public override void Render()
     {

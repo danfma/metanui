@@ -1,9 +1,7 @@
 using Metanui.Reactive;
 using Metanui.Reactive.Scenarios;
+using Metanui.Ui.Scenarios.Components;
 using Metanui.Ui.Scenarios.Fakes;
-using static Metanui.Ui.Scenarios.Components.Frame;
-using static Metanui.Ui.Scenarios.Components.StartCounter;
-using static Metanui.Ui.Scenarios.Components.TitledCard;
 using static Metanui.Ui.Scenarios.Fakes.FakeViews;
 using static Metanui.Ui.View;
 
@@ -44,8 +42,8 @@ public static class ComponentScenarios
 
         host.Render(() =>
         {
-            Card(card => card.Title = "Static");
-            Card(card => Bind(() => name.Value, value => card.Title = value));
+            Card.Create(card => card.Title = "Static");
+            Card.Create(card => Bind(() => name.Value, value => card.Title = value));
         });
         Reactivity.Flush();
 
@@ -76,8 +74,8 @@ public static class ComponentScenarios
 
         host.Render(() =>
         {
-            Counter(counter => counter.Start = 7);
-            Counter(counter => Bind(() => start.Value, value => counter.Start = value));
+            Counter.Create(counter => counter.Start = 7);
+            Counter.Create(counter => Bind(() => start.Value, value => counter.Start = value));
         });
         Reactivity.Flush();
 
@@ -89,7 +87,7 @@ public static class ComponentScenarios
         var host = new FakeHost();
 
         host.Render(() =>
-            Card(card =>
+            Card.Create(card =>
             {
                 card.Title = "T";
 
@@ -112,7 +110,7 @@ public static class ComponentScenarios
         host.Render(() =>
         {
             Label("first");
-            Framed(frame => frame.Content = () => Label("inside"));
+            Frame.Create(frame => frame.Content = () => Label("inside"));
             Label("last");
         });
 
@@ -131,7 +129,7 @@ public static class ComponentScenarios
 
         host.Render(() =>
         {
-            error = ScenarioRunner.Catch(() => Card(card => Label("child")));
+            error = ScenarioRunner.Catch(() => Card.Create(card => Label("child")));
             Label("next");
         });
 
@@ -149,7 +147,9 @@ public static class ComponentScenarios
         var items = Reactivity.Signal<IReadOnlyList<string>>(["a"]);
 
         var error = ScenarioRunner.Catch(() =>
-            host.Render(() => For(() => items.Value, item => Card(card => card.Title = item)))
+            host.Render(() =>
+                For(() => items.Value, item => Card.Create(card => card.Title = item))
+            )
         );
 
         expect.Equal(ExpectedUiMessages.SignalWriteInComputation, error?.Message, "error");

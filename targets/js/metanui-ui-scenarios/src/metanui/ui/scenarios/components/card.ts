@@ -4,9 +4,9 @@ import { Component, View } from "metanui-ui/metanui/ui";
 import type { FakeElement } from "../fakes/fake-element.js";
 import { FakeViews } from "../fakes/fake-views.js";
 
-let TitledCard$rt: ClassType<TitledCard> | undefined;
+let Card$rt: ClassType<Card> | undefined;
 
-export class TitledCard extends Component<TitledCard> {
+export class Card extends Component<Card> {
   declare private readonly _title: Signal<string>;
 
   constructor() {
@@ -14,20 +14,20 @@ export class TitledCard extends Component<TitledCard> {
     this._title = Reactivity.signal("");
   }
 
-  static override get $runtimeType(): ClassType<TitledCard> {
-    return (TitledCard$rt ??= {
+  static override get $runtimeType(): ClassType<Card> {
+    return (Card$rt ??= {
       kind: "class",
-      name: "TitledCard",
-      fullName: "Metanui.Ui.Scenarios.Components.TitledCard",
+      name: "Card",
+      fullName: "Metanui.Ui.Scenarios.Components.Card",
       namespace: "Metanui.Ui.Scenarios.Components",
-      ctor: TitledCard,
+      ctor: Card,
       base: () => Component.$runtimeType,
       interfaces: [],
       typeParameters: [],
       isAbstract: false,
       isValueType: false,
-      create: () => new TitledCard(),
-      test: (v: unknown): v is TitledCard => v instanceof TitledCard,
+      create: () => new Card(),
+      test: (v: unknown): v is Card => v instanceof Card,
     });
   }
 
@@ -39,8 +39,8 @@ export class TitledCard extends Component<TitledCard> {
     this._title.value = value;
   }
 
-  static card(build: (obj: TitledCard) => void): void {
-    View.mount(new TitledCard(), build);
+  static create(build: (obj: Card) => void): void {
+    View.mount(new Card(), build);
   }
 
   override render(): void {

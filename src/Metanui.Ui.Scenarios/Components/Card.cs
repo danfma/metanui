@@ -5,7 +5,7 @@ using static Metanui.Ui.View;
 namespace Metanui.Ui.Scenarios.Components;
 
 /// <summary>A component with a signal-backed prop and content inside its own element.</summary>
-public sealed class TitledCard : Component<TitledCard>
+public sealed class Card : Component<Card>
 {
     private readonly Signal<string> _title = Reactivity.Signal("");
 
@@ -16,7 +16,7 @@ public sealed class TitledCard : Component<TitledCard>
     }
 
     // Metano #832
-    public static void Card(Action<TitledCard> build) => Mount(new TitledCard(), build);
+    public static void Create(Action<Card> build) => Mount(new Card(), build);
 
     public override void Render() =>
         Box(card =>
