@@ -83,18 +83,18 @@ Done 2026-11-27 (commits 517204f..786496f). `Reactivity.Map(source, map)` and `M
 Metano: #840 (`new T[n]`) worked around with `List<T>`; four more defects reported 2026-11-27 (ctor type args dropped, typed delegate local loses annotation, `out` arg tuple per call, `EqualityComparer<T>` field type unmapped), sites marked "issue number pending". TS callers pass a metano-runtime list (`List.adopt`), not a JS array — relevant to Phase 3's TS surface. Reviews: all five ran; compiler-man's Spec ❌ was fixed in one round; minors are deferred in the SDD ledger for the final review.
 
 ## Phase 2: `Signal<T>.Update`
-Status: Not started
+Status: Complete
 
-- [ ] Spec in 0001: `public void Update(Func<T, T> update)` applies `update` to the latest value including a pending write of the same flush, queues the result as the pending write, and keeps every other write rule (throws inside a computation, equality skips the commit). Matches Solid 2.0's function setter.
-- [ ] Implement in `Signal.cs` without allocating when there is no pending write.
-- [ ] Scenarios: two `Update(c => c + 1)` in one tick give +2; `Update` after a plain write builds on it; `Update` inside a computation throws; equality skip.
+- [x] Spec in 0001: `public void Update(Func<T, T> update)` applies `update` to the latest value including a pending write of the same flush, queues the result as the pending write, and keeps every other write rule (throws inside a computation, equality skips the commit). Matches Solid 2.0's function setter.
+- [x] Implement in `Signal.cs` without allocating when there is no pending write.
+- [x] Scenarios: two `Update(c => c + 1)` in one tick give +2; `Update` after a plain write builds on it; `Update` inside a computation throws; equality skip.
 
 ### Verification Plan
 - Same build, test and strict-tsc checks as Phase 1, all green.
 - Reviewers run, none `REPROVADO`.
 
 ### Phase Summary
-_(write when phase completes)_
+Done 2026-11-27 (commits ac583a9..e30373e). `Signal<T>.Update(Func<T,T>)` chains on a pending write of the same flush (0001 §4.1), allocates nothing, throws inside a computation before calling the function; deviation from Solid documented: it returns void (Solid's setter returns the written value). Metano emitted duplicate TS members for an override plus a same-named overload, so the internal graph method `Update` became `Refresh` (Computed's private `Refresh` → `RefreshIfStale`), kept after the Metano fix (reported, number pending). .NET 147, Bun 153, strict tsc 0, bench 12/12. Reviews: backend REPROVADO for one blank line, compiler-man two stale names — fixed in one round; minors deferred in the SDD ledger.
 
 ## Phase 3: `Metanui.Ui` (platform-neutral layer)
 Status: Not started
