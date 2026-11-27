@@ -627,3 +627,9 @@ sources of both packages are byte-identical to 4.0.1; `tsc --strict` (same optio
 - **#826, #827 (open).** Found by strict `tsc` over the DSL spike output, present since 4.0.1: a cross-package
   `[External]` type emits an `import type` from a subpath the package does not export, and the `$runtimeType`
   of a class with only non-public constructors fails `ClassType<T>`. Neither appears in the core packages.
+
+## 13. Metano 4.0.3 re-check
+
+Toolchain: Metano, Metano.Build.TypeScript, Metano.Compiler.TypeScript and metano-runtime 4.0.3. The generated
+sources of both packages are byte-identical to 4.0.2; `tsc --strict`: 0 diagnostics. .NET 121 and Bun 127 tests
+pass; the benchmark correctness suite passes 12/12. #826, #827 and #822 are fixed; none touched the core output.
