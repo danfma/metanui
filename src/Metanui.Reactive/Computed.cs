@@ -74,7 +74,7 @@ public sealed class Computed<T> : ComputedNode
     /// cleanup or a run that disposes this computed releases them, and the run still completes, so a
     /// later read returns its result. A computed already disposed reports no change and keeps its
     /// last value or error: a dirty check whose dependency update disposed it may still ask it to
-    /// update, and its function is gone.
+    /// refresh, and its function is gone.
     /// </summary>
     /// <remarks>
     /// Disposal also clears <see cref="ReactiveFlags.Mutable" /> (only the error stays), so no walk

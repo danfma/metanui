@@ -3,7 +3,8 @@ namespace Metanui.Reactive.Graph;
 // Port of alien-signals 3.2.1, stackblitz/alien-signals@8734d386d925025d0e99419bd9161c17b112c5ee:
 // Link, Unlink, Propagate, CheckDirty, ShallowPropagate and IsValidLink follow src/system.ts line by
 // line; PurgeDeps and DisposeAllDepsInReverse come from src/index.ts. The update/notify/unwatched
-// callbacks of createReactiveSystem are the ReactiveNode members Update, Notify and Unwatched.
+// callbacks of createReactiveSystem are the ReactiveNode members Refresh (upstream `update`, renamed
+// for Metano, see ReactiveNode), Notify and Unwatched.
 //
 // Deviation: propagate drops its innerWrite parameter. Upstream sets it when a signal is written
 // while an effect runs; here writes are deferred and propagation only starts from the flush, never

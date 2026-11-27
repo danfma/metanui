@@ -9,8 +9,13 @@ public abstract class ReactiveNode
     internal Link? SubsTail;
     internal ReactiveFlags Flags;
 
-    /// <summary>Brings the node up to date (a signal commits its pending write, a computed recomputes) and reports whether its value changed.</summary>
-    // Metano (reported 2026-11-27, issue number pending): an override and a same-named overload emit duplicate TS members
+    // Metano (reported 2026-11-27, issue number pending): an override and a same-named overload emit
+    // duplicate TS members. Kept as Refresh after the fix: Update is Signal<T>'s public write API.
+
+    /// <summary>
+    /// Brings the node up to date (a signal commits its pending write, a computed recomputes) and
+    /// reports whether its value changed.
+    /// </summary>
     internal abstract bool Refresh();
 
     /// <summary>Called when a watched node is reached by propagation.</summary>

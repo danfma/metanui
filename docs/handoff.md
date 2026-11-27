@@ -69,7 +69,7 @@ Parked for a follow-up; it predates the Metano 3.2 branch (reproduced on 2150c1e
 2. **V8 optimisation phase:** F2 (node layout) is the lead hypothesis, then F3 (deep flush) and the defensive `try/finally`. A Metano object-creation benchmark showed that derived classes with declared fields are about 2.4x slower to create on V8. Metano was advised to emit declaration-only fields.
 3. **Remaining follow-ups:**
    - a `TrackingScope` struct for the save/set/restore of the tracking state, if Metano emits it without allocation;
-   - deduplicate `Computed.Update` and `Computed.RunFirst`;
+   - deduplicate `Computed.Refresh` and `Computed.RunFirst`;
    - split `RootNode` and an error-boundary node;
    - move `Tracking.Pass` into `FlushLoop`;
    - split `ErrorScenarios.cs` by theme;

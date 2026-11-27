@@ -133,6 +133,7 @@ public static class SignalScenarios
         Reactivity.Flush();
 
         expect.Equal(5, count.Value, "value is unchanged");
+
         expect.Equal(
             baseline,
             runs,
