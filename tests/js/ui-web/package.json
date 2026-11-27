@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "metano-runtime": "^4.0.3",
+    "metanui-fake-dom": "workspace:*",
     "metanui-reactive": "workspace:*",
     "metanui-reactive-scenarios": "workspace:*",
     "metanui-ui": "workspace:*",

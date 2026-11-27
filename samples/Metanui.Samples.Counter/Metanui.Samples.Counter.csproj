@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The DSL v1 sample: Counter and CounterList, rendered by samples/counter-web. -->
+  <PropertyGroup>
+    <RootNamespace>Metanui.Samples.Counter</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-samples-counter/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Metanui.Ui.Web/Metanui.Ui.Web.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,12 +1,12 @@
 import { afterAll, expect, test } from "bun:test";
 import { defaultEquals } from "metano-runtime";
+import { type FakeNode, installFakeDocument } from "metanui-fake-dom";
 import { type IExpect, ScenarioRunner } from "metanui-reactive-scenarios/metanui/reactive/scenarios";
 import {
   type INodePortProbe,
   PortContractScenarios,
 } from "metanui-ui-scenarios/metanui/ui/scenarios/port-contract";
 import { DomNodePort } from "metanui-ui-web/metanui/ui/web";
-import { type FakeNode, installFakeDocument } from "./fake-dom.ts";
 
 // The INodePort contract scenarios of Metanui.Ui.Scenarios, run against DomNodePort on the fake DOM.
 

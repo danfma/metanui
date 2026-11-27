@@ -139,14 +139,14 @@ Status: Complete
 Done 2026-11-27 (commits 0403cc2..1dce372). `src/Metanui.Ui.Web` (package metanui-ui-web): hand-written `[External]` DOM types under `Dom/` (Node, Text, Comment, HTMLElement, HTMLButtonElement, HTMLInputElement, Document) plus a `[NoContainer]` `Browser` (document, queueMicrotask); `[NoContainer]` `Html` factories (Div, Span, P, H1–H3, Section, Button, Input, Ul, Li) through one `Create<TElement>` (`UnsafeCast`, Metano enhancement requested); `HtmlEvents.OnClick/OnInput` (listeners live as long as the element); `DomNodePort`; `MicrotaskScheduler`; `WebApp.Render(build, container)` installing the microtask scheduler only over the core's default manual one (`EnsureMicrotaskScheduler`). `INodePort` docs are platform-neutral, and `PortContractScenarios.For(platform, createPort, probe)` (7 scenarios) runs on the fake port (.NET, Bun) and on `DomNodePort` (Bun) — reusable by an Avalonia port. Fake-DOM tests in `tests/js/ui-web` (30) with a shared render fixture; tree-shaking test (a `Div`+`OnClick` bundle carries no other factory). Bun 215, .NET 183, bench 12/12, strict tsc: web 0. Bundle baseline 72.7 KB min / 19.2 KB gzip, adapter ~0.5 KB (size pass is a follow-up).
 
 ## Phase 5: `samples/counter-web`
-Status: Not started
+Status: Done (reviews pending)
 
 **Files:** `samples/Metanui.Samples.Counter/` (C#), `samples/counter-web/` (host: `index.html`, `main.ts`, `package.json` with `bun build --conditions=bun`), a smoke test.
 
-- [ ] `Counter : Component<Counter>`: signal-backed `Label`, `OnRemove` callback, own count with −1/+1 (`count.Update(c => c + 1)`), remove button.
-- [ ] `CounterList : Component<CounterList>`: "Add counter" appends a `CounterEntry`; `For` over the entries renders `Counter`s; remove takes an entry out; a summary binds the count.
-- [ ] Smoke test on the fake DOM (from the spike, no `test.failing`): add three, change two, remove the first, add one; each counter keeps its state, removed counters are disposed (cleanup count), no extra wrapper elements.
-- [ ] Check in Chrome through the browser extension (or record that it was unavailable): add, increment, remove, add again; no console errors.
+- [x] `Counter : Component<Counter>`: `Prop<string> Label` (signal-backed props replaced by `Prop<T>`, 2026-11-27), `OnRemove` callback, own count with −1/+1 (`count.Update(c => c + 1)`), remove button.
+- [x] `CounterList : Component<CounterList>`: "Add counter" appends a `CounterEntry`; `For` over the entries renders `Counter`s; remove takes an entry out; a summary binds the count.
+- [x] Smoke test on the fake DOM (from the spike, no `test.failing`): add three, change two, remove the first, add one; each counter keeps its state, removed counters are disposed (cleanup count), no extra wrapper elements.
+- [x] Check in Chrome through the browser extension (or record that it was unavailable): add, increment, remove, add again; no console errors.
 
 ### Verification Plan
 - `bun test` in `samples/counter-web` → all pass.
@@ -155,7 +155,7 @@ Status: Not started
 - Final review round with all five reviewers over the whole branch, none `REPROVADO`.
 
 ### Phase Summary
-_(write when phase completes)_
+Done 2026-11-27, reviews pending. Part A: `Prop<T>` (`readonly struct`, static value via implicit conversion, reader via `View.Live`) replaces signal-backed props; scenarios "a prop takes a static value or a live reader" and "a prop assigned inside a For item and a Show branch works". Part B: `samples/Metanui.Samples.Counter` (`Counter`, `CounterList`, `CounterEntry`, `CounterApp.Start/Build`) and `samples/counter-web` (host, smoke test, 2 tests). The fake DOM and render fixture moved to the `metanui-fake-dom` workspace package (`tests/js/fake-dom`). Bun 217, .NET 184, bench 12/12, strict tsc: sample 0 (the #826 case does not reproduce on 4.0.3). Bundle 76.8 KB min / 20.2 KB gzip. Chrome: add, increment, remove, add again, live label from the field; no console errors from the page.
 
 ## Final Recap
 _(write when all phases complete: summary of the entire piece of work)_

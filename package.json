@@ -5,6 +5,7 @@
     "targets/js/*",
     "tests/js/*",
     "bench/*",
+    "samples/counter-web",
     "spikes/counter-web"
   ]
 }

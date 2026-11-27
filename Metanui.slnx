@@ -6,6 +6,9 @@
     <Project Path="src/Metanui.Ui.Scenarios/Metanui.Ui.Scenarios.csproj" />
     <Project Path="src/Metanui.Ui.Web/Metanui.Ui.Web.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Metanui.Samples.Counter/Metanui.Samples.Counter.csproj" />
+  </Folder>
   <Folder Name="/spikes/">
     <Project Path="spikes/Metanui.Spike.Counter/Metanui.Spike.Counter.csproj" />
   </Folder>

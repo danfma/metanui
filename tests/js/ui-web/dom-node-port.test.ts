@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
+import { type FakeNode, installFakeDocument } from "metanui-fake-dom";
 import { DomNodePort } from "metanui-ui-web/metanui/ui/web";
-import { type FakeNode, installFakeDocument } from "./fake-dom.ts";
 
 // What DomNodePort adds to the INodePort contract (port-contract.test.ts runs the contract itself):
 // the DOM node kinds it creates.

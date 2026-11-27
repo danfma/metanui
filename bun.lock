@@ -20,6 +20,16 @@
         "metanui-reactive": "workspace:*",
       },
     },
+    "samples/counter-web": {
+      "name": "metanui-samples-counter-web",
+      "dependencies": {
+        "metano-runtime": "^4.0.3",
+        "metanui-samples-counter": "workspace:*",
+      },
+      "devDependencies": {
+        "metanui-fake-dom": "workspace:*",
+      },
+    },
     "spikes/counter-web": {
       "name": "metanui-spike-counter-web",
       "dependencies": {
@@ -40,6 +50,18 @@
       "version": "1.0.0",
       "dependencies": {
         "metanui-reactive": "^1.0.0",
+      },
+      "peerDependencies": {
+        "metano-runtime": "^4.0.3",
+      },
+    },
+    "targets/js/metanui-samples-counter": {
+      "name": "metanui-samples-counter",
+      "version": "1.0.0",
+      "dependencies": {
+        "metanui-reactive": "^1.0.0",
+        "metanui-ui": "^1.0.0",
+        "metanui-ui-web": "^1.0.0",
       },
       "peerDependencies": {
         "metano-runtime": "^4.0.3",
@@ -88,6 +110,14 @@
         "metano-runtime": "^4.0.3",
       },
     },
+    "tests/js/fake-dom": {
+      "name": "metanui-fake-dom",
+      "dependencies": {
+        "metano-runtime": "^4.0.3",
+        "metanui-reactive": "workspace:*",
+        "metanui-ui-web": "workspace:*",
+      },
+    },
     "tests/js/reactive": {
       "name": "metanui-reactive-tests",
       "dependencies": {
@@ -109,6 +139,7 @@
       "name": "metanui-ui-web-tests",
       "dependencies": {
         "metano-runtime": "^4.0.3",
+        "metanui-fake-dom": "workspace:*",
         "metanui-reactive": "workspace:*",
         "metanui-reactive-scenarios": "workspace:*",
         "metanui-ui": "workspace:*",
@@ -134,11 +165,17 @@
 
     "metanui-bench-reactivity": ["metanui-bench-reactivity@workspace:bench/reactivity"],
 
+    "metanui-fake-dom": ["metanui-fake-dom@workspace:tests/js/fake-dom"],
+
     "metanui-reactive": ["metanui-reactive@workspace:targets/js/metanui-reactive"],
 
     "metanui-reactive-scenarios": ["metanui-reactive-scenarios@workspace:targets/js/metanui-reactive-scenarios"],
 
     "metanui-reactive-tests": ["metanui-reactive-tests@workspace:tests/js/reactive"],
+
+    "metanui-samples-counter": ["metanui-samples-counter@workspace:targets/js/metanui-samples-counter"],
+
+    "metanui-samples-counter-web": ["metanui-samples-counter-web@workspace:samples/counter-web"],
 
     "metanui-spike-counter": ["metanui-spike-counter@workspace:targets/js/metanui-spike-counter"],
 

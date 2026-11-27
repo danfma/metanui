@@ -1,14 +1,20 @@
 import { expect, test } from "bun:test";
 import { List } from "metano-runtime/system/collections";
 import {
+  attachRenderFixture,
+  type FakeNode,
+  findAll,
+  findTag,
+  flushMicrotasks,
+  printChildren,
+} from "metanui-fake-dom";
+import {
   type IFlushScheduler,
   ManualFlushScheduler,
   Reactivity,
 } from "metanui-reactive/metanui/reactive";
 import { View } from "metanui-ui/metanui/ui";
 import { li, MicrotaskScheduler, p, span, ul } from "metanui-ui-web/metanui/ui/web";
-import { type FakeNode, findAll, findTag, flushMicrotasks, printChildren } from "./fake-dom.ts";
-import { attachRenderFixture } from "./render-fixture.ts";
 
 // WebApp.render: the microtask scheduler, disposal, and For/Show regions held by comment anchors.
 
@@ -107,6 +113,7 @@ test("For keeps its items between comment anchors, moves kept nodes and adds no 
   await flushMicrotasks();
 
   expect(rows()).toEqual([c, a]);
+  expect(b).toBeDefined();
   expect(b?.parentNode).toBeNull();
 
   items.value = snapshot(["c", "d", "a"]);

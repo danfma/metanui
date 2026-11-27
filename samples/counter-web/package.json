@@ -1,0 +1,16 @@
+{
+  "name": "metanui-samples-counter-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./main.ts --target=browser --conditions=bun --outdir=dist",
+    "dev": "bun run build && bun ./index.html"
+  },
+  "dependencies": {
+    "metano-runtime": "^4.0.3",
+    "metanui-samples-counter": "workspace:*"
+  },
+  "devDependencies": {
+    "metanui-fake-dom": "workspace:*"
+  }
+}

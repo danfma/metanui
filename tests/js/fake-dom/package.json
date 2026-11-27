@@ -1,0 +1,13 @@
+{
+  "name": "metanui-fake-dom",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "metano-runtime": "^4.0.3",
+    "metanui-reactive": "workspace:*",
+    "metanui-ui-web": "workspace:*"
+  }
+}

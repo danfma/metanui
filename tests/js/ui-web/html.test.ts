@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { attachRenderFixture, findTag, flushMicrotasks, printChildren } from "metanui-fake-dom";
 import { Reactivity } from "metanui-reactive/metanui/reactive";
 import { View } from "metanui-ui/metanui/ui";
 import {
@@ -16,8 +17,6 @@ import {
   span,
   ul,
 } from "metanui-ui-web/metanui/ui/web";
-import { findTag, flushMicrotasks, printChildren } from "./fake-dom.ts";
-import { attachRenderFixture } from "./render-fixture.ts";
 
 // The element factories and the event extensions, built through WebApp.render into a fake DOM.
 

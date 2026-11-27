@@ -1,0 +1,22 @@
+{
+  "name": "metanui-samples-counter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/samples/counter": {
+      "bun": "./src/metanui/samples/counter/index.ts",
+      "types": "./dist/metanui/samples/counter/index.d.ts",
+      "import": "./dist/metanui/samples/counter/index.js"
+    }
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0",
+    "metanui-ui": "^1.0.0",
+    "metanui-ui-web": "^1.0.0"
+  },
+  "peerDependencies": {
+    "metano-runtime": "^4.0.3"
+  }
+}
