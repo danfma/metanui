@@ -14,7 +14,6 @@ public sealed class Counter : Component<Counter>
     /// <summary>Read once by <see cref="Render" />: without it, the counter has no remove button.</summary>
     public Action? OnRemove { get; set; }
 
-
     public override void Render()
     {
         var count = Reactivity.Signal(0);

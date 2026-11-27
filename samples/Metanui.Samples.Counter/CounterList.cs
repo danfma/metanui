@@ -15,7 +15,6 @@ public sealed class CounterList : Component<CounterList>
 
     private int _nextId = 1;
 
-
     public override void Render() =>
         Section(section =>
         {

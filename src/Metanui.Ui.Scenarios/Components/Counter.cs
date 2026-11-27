@@ -8,6 +8,5 @@ public sealed class Counter : Component<Counter>
 {
     public int Start { get; set; }
 
-
     public override void Render() => Label(label => label.Text = $"start={Start}");
 }

@@ -25,6 +25,8 @@ export abstract class Component<TSelf extends Component<TSelf>> {
     });
   }
 
+  abstract render(): void;
+
   static createBuild<TSelf extends Component<TSelf>>(this: new () => TSelf, build: (obj: TSelf) => void): void {
     View.mount(new this(), build);
   }
@@ -51,6 +53,4 @@ export abstract class Component<TSelf extends Component<TSelf>> {
 
     throw new Error("No matching overload for create");
   }
-
-  abstract render(): void;
 }

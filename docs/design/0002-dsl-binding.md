@@ -52,7 +52,7 @@ Section(section =>
 - **A prop that `Render` binds is a `Prop<T>`** (maintainer decision, 2026-11-27): a `readonly struct` holding a static value or a reader `Func<T>`, with no signal inside. `Value` returns the value or calls the reader, so a read inside a `Bind` in `Render` is tracked.
   - **Static:** an implicit conversion from `T` (`card.Title = "Solo"`); it reaches `Render` at once, with no flush.
   - **Reactive:** `View.Live(() => expr)` (`card.Title = Live(() => $"#{count.Value}")`). A lambda does not convert to a user type (CS1660), so a factory is needed. It is not a `Bind` overload: an assignment lambda has a value, so C# would pick a `Func` overload over the fused `Bind(Action)` and bind nothing. It is not `Prop.Of`: a non-generic `Prop` next to `Prop<T>` is one TS name (Metano MS0070).
-  - Assigning a `Prop<T>` writes no signal, so it works in a factory lambda inside a `For` item or a `Show` branch, where a signal-backed prop threw (spec 0001).
+  - Assigning a `Prop<T>` writes no signal, so it works in a `Create` props lambda inside a `For` item or a `Show` branch, where a signal-backed prop threw (spec 0001).
   - Emitted TS: the conversion is a static call (`Prop.__implicitFromT("Solo")`), `Live` a static call that builds one `Prop` at setup; a read is `prop.value`, a field test plus the reader call, with no allocation per update. Metano emits `equals`/`hashCode` for any struct, unused here. A written `default(Prop<T>)` or an uninitialized `Prop<T>` property is refused in TS (MS0001, Metano #851), and the emitted `$default()` reads `null`; on .NET `default` reads as `default(T)`.
 - **A plain property is read-once configuration:** `Render` reads it once, right after the props lambda (spike: a later binding was lost, `Count: 1 (Start = 106)`). `Bind` (both forms) therefore throws inside a props lambda, pointing to `Live`, whether it targets a `Prop<T>` or a plain property; `Content` runs inside `Render` and is unaffected. Events stay plain delegates (`Action? OnRemove`).
 - `Component<TSelf>` (`where TSelf : Component<TSelf>, new()`) provides `Create(build)` and `Create()`, called on the concrete class (`Card.Create(card => card.Title = "Hi")`). Metano 4.1.0 (#832) emits them as self-typed statics (`this: new () => TSelf`, `new this()`); the call sites bind statically to `createBuild`/`createDefault`, with no overload dispatch at run time. (Until 4.1.0 each component had its own one-line factory.)
@@ -209,7 +209,7 @@ Custom components, C vs G (the same `Card`: title static or reactive, reactive `
 
 | | C (`CardC`, constructor props) | G (`CardG`, `Bindable<T>` properties) |
 |---|---|---|
-| Author code (lines, no blanks or comments) | 15 | 19, plus a one-line factory |
+| Author code (lines, no blanks or comments) | 15 | 19, plus a one-line factory (gone since Metano 4.1.0, #832) |
 | Consumer code for two cards | 20 | 31 |
 | A static prop value | Wrapped: `title: () => "x"` | Plain: `card.Title = "x"` |
 | A reactive prop value | `title: () => $"..."` | `card.Title = Bind(() => $"...")` |
@@ -227,7 +227,7 @@ Option H (maintainer's proposal): builder lambdas over the platform element itse
 - Component props backed by signals (`public string Title { get => _title.Value; set => _title.Value = value; }`) take a static assignment or a split `Bind` from the consumer and react inside `Render`.
 - A fused `Bind` that writes a signal-backed prop throws ("Writing to a signal inside a computation is not allowed", spec 0001); the failed effect stays subscribed and throws again, out of the flush, on every change of what it read.
 - A plain prop (`public int Start { get; set; }`) bound with a split `Bind` silently loses the value: `Render` reads the default before the first apply, which runs at the end of the flush; the counter showed `Count: 1 (Start = 106)`. With G's `Bindable<T>`, binding a plain-typed prop is a compile error instead.
-- A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter; Metano #832 proposes `new this()`), so each component exposes a one-line factory until then.
+- A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter; Metano #832 proposes `new this()`), so each component exposed a one-line factory until Metano 4.1.0 fixed it (see Components above).
 
 Option H, `Counter` and `CounterList` (smoke test `spikes/dsl-web/counter-list.smoke.test.ts`, on a fake DOM, because the browser extension was offline):
 

@@ -1,7 +1,7 @@
 namespace Metanui.Ui;
 
 /// <summary>
-/// A component: props are C# properties set in the factory's lambda, then <see cref="Render" /> runs
+/// A component: props are C# properties set in the props lambda passed to <c>Create</c>, then <see cref="Render" /> runs
 /// once and builds into the ambient insertion point.
 /// </summary>
 /// <remarks>
@@ -28,18 +28,6 @@ public abstract class Component<TSelf>
     where TSelf : Component<TSelf>, new()
 {
     /// <summary>
-    /// Creates the component, sets its props in <paramref name="build" />, and mounts it at the
-    /// ambient insertion point (<c>Card.Create(card =&gt; card.Title = "Hi")</c>).
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// <paramref name="build" /> creates a node: children go in <see cref="Content" />.
-    /// </exception>
-    public static void Create(Action<TSelf> build) => View.Mount(new TSelf(), build);
-
-    /// <summary>Creates the component with no props and mounts it at the ambient insertion point.</summary>
-    public static void Create() => View.Mount(new TSelf(), static _ => { });
-
-    /// <summary>
     /// The children, built where <see cref="Render" /> invokes it (<c>Content?.Invoke()</c>), in the
     /// insertion point active there.
     /// </summary>
@@ -52,4 +40,16 @@ public abstract class Component<TSelf>
     /// event handlers.
     /// </remarks>
     public abstract void Render();
+
+    /// <summary>
+    /// Creates the component, sets its props in <paramref name="build" />, and mounts it at the
+    /// ambient insertion point (<c>Card.Create(card =&gt; card.Title = "Hi")</c>).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="build" /> creates a node: children go in <see cref="Content" />.
+    /// </exception>
+    public static void Create(Action<TSelf> build) => View.Mount(new TSelf(), build);
+
+    /// <summary>Creates the component with no props and mounts it at the ambient insertion point.</summary>
+    public static void Create() => View.Mount(new TSelf(), static _ => { });
 }

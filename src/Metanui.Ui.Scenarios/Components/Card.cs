@@ -8,7 +8,6 @@ public sealed class Card : Component<Card>
 {
     public Prop<string> Title { get; set; } = "";
 
-
     public override void Render() =>
         Box(card =>
         {
