@@ -1,4 +1,5 @@
 using Metano.Annotations;
+using Metano.Interop;
 using Metanui.Ui.Building;
 using Metanui.Ui.Web.Dom;
 
@@ -35,12 +36,10 @@ public static class Html
     public static void Section(Action<HTMLElement> build) => Create("section", build);
 
     /// <summary>Creates a <c>button</c>.</summary>
-    public static void Button(Action<HTMLButtonElement> build) =>
-        Builder.Create((HTMLButtonElement)Browser.Document.CreateElement("button"), build);
+    public static void Button(Action<HTMLButtonElement> build) => Create("button", build);
 
     /// <summary>Creates an <c>input</c>.</summary>
-    public static void Input(Action<HTMLInputElement> build) =>
-        Builder.Create((HTMLInputElement)Browser.Document.CreateElement("input"), build);
+    public static void Input(Action<HTMLInputElement> build) => Create("input", build);
 
     /// <summary>Creates a <c>ul</c>.</summary>
     public static void Ul(Action<HTMLElement> build) => Create("ul", build);
@@ -48,6 +47,7 @@ public static class Html
     /// <summary>Creates an <c>li</c>.</summary>
     public static void Li(Action<HTMLElement> build) => Create("li", build);
 
-    private static void Create(string tagName, Action<HTMLElement> build) =>
-        Builder.Create(Browser.Document.CreateElement(tagName), build);
+    private static void Create<TElement>(string tagName, Action<TElement> build)
+        where TElement : class, HTMLElement =>
+        Builder.Create(Browser.Document.CreateElement(tagName).UnsafeCast<TElement>(), build);
 }

@@ -29,11 +29,11 @@ export function section(build: (obj: HTMLElement) => void): void {
 }
 
 export function button(build: (obj: HTMLButtonElement) => void): void {
-  Builder.create(document.createElement("button") as HTMLButtonElement, build);
+  create("button", build);
 }
 
 export function input(build: (obj: HTMLInputElement) => void): void {
-  Builder.create(document.createElement("input") as HTMLInputElement, build);
+  create("input", build);
 }
 
 export function ul(build: (obj: HTMLElement) => void): void {
@@ -44,6 +44,6 @@ export function li(build: (obj: HTMLElement) => void): void {
   create("li", build);
 }
 
-function create(tagName: string, build: (obj: HTMLElement) => void): void {
-  Builder.create(document.createElement(tagName), build);
+function create<TElement extends HTMLElement>(tagName: string, build: (obj: TElement) => void): void {
+  Builder.create(document.createElement(tagName) as unknown as TElement, build);
 }
