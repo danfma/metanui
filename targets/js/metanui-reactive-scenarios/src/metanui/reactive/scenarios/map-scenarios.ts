@@ -1,4 +1,4 @@
-import { HashCode, copyRecordWith, objectText, throwError } from "metano-runtime";
+import { HashCode, copyRecordWith, objectText, throwError, valueHashCode } from "metano-runtime";
 import { List, type IReadOnlyList } from "metano-runtime/system/collections";
 import type { Exception } from "metano-runtime/system/exceptions/exception";
 import { InvalidOperationException } from "metano-runtime/system/exceptions/invalid-operation-exception";
@@ -37,6 +37,52 @@ class MapScenarios$Row {
   }
 }
 
+class MapScenarios$HashTrap {
+  declare armed: boolean;
+
+  constructor() {
+    this.armed = false;
+  }
+}
+
+class MapScenarios$TrapKey {
+  declare readonly name: string;
+  declare private readonly _trap: MapScenarios$HashTrap;
+
+  constructor(name: string, trap: MapScenarios$HashTrap) {
+    this.name = name;
+    this._trap = trap;
+  }
+
+  equalsOther(other: MapScenarios$TrapKey | null): boolean {
+    return other != null && other.name === this.name;
+  }
+
+  equalsObj(obj: Object | null): boolean {
+    let other: MapScenarios$TrapKey;
+
+    return obj instanceof MapScenarios$TrapKey && (other = obj, true) && this.equalsOther(other);
+  }
+
+  equals(other: MapScenarios$TrapKey | null): boolean;
+  equals(obj: Object | null): boolean;
+  equals(...args: unknown[]): boolean {
+    if (args.length === 1 && (args[0] === null || args[0] instanceof MapScenarios$TrapKey)) {
+      return this.equalsOther(args[0] as MapScenarios$TrapKey | null);
+    }
+
+    if (args.length === 1) {
+      return this.equalsObj(args[0] as Object | null);
+    }
+
+    throw new Error("No matching overload for equals");
+  }
+
+  hashCode(): number {
+    return this._trap.armed && this.name === "b" ? throwError(new InvalidOperationException("hash")) : valueHashCode(this.name);
+  }
+}
+
 class MapScenarios$Entry {
   declare readonly id: number;
   declare name: string;
@@ -48,7 +94,7 @@ class MapScenarios$Entry {
 }
 
 export class MapScenarios {
-  static readonly all: Scenario[] = [new Scenario("items created in a computed are disposed when it reruns", MapScenarios.itemsCreatedInAComputedAreDisposedWhenItReruns), new Scenario("map keeps item owners across source reruns", MapScenarios.mapKeepsItemOwnersAcrossSourceReruns), new Scenario("map is lazy and maps only added items", MapScenarios.mapIsLazyAndMapsOnlyAddedItems), new Scenario("removing the first, middle or last item disposes only that item", MapScenarios.removingAnItemDisposesOnlyThatItem), new Scenario("reorder keeps every item and follows the new order", MapScenarios.reorderKeepsEveryItemAndFollowsTheNewOrder), new Scenario("replacing all items disposes the old ones and maps the new ones", MapScenarios.replacingAllItemsDisposesTheOldOnesAndMapsTheNewOnes), new Scenario("clearing the source disposes every item", MapScenarios.clearingTheSourceDisposesEveryItem), new Scenario("duplicate records pair in order", MapScenarios.duplicateRecordsPairInOrder), new Scenario("key selector keeps a mutated item and its result", MapScenarios.keySelectorKeepsAMutatedItemAndItsResult), new Scenario("disposing the owner disposes every item", MapScenarios.disposingTheOwnerDisposesEveryItem), new Scenario("cleanups run once per removed item", MapScenarios.cleanupsRunOncePerRemovedItem), new Scenario("unchanged rerun keeps the list instance", MapScenarios.unchangedRerunKeepsTheListInstance), new Scenario("item state survives unrelated additions", MapScenarios.itemStateSurvivesUnrelatedAdditions), new Scenario("reads in map are not tracked", MapScenarios.readsInMapAreNotTracked), new Scenario("writing a signal in map or key throws", MapScenarios.writingASignalInMapOrKeyThrows), new Scenario("exception in map keeps the previous mapping", MapScenarios.exceptionInMapKeepsThePreviousMapping), new Scenario("losing the last observer keeps the items", MapScenarios.losingTheLastObserverKeepsTheItems), new Scenario("map that disposes its owner leaves no item alive", MapScenarios.mapThatDisposesItsOwnerLeavesNoItemAlive), new Scenario("creating a map in an apply throws", MapScenarios.creatingAMapInAnApplyThrows)];
+  static readonly all: Scenario[] = [new Scenario("items created in a computed are disposed when it reruns", MapScenarios.itemsCreatedInAComputedAreDisposedWhenItReruns), new Scenario("map keeps item owners across source reruns", MapScenarios.mapKeepsItemOwnersAcrossSourceReruns), new Scenario("map is lazy and maps only added items", MapScenarios.mapIsLazyAndMapsOnlyAddedItems), new Scenario("removing the first, middle or last item disposes only that item", MapScenarios.removingAnItemDisposesOnlyThatItem), new Scenario("reorder keeps every item and follows the new order", MapScenarios.reorderKeepsEveryItemAndFollowsTheNewOrder), new Scenario("replacing all items disposes the old ones and maps the new ones", MapScenarios.replacingAllItemsDisposesTheOldOnesAndMapsTheNewOnes), new Scenario("clearing the source disposes every item", MapScenarios.clearingTheSourceDisposesEveryItem), new Scenario("duplicate records pair in order", MapScenarios.duplicateRecordsPairInOrder), new Scenario("key selector keeps a mutated item and its result", MapScenarios.keySelectorKeepsAMutatedItemAndItsResult), new Scenario("disposing the owner disposes every item", MapScenarios.disposingTheOwnerDisposesEveryItem), new Scenario("cleanups run once per removed item", MapScenarios.cleanupsRunOncePerRemovedItem), new Scenario("unchanged rerun keeps the list instance", MapScenarios.unchangedRerunKeepsTheListInstance), new Scenario("item state survives unrelated additions", MapScenarios.itemStateSurvivesUnrelatedAdditions), new Scenario("reads in map are not tracked", MapScenarios.readsInMapAreNotTracked), new Scenario("writing a signal in map or key throws", MapScenarios.writingASignalInMapOrKeyThrows), new Scenario("exception in map keeps the previous mapping", MapScenarios.exceptionInMapKeepsThePreviousMapping), new Scenario("losing the last observer keeps the items", MapScenarios.losingTheLastObserverKeepsTheItems), new Scenario("map that disposes its owner leaves no item alive", MapScenarios.mapThatDisposesItsOwnerLeavesNoItemAlive), new Scenario("creating a map in an apply throws", MapScenarios.creatingAMapInAnApplyThrows), new Scenario("cleanup error raised in map waits for the next flush", MapScenarios.cleanupErrorRaisedInMapWaitsForTheNextFlush), new Scenario("key hash that throws leaves no stale index for the next run", MapScenarios.keyHashThatThrowsLeavesNoStaleIndexForTheNextRun), new Scenario("effect created in map routes its error to the boundary above the map", MapScenarios.effectCreatedInMapRoutesItsErrorToTheBoundaryAboveTheMap)];
 
   private constructor() { }
 
@@ -405,6 +451,70 @@ export class MapScenarios {
     Reactivity.effect(() => 0, (_: number, _1: number) => error = ScenarioRunner.catch(() => Reactivity.mapSourceMap<string, string>(() => List.adopt<string>([], { fixedSize: true }), (item: string) => item)));
     Reactivity.flush();
     expect.isTrue(error instanceof InvalidOperationException, "map in an apply throws");
+  }
+
+  private static cleanupErrorRaisedInMapWaitsForTheNextFlush(expect: IExpect): void {
+    const cleanupError = new InvalidOperationException("cleanup");
+    const disposeInner = Reactivity.rootBody<() => void>((disposeRoot: () => void) => {
+      Reactivity.onCleanup(() => throwError(cleanupError));
+
+      return disposeRoot;
+    });
+    const mapped = Reactivity.mapSourceMap<string, string>(() => List.adopt<string>(["a"], { fixedSize: true }), (item: string) => {
+      disposeInner();
+
+      return item;
+    });
+    const readError = ScenarioRunner.catch(() => mapped());
+    expect.isTrue(readError == null, "the cleanup error does not abort the map run");
+    expect.equal("a", MapScenarios.join(mapped()), "the run completes");
+    const flushError = ScenarioRunner.catch(() => Reactivity.flush());
+    expect.isTrue((cleanupError === flushError), "the next flush rethrows it");
+  }
+
+  private static keyHashThatThrowsLeavesNoStaleIndexForTheNextRun(expect: IExpect): void {
+    let log = "";
+    const trap = new MapScenarios$HashTrap();
+    const a = new MapScenarios$TrapKey("a", trap);
+    const b = new MapScenarios$TrapKey("b", trap);
+    const items = Reactivity.signal<IReadOnlyList<MapScenarios$TrapKey>>(List.adopt<MapScenarios$TrapKey>([a, b], { fixedSize: true }));
+    const mapped = Reactivity.mapSourceMap<MapScenarios$TrapKey, string>(() => items.value, (key: MapScenarios$TrapKey) => MapScenarios.logCleanup(key.name, () => log += key.name));
+    expect.equal("a,b", MapScenarios.join(mapped()), "first read");
+    trap.armed = true;
+    items.value = List.adopt<MapScenarios$TrapKey>([b, a], { fixedSize: true });
+    Reactivity.flush();
+    expect.isTrue(ScenarioRunner.catch(() => mapped()) instanceof InvalidOperationException, "the hash error aborts the run");
+    trap.armed = false;
+    items.value = List.adopt<MapScenarios$TrapKey>([b], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("b", MapScenarios.join(mapped()), "the next run reconciles against the committed keys");
+    expect.equal("a", log, "the removed item is disposed");
+  }
+
+  private static effectCreatedInMapRoutesItsErrorToTheBoundaryAboveTheMap(expect: IExpect): void {
+    let errors = "";
+    let disposals = "";
+    const fail = Reactivity.signal(false);
+    const items = Reactivity.signal<IReadOnlyList<string>>(List.adopt<string>(["a", "b"], { fixedSize: true }));
+    Reactivity.errorBoundary(() => {
+      const mapped = Reactivity.mapSourceMap<string, string>(() => items.value, (item: string) => {
+        Reactivity.onCleanup(() => disposals += item);
+        Reactivity.effect(() => item === "b" && fail.value ? throwError(new InvalidOperationException(item)) : item, (_: string, _1: string) => {
+        });
+
+        return item;
+      });
+      Reactivity.effect(() => MapScenarios.join(mapped()), (_: string, _1: string) => {
+      });
+    }, (error: Exception) => errors += error.message);
+    Reactivity.flush();
+    fail.value = true;
+    Reactivity.flush();
+    expect.equal("b", errors, "the boundary above the map handles the item effect's error");
+    expect.equal("", disposals, "every item stays alive");
+    items.value = List.adopt<string>(["a"], { fixedSize: true });
+    Reactivity.flush();
+    expect.equal("b", disposals, "removing the failing item disposes its owner");
   }
 
   private static logCleanup<TItem>(item: TItem, cleanup: () => void): TItem {

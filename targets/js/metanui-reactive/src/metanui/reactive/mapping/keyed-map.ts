@@ -1,38 +1,40 @@
 import { Dictionary, List, throwModified, type IEqualityComparer, type IReadOnlyList } from "metano-runtime/system/collections";
 import { arrayLength, defaultEqualityComparerFor, intDiv } from "metano-runtime";
 import { Computed } from "../computed.js";
+import { ScopeOwner } from "../ownership/scope-owner.js";
 import { Tracking } from "../tracking.js";
 import { ListIdentityComparer } from "./list-identity-comparer.js";
-import { MapOwner } from "./map-owner.js";
 
 export class KeyedMap<T, TKey, TResult> {
   private static readonly noPosition: number = -1;
   declare private readonly _source: () => IReadOnlyList<T>;
   declare private readonly _key: (arg: T) => TKey;
   declare private readonly _map: (arg: T) => TResult;
-  declare private readonly _keyComparer: IEqualityComparer<TKey>;
-  declare private readonly _listOwner: MapOwner;
+  declare private readonly _listOwner: ScopeOwner;
   declare private readonly _mapped: Computed<IReadOnlyList<TResult>>;
   declare private readonly _nextPositions: Dictionary<TKey, number>;
   declare private _keys: List<TKey>;
   declare private _results: List<TResult>;
-  declare private _owners: MapOwner[];
+  declare private _owners: ScopeOwner[];
+  declare private _previousPositions: number[];
+  declare private _laterPositions: number[];
 
   constructor(source: () => IReadOnlyList<T>, key: (arg: T) => TKey, map: (arg: T) => TResult) {
     this._source = undefined!;
     this._key = undefined!;
     this._map = undefined!;
-    this._keyComparer = defaultEqualityComparerFor();
     this._listOwner = undefined!;
     this._mapped = undefined!;
     this._nextPositions = (new Dictionary<TKey, number>());
     this._keys = new List<TKey>();
     this._results = new List<TResult>();
     this._owners = [];
+    this._previousPositions = [];
+    this._laterPositions = [];
     this._source = source;
     this._key = key;
     this._map = map;
-    this._listOwner = new MapOwner();
+    this._listOwner = new ScopeOwner();
     this._mapped = new Computed(this.run.bind(this), KeyedMap.resultComparer());
   }
 
@@ -67,10 +69,10 @@ export class KeyedMap<T, TKey, TResult> {
     const suffix = this.trimmableSuffixLength(keys, start);
     const newEnd = (keys.count - suffix) | 0;
     const oldEnd = (this._keys.count - suffix) | 0;
-    const previousPositions = new Array<number>(arrayLength((newEnd - start) | 0)).fill(0);
-    const removed = this.pairKeptItems(keys, start, newEnd, oldEnd, previousPositions);
+    this.ensureScratch((newEnd - start) | 0);
+    const removed = this.pairKeptItems(keys, start, newEnd, oldEnd);
     const owners = new Array(arrayLength(keys.count)).fill(null);
-    const results = this.buildResults(items, start, newEnd, previousPositions, owners);
+    const results = this.buildResults(items, start, newEnd, owners);
     this._keys = keys;
     this._owners = owners;
     this._results = results;
@@ -82,7 +84,7 @@ export class KeyedMap<T, TKey, TResult> {
   private commonPrefixLength(items: IReadOnlyList<T>): number {
     const limit = Math.min(items.count, this._keys.count);
     let start = 0;
-    while (start < limit && this._keyComparer.equals(this._keys.get(start), this._key(items.get(start)))) {
+    while (start < limit && KeyedMap.keysEqual(this._keys.get(start), this._key(items.get(start)))) {
       start = (start + 1) | 0;
     }
 
@@ -124,7 +126,7 @@ export class KeyedMap<T, TKey, TResult> {
   private commonSuffixLength(keys: List<TKey>, start: number): number {
     const limit = (Math.min(keys.count, this._keys.count) - start) | 0;
     let length = 0;
-    while (length < limit && this._keyComparer.equals(this._keys.get((this._keys.count - 1 - length) | 0), keys.get((keys.count - 1 - length) | 0))) {
+    while (length < limit && KeyedMap.keysEqual(this._keys.get((this._keys.count - 1 - length) | 0), keys.get((keys.count - 1 - length) | 0))) {
       length = (length + 1) | 0;
     }
 
@@ -134,7 +136,7 @@ export class KeyedMap<T, TKey, TResult> {
   private anyKeyOccursIn(source: List<TKey>, from: number, to: number, suffix: List<TKey>, suffixStart: number): boolean {
     for (let index = from; index < to; index++) {
       for (let other = suffixStart; other < suffix.count; other++) {
-        if (this._keyComparer.equals(source.get(index), suffix.get(other))) {
+        if (KeyedMap.keysEqual(source.get(index), suffix.get(other))) {
           return true;
         }
       }
@@ -143,52 +145,67 @@ export class KeyedMap<T, TKey, TResult> {
     return false;
   }
 
-  private pairKeptItems(keys: List<TKey>, start: number, newEnd: number, oldEnd: number, previousPositions: number[]): List<MapOwner> | null {
-    for (let slot = 0; slot < previousPositions.length; slot++) {
-      previousPositions[slot] = KeyedMap.noPosition;
+  private ensureScratch(length: number): void {
+    if (this._previousPositions.length >= length) {
+      return;
+    }
+
+    const capacity = Math.max(length, Math.imul(this._previousPositions.length, 2));
+    this._previousPositions = new Array<number>(arrayLength(capacity)).fill(0);
+    this._laterPositions = new Array<number>(arrayLength(capacity)).fill(0);
+  }
+
+  private pairKeptItems(keys: List<TKey>, start: number, newEnd: number, oldEnd: number): List<ScopeOwner> | null {
+    for (let slot = 0; slot < ((newEnd - start) | 0); slot++) {
+      this._previousPositions[slot] = KeyedMap.noPosition;
     }
 
     if (oldEnd === start) {
       return null;
     }
 
-    const laterPositions = this.indexWindow(keys, start, newEnd);
-    let removed = null as List<MapOwner> | null;
+    try {
+      this.indexWindow(keys, start, newEnd);
+
+      return this.pairWithIndex(start, oldEnd);
+    } finally {
+      this._nextPositions.clear();
+    }
+  }
+
+  private indexWindow(keys: List<TKey>, start: number, end: number): void {
+    for (let index = (end - 1) | 0; index >= start; index = (index - 1) | 0) {
+      const key = keys.get(index);
+      this._laterPositions[(index - start) | 0] = this._nextPositions.getValueOrDefault(key, KeyedMap.noPosition);
+      this._nextPositions.set(key, index);
+    }
+  }
+
+  private pairWithIndex(start: number, oldEnd: number): List<ScopeOwner> | null {
+    let removed = null as List<ScopeOwner> | null;
     for (let index = start; index < oldEnd; index++) {
       const key = this._keys.get(index);
       const position = this._nextPositions.getValueOrDefault(key, KeyedMap.noPosition);
 
       if (position !== KeyedMap.noPosition) {
-        previousPositions[(position - start) | 0] = index;
-        this._nextPositions.set(key, laterPositions[(position - start) | 0]!);
+        this._previousPositions[(position - start) | 0] = index;
+        this._nextPositions.set(key, this._laterPositions[(position - start) | 0]!);
       } else {
-        removed ??= new List<MapOwner>();
+        removed ??= new List<ScopeOwner>();
         removed.add(this._owners[index]!);
       }
     }
-    this._nextPositions.clear();
 
     return removed;
   }
 
-  private indexWindow(keys: List<TKey>, start: number, end: number): number[] {
-    const laterPositions = new Array<number>(arrayLength((end - start) | 0)).fill(0);
-    for (let index = (end - 1) | 0; index >= start; index = (index - 1) | 0) {
-      const key = keys.get(index);
-      laterPositions[(index - start) | 0] = this._nextPositions.getValueOrDefault(key, KeyedMap.noPosition);
-      this._nextPositions.set(key, index);
-    }
-
-    return laterPositions;
-  }
-
-  private buildResults(items: IReadOnlyList<T>, start: number, newEnd: number, previousPositions: number[], owners: MapOwner[]): List<TResult> {
+  private buildResults(items: IReadOnlyList<T>, start: number, newEnd: number, owners: ScopeOwner[]): List<TResult> {
     const results = List.withCapacity<TResult>(items.count);
-    let created = null as List<MapOwner> | null;
+    let created = null as List<ScopeOwner> | null;
     this.copyKept(results, owners, 0, start, 0);
     try {
       for (let index = start; index < newEnd; index++) {
-        const previous = previousPositions[(index - start) | 0]!;
+        const previous = this._previousPositions[(index - start) | 0]!;
 
         if (previous !== KeyedMap.noPosition) {
           owners[index] = this._owners[previous]!;
@@ -197,7 +214,7 @@ export class KeyedMap<T, TKey, TResult> {
         }
 
         const owner = this.createItemOwner();
-        created ??= new List<MapOwner>();
+        created ??= new List<ScopeOwner>();
         created.add(owner);
         owners[index] = owner;
         results.add(this.mapUnder(owner, items.get(index)));
@@ -211,23 +228,23 @@ export class KeyedMap<T, TKey, TResult> {
     return results;
   }
 
-  private copyKept(results: List<TResult>, owners: MapOwner[], from: number, to: number, shift: number): void {
+  private copyKept(results: List<TResult>, owners: ScopeOwner[], from: number, to: number, shift: number): void {
     for (let index = from; index < to; index++) {
       owners[index] = this._owners[(index + shift) | 0]!;
       results.add(this._results.get((index + shift) | 0));
     }
   }
 
-  private createItemOwner(): MapOwner {
+  private createItemOwner(): ScopeOwner {
     const previousOwner = Tracking.currentOwner;
     Tracking.currentOwner = this._listOwner;
-    const owner = new MapOwner();
+    const owner = new ScopeOwner();
     Tracking.currentOwner = previousOwner;
 
     return owner;
   }
 
-  private mapUnder(owner: MapOwner, item: T): TResult {
+  private mapUnder(owner: ScopeOwner, item: T): TResult {
     const previousOwner = Tracking.currentOwner;
     Tracking.currentOwner = owner;
     try {
@@ -245,7 +262,11 @@ export class KeyedMap<T, TKey, TResult> {
     return new ListIdentityComparer<TResult>();
   }
 
-  private static disposeAll(owners: List<MapOwner> | null): void {
+  private static keysEqual<TKey>(left: TKey, right: TKey): boolean {
+    return defaultEqualityComparerFor().equals(left, right);
+  }
+
+  private static disposeAll(owners: List<ScopeOwner> | null): void {
     if (owners == null) {
       return;
     }

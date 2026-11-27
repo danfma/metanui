@@ -54,6 +54,18 @@ public static class MapScenarios
             MapThatDisposesItsOwnerLeavesNoItemAlive
         ),
         new Scenario("creating a map in an apply throws", CreatingAMapInAnApplyThrows),
+        new Scenario(
+            "cleanup error raised in map waits for the next flush",
+            CleanupErrorRaisedInMapWaitsForTheNextFlush
+        ),
+        new Scenario(
+            "key hash that throws leaves no stale index for the next run",
+            KeyHashThatThrowsLeavesNoStaleIndexForTheNextRun
+        ),
+        new Scenario(
+            "effect created in map routes its error to the boundary above the map",
+            EffectCreatedInMapRoutesItsErrorToTheBoundaryAboveTheMap
+        ),
     ];
 
     /// <summary>
@@ -319,6 +331,8 @@ public static class MapScenarios
         var disposals = 0;
         var dispose = () => { };
 
+        // Metano (reported 2026-11-27, issue number pending): an explicitly typed delegate local
+        // loses its type in TS, so the map comes back from the root body instead.
         var mapped = Reactivity.Root(disposeRoot =>
         {
             dispose = disposeRoot;
@@ -552,6 +566,8 @@ public static class MapScenarios
         var disposals = 0;
         var dispose = () => { };
 
+        // Metano (reported 2026-11-27, issue number pending): an explicitly typed delegate local
+        // loses its type in TS, so the map comes back from the root body instead.
         var mapped = Reactivity.Root(disposeRoot =>
         {
             dispose = disposeRoot;
@@ -594,6 +610,115 @@ public static class MapScenarios
         expect.IsTrue(error is InvalidOperationException, "map in an apply throws");
     }
 
+    private static void CleanupErrorRaisedInMapWaitsForTheNextFlush(IExpect expect)
+    {
+        var cleanupError = new InvalidOperationException("cleanup");
+
+        var disposeInner = Reactivity.Root<Action>(disposeRoot =>
+        {
+            Reactivity.OnCleanup(() => throw cleanupError);
+
+            return disposeRoot;
+        });
+
+        var mapped = Reactivity.Map<string, string>(
+            () => ["a"],
+            item =>
+            {
+                disposeInner();
+
+                return item;
+            }
+        );
+
+        var readError = ScenarioRunner.Catch(() => mapped());
+
+        expect.IsTrue(readError is null, "the cleanup error does not abort the map run");
+        expect.Equal("a", Join(mapped()), "the run completes");
+
+        var flushError = ScenarioRunner.Catch(() => Reactivity.Flush());
+
+        expect.IsTrue(ReferenceEquals(cleanupError, flushError), "the next flush rethrows it");
+    }
+
+    private static void KeyHashThatThrowsLeavesNoStaleIndexForTheNextRun(IExpect expect)
+    {
+        var log = "";
+        var trap = new HashTrap();
+        var a = new TrapKey("a", trap);
+        var b = new TrapKey("b", trap);
+        var items = Reactivity.Signal<IReadOnlyList<TrapKey>>([a, b]);
+
+        var mapped = Reactivity.Map(
+            () => items.Value,
+            key => LogCleanup(key.Name, () => log += key.Name)
+        );
+
+        expect.Equal("a,b", Join(mapped()), "first read");
+
+        trap.Armed = true;
+        items.Value = [b, a];
+        Reactivity.Flush();
+
+        expect.IsTrue(
+            ScenarioRunner.Catch(() => mapped()) is InvalidOperationException,
+            "the hash error aborts the run"
+        );
+
+        trap.Armed = false;
+        items.Value = [b];
+        Reactivity.Flush();
+
+        expect.Equal("b", Join(mapped()), "the next run reconciles against the committed keys");
+        expect.Equal("a", log, "the removed item is disposed");
+    }
+
+    private static void EffectCreatedInMapRoutesItsErrorToTheBoundaryAboveTheMap(IExpect expect)
+    {
+        var errors = "";
+        var disposals = "";
+        var fail = Reactivity.Signal(false);
+        var items = Reactivity.Signal<IReadOnlyList<string>>(["a", "b"]);
+
+        Reactivity.ErrorBoundary(
+            () =>
+            {
+                var mapped = Reactivity.Map(
+                    () => items.Value,
+                    item =>
+                    {
+                        Reactivity.OnCleanup(() => disposals += item);
+
+                        Reactivity.Effect(
+                            () =>
+                                item == "b" && fail.Value
+                                    ? throw new InvalidOperationException(item)
+                                    : item,
+                            (_, _) => { }
+                        );
+
+                        return item;
+                    }
+                );
+
+                Reactivity.Effect(() => Join(mapped()), (_, _) => { });
+            },
+            error => errors += error.Message
+        );
+
+        Reactivity.Flush();
+        fail.Value = true;
+        Reactivity.Flush();
+
+        expect.Equal("b", errors, "the boundary above the map handles the item effect's error");
+        expect.Equal("", disposals, "every item stays alive");
+
+        items.Value = ["a"];
+        Reactivity.Flush();
+
+        expect.Equal("b", disposals, "removing the failing item disposes its owner");
+    }
+
     /// <summary>Registers <paramref name="cleanup" /> on the item owner and returns <paramref name="item" />.</summary>
     private static TItem LogCleanup<TItem>(TItem item, Action cleanup)
     {
@@ -615,6 +740,27 @@ public static class MapScenarios
     }
 
     private sealed record Row(int Id, string Name);
+
+    /// <summary>Makes <see cref="TrapKey.GetHashCode" /> of the key named "b" throw while armed.</summary>
+    private sealed class HashTrap
+    {
+        public bool Armed { get; set; }
+    }
+
+    /// <summary>A key equal by name whose hash can be made to throw (spec 4.8, aborted run).</summary>
+    private sealed class TrapKey(string name, HashTrap trap) : IEquatable<TrapKey>
+    {
+        public string Name { get; } = name;
+
+        public bool Equals(TrapKey? other) => other is not null && other.Name == Name;
+
+        public override bool Equals(object? obj) => obj is TrapKey other && Equals(other);
+
+        public override int GetHashCode() =>
+            trap.Armed && Name == "b"
+                ? throw new InvalidOperationException("hash")
+                : Name.GetHashCode();
+    }
 
     private sealed class Entry(int id, string name)
     {
