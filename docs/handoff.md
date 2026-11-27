@@ -1,18 +1,18 @@
 # Handoff — Metanui
 
-## Status (2026-11-26): reactive core done, Metano 4.0.3, effect handle shipped, DSL spikes
+## Status (2026-11-27): reactive core done, Metano 4.0.3, DSL v1 design accepted, plan ready
 
-The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano generates (`bun test`). The DSL, the DOM renderer and js-framework-benchmark are not started.
+The reactive core (`src/Metanui.Reactive`) is complete: signals, lazy computeds, split effects, ownership and cleanup, error boundaries, the flush loop and its scheduler port. The same C# scenarios (`src/Metanui.Reactive.Scenarios`) pass on .NET (TUnit) and on the TypeScript that Metano generates (`bun test`). The DSL v1 design is accepted (option H, `docs/design/0002-dsl-binding.md`) and planned in `plans/dsl-v1.md`, on branch `feat/dsl-v1`; its implementation and js-framework-benchmark are not started.
 
 - Plans and phase summaries: `plans/reactive-core.md`, `plans/metano-3.2-effect-handle.md`.
 - Design and its deviations from `@solidjs/signals` 2.0.4: `docs/design/0001-reactive-core.md`.
 - Generated TypeScript audit and Metano issue status: `docs/design/0001-reactive-core-ts-audit.md`.
-- DSL binding stub: `docs/design/0002-dsl-binding.md`.
+- DSL design (accepted v1, plus the spike record for options A–H): `docs/design/0002-dsl-binding.md`. Plan: `plans/dsl-v1.md`.
 - Benchmark method, results and findings: `bench/reactivity/README.md` (micro-benchmarks: `bench/micro/README.md`).
 
 ### Repo and PRs
 
-The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (Metano 4.0.0 and the effect handle) is merged; the counter spike is on `main` (`spikes/`). The DSL-shapes spike is on branch `spike/dsl-shapes`, with its findings in `docs/design/0002-dsl-binding.md`. PR #4 (Metano 4.0.1) is merged; branches `chore/metano-4.0.2` (4.0.2, a hardened `scripts/update-metano.sh`) and `chore/metano-4.0.3` (4.0.3, on top of it) wait for the merge.
+The repo is public at github.com/danfma/metanui. PRs #1 (reactive core) and #2 (Metano 3.2.0) are merged into `main`. PR #3 (Metano 4.0.0 and the effect handle) is merged; the counter spike is on `main` (`spikes/`). The DSL-shapes spike is on branch `spike/dsl-shapes`, with its findings in `docs/design/0002-dsl-binding.md`. PR #4 (Metano 4.0.1) is merged; Metano 4.0.2 and 4.0.3 (with a hardened `scripts/update-metano.sh`) are on `main`. The DSL v1 work is on `feat/dsl-v1`; the spike code stays on `spike/dsl-shapes` as reference.
 
 ### Benchmark summary
 
@@ -35,7 +35,7 @@ The project is on Metano **4.0.3** (tool, NuGet packages and `metano-runtime`), 
 - Consumer requirements: `"ESNext.Disposable"` in tsconfig `lib` for every TS project that consumes the generated code or metano-runtime; below target ESNext, enable `importHelpers` and depend on `tslib` ^2.6.0. No tsconfig is versioned here (Bun runs the TS directly), so the hand-written tests are not type-checked.
 - `MetanoUsingLowering=tryFinally` restores the try/finally lowering if a target needs it (per the Metano 4.0.0 release notes).
 
-**Open issues (danfma/metano):** #781, #786. Fixed in 4.0.3: #822 (claimer shapes not used by Metanui), #826 and #827 (strict-tsc failures in the DSL spike output). #804 is fixed in 4.0.2: initializers lower without IIFEs, which unblocks DSL option D. #821 is fixed in 4.0.1: `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits its own `override dispose()`, so `Computed<T>` exposes no `dispose()`.
+**Open issues (danfma/metano):** #781, #786, #828 (an interpolated string passed to a custom `[InterpolatedStringHandler]` is emitted as a template literal), #829 (an array passed to a `params` parameter in normal form is emitted as one rest element), #832 (construct the CRTP type parameter in static members of a generic base, `new TSelf()`), #836 (a `$runtimeType` descriptor's type arguments must satisfy the class constraint; `Component<unknown>` under a CRTP constraint gives TS2344), #837 (an out local proven non-null by C# flow still gets TS18047). Fixed in 4.0.3: #822 (claimer shapes not used by Metanui), #826 and #827 (strict-tsc failures in the DSL spike output). #804 is fixed in 4.0.2: initializers lower without IIFEs, which unblocks DSL option D. #821 is fixed in 4.0.1: `OwnerNode.dispose` keeps `@internal` and `EffectNode` emits its own `override dispose()`, so `Computed<T>` exposes no `dispose()`.
 
 ### Effect handle
 
@@ -65,7 +65,7 @@ Parked for a follow-up; it predates the Metano 3.2 branch (reproduced on 2150c1e
 
 ## Next steps
 
-1. **`docs/design/0002-dsl-binding.md`:** the DSL binding design, starting from the stub (decisions taken and open questions are there). It must also settle context through the owner chain, a common read abstraction over `Signal<T>` and `Computed<T>`, and the re-entrant `Run` rules. The `CreateRoot` scope is `IDisposable`, which Metano supports (native `using` since 4.0.0).
+1. **DSL v1:** execute `plans/dsl-v1.md` (keyed `Map` in the core first, then `Signal<T>.Update`, `Metanui.Ui`, `Metanui.Ui.Web` and `samples/counter-web`). Later DSL work (context, the read abstraction, re-entrant `Run`, analyzers, Avalonia) is listed in 0002 under "Out of v1".
 2. **V8 optimisation phase:** F2 (node layout) is the lead hypothesis, then F3 (deep flush) and the defensive `try/finally`. A Metano object-creation benchmark showed that derived classes with declared fields are about 2.4x slower to create on V8. Metano was advised to emit declaration-only fields.
 3. **Remaining follow-ups:**
    - a `TrackingScope` struct for the save/set/restore of the tracking state, if Metano emits it without allocation;

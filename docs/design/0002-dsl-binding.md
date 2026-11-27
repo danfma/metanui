@@ -2,7 +2,68 @@
 
 ## Status
 
-Stub, 2026-11-25. This is not a design. It records the decisions taken so far and the questions the design must answer. Options are compared with prototypes and measurements, not in this document.
+Accepted, 2026-11-27: option H (section "Design (v1)"), chosen after eight shapes were prototyped (spike sections at the end). Implementation plan: [`plans/dsl-v1.md`](../../plans/dsl-v1.md). The sections after "Design (v1)" are the earlier stub (decisions, open questions) and the spike record the design argues from; where they disagree with "Design (v1)", "Design (v1)" wins.
+
+## Design (v1)
+
+Scope: a keyed `Map` in the reactive core, the platform-neutral UI layer, the web adapter with a hand-written subset of the DOM, and a `Counter`/`CounterList` sample.
+
+### Model
+
+- **Fine-grained, setup runs once.** A builder lambda or a component's `Render` runs once under the current owner. A binding is an effect that writes one platform property. There is no virtual tree, no diffing and no re-render.
+- **Not a React model.** A virtual DOM runtime (Preact, Inferno) would cover only the web, Avalonia would need its own reconciler (as Microsoft UI Reactor wrote one for WinUI), every update would rebuild element descriptors in transpiled C#, and the reactive core would be reduced to a state container.
+
+### Layers and packages
+
+| Layer | Package | Knows |
+|---|---|---|
+| Reactive core | `Metanui.Reactive` | nothing of UI; gains `Map` and `Signal<T>.Update` |
+| UI core | `Metanui.Ui` | the core and the node port; no platform type |
+| Web adapter | `Metanui.Ui.Web` (v1) | `[External]` DOM types, element factories, the DOM port, the microtask scheduler |
+| Avalonia adapter | `Metanui.Ui.Avalonia` (later) | native controls |
+
+- **The port is structural and small.** `INodePort`: `CreateText`, `SetText`, `CreateAnchor`, `Insert(parent, node, anchor)`, `Remove(parent, node)`, on `object` handles, so `Metanui.Ui` stays non-generic. Elements are created by the platform factories; the port exists for text, anchors, `For`, `Show` and component content.
+- **The vocabulary is the platform's own object model.** On the web, element types are `[External]` interfaces: they give C# types and completion and emit nothing, so a large vocabulary costs no bundle size. On Avalonia, the native controls are the vocabulary. Nothing wraps an element and no property type carries reactivity.
+- **Proof of neutrality:** `Metanui.Ui` scenarios run against a fake port on .NET and Bun.
+
+### Authoring shape (option H)
+
+```csharp
+Section(section =>
+{
+    section.ClassName = "card";
+    H2(heading => Bind(() => heading.TextContent = $"Count: {count.Value}"));
+    Button(button =>
+    {
+        button.TextContent = "+1";
+        button.OnClick(() => count.Update(c => c + 1));
+    });
+});
+```
+
+- A builder lambda receives the typed platform element; a child created inside it attaches to it through an ambient scope. Static values are plain assignments.
+- **Fused `Bind(() => target.Prop = expr)`:** the write runs in the tracked compute, at once and on every change. Use it for platform properties. A signal write there throws (spec 0001).
+- **Split `Bind(() => expr, value => target.Prop = value)`:** the write runs in the apply phase, and equality skips unchanged values. Use it for signal-backed props and when the result changes less often than its sources.
+- Events are extension methods (`OnClick`, `OnInput`) emitted as module functions.
+
+### Components
+
+- `sealed class Card : Component<Card>` with a `Render(content)` that runs once. Props are plain C# properties.
+- **Reactive props are signal-backed** (`public string Title { get => _title.Value; set => _title.Value = value; }`): the consumer assigns a static value or binds with a split `Bind`, and `Render` reacts.
+- **A plain auto-property is init-only:** `Render` reads it once, and a later binding to it is lost silently (spike: `Count: 1 (Start = 106)`). Documented in v1; an analyzer and a `[Prop]` source generator come later.
+- Each component exposes a one-line static factory until Metano #832 lets `Component<TSelf>.Use(...)` construct `TSelf`.
+
+### Control flow and mounting
+
+- `Reactivity.Map(source, map)` and `Map(source, key, map)` in the core: keyed by `EqualityComparer<T>.Default` or a key selector, one owner per item kept across reruns, duplicate keys paired in order (Solid `mapArray` semantics on C# equality).
+- `For` over `Map`, between two anchors, moving nodes instead of recreating them.
+- `Show(when, then, otherwise)`: one root per branch, disposed when the branch changes.
+- `Ui.Render(build, container, port)` returns an `IDisposable`; the web package wraps it with its port and the microtask scheduler.
+- Lists are immutable snapshots in a signal (`entries.Value = [.. entries.Value, entry]`), diffed by key. An observable mutable list (`ReactiveList<T>`) is later work and would feed the same `For`.
+
+### Out of v1
+
+Avalonia, WebIDL-generated DOM types, context, analyzers, the `[Prop]` source generator, `ReactiveList<T>`, interpolated-template binding (`Bind($"Count: {count}")`, after Metano #828), the read abstraction over `Signal`/`Computed`, and js-framework-benchmark.
 
 ## Decisions taken
 
@@ -115,6 +176,66 @@ What it taught:
 - **Web packaging gap:** the generated packages export TS sources only under the `bun` condition (`dist` is not built). Bun's HTML dev server bundles for the browser without that condition, so the spike bundles with `bun build --conditions=bun`. A real web target needs a `dist` build or an explicit condition in the app bundler.
 - **Size:** the bundle is 31.8 KB minified, 8.2 KB gzipped. Most of it is metano-runtime: ten exception classes, equality, the default comparer, reflection and the disposable helper, pulled in by the reactive core (comparers, `InvalidOperationException`, `IDisposable`). Worth a pass before a js-framework-benchmark comparison.
 - **Scheduler:** the web adapter is a three-line `IFlushScheduler` over `queueMicrotask`, in C#. The first apply of a binding needs a flush, so mounting relies on the scheduler; with the manual scheduler nothing would paint.
+
+## Spike: DSL shapes (2026-11-26)
+
+Throwaway prototype `spikes/Metanui.Spike.Dsl` + `spikes/dsl-web`: the same app (counter, reactive class, a `Badge` class component with a reactive prop) in seven shapes, side by side (B, the builder lambda, became G). All of them work in Chrome, except G's form 4b on the web (Metano #828). Reference: Microsoft UI Reactor is a React model (class `Component`/`Component<TProps>` with `Render()`, hooks such as `UseState`, a virtual tree and reconciler), with positional factories (`Button("+", onClick)`, `VStack(8, a, b)`) plus fluent modifiers; its samples show the inversion (`.Padding(...).Grid(row: 0, column: 0)` after a whole child block).
+
+| Shape | Source | Emitted TS | Verdict |
+|---|---|---|---|
+| A. Props object `P(new Props { Class = Bind(() => …) }, "x")` | A lambda cannot convert implicitly to `Prop<T>` (CS1660, verified), so reactive props need `Bind(...)`; every attribute is a property | On Metano 4.0.1, one IIFE plus `Object.assign` per element; on 4.0.2, comma expressions over hoisted `let` temporaries | Rejected |
+| C. Attribute list `P(Class(() => …), "x")` | HTML order; `T`/`Func<T>` overloads pick static or reactive; strings convert to text | Straight calls (`classFuncOfString`), no closure beyond the user's | Lead candidate |
+| D. Collection initializer `new P(Class(...)) { "x" }` | Reads like markup, but `new` everywhere and one class per element | On Metano 4.0.1, one IIFE per element; on 4.0.2 (#804), a hoisted `const` plus `add` calls, no closure | Viable since Metano 4.0.2; alternative to C |
+| E. Fluent `P("x").WithClass(() => …)` | Typed per element, discoverable; attributes after children (inverted for large trees) | Straight calls | Kept for element-specific escape hatches |
+| F. Grouped `Bind(P(), () => [TextContent(...), ClassName(...)])` | Groups several properties under one effect | Each run allocates the array and setters and rewrites every property of the group | Possible optimisation (fewer effect nodes), not the default |
+| G. Builder lambda `P(p => { p.TextContent = ...; p.ClassName <<= () => ...; })` | Typed per element, element refs for free, setup code inline; children attach through an ambient scope; attributes and children are statements, so the tree reads less like markup | One closure per element at setup; with `Bindable<T>` properties every static write and every apply of forms 1–2 allocates a wrapper | Viable; the binding forms below need care |
+
+Option G binding forms (maintainer's proposal; C# semantics checked in a standalone probe, then in the spike):
+
+1. `Bind(count, value => p.TextContent = $"...{value}")`: works. Explicit source, so the dependency is declared twice (source and body).
+2. `Bind(count, () => p.TextContent = $"...{count.Value}")`: works; the body runs untracked, so a signal read in the body but not declared as the source never updates the element (the dependency-list footgun of React's `useEffect`).
+3. `p.ClassName <<= () => ...`: works only through a static `operator <<` plus the property setter (`p.ClassName = p.ClassName << f`). C# 14 instance compound operators are never applied to a property receiver (CS0019 with a setter, CS0200 without one). Needs every property typed `Bindable<T>`, and the right side must be a lambda to be reactive; it is sugar for form 4a.
+4. `p.TextContent = Bind($"...{count.Value}")` cannot be reactive: the hole is evaluated before the call, so an interpolated string handler receives the `int`. `Bind(() => $"...")` (4a) works through an implicit `Binding<T>` → `Bindable<T>` conversion. `Bind($"...{count}")` (4b) works on .NET through a custom `[InterpolatedStringHandler]` that keeps signal holes live, but Metano 4.0.2 emits a template literal and passes a string (#828); and `{count}` vs `{count.Value}` silently decides between live and frozen.
+5. A fused `Bind(() => p.TextContent = ...)` next to `Bind<T>(Func<T>)` silently binds to the `Func` overload (the assignment has a value), so it returns a reader and binds nothing. The two need different names.
+
+Custom components, C vs G (the same `Card`: title static or reactive, reactive `Highlighted`, `OnClose`, child content; both work in Chrome):
+
+| | C (`CardC`, constructor props) | G (`CardG`, `Bindable<T>` properties) |
+|---|---|---|
+| Author code (lines, no blanks or comments) | 15 | 19, plus a one-line factory |
+| Consumer code for two cards | 20 | 31 |
+| A static prop value | Wrapped: `title: () => "x"` | Plain: `card.Title = "x"` |
+| A reactive prop value | `title: () => $"..."` | `card.Title = Bind(() => $"...")` |
+| Optional props | Defaults before `params`; skipping one forces named arguments, and the children then need `content: [...]` | Free: unset properties keep their default |
+| Adding a prop | A constructor parameter; positional callers break | One property |
+| Forwarding a prop to an element | Wrap or call it (`Text(title)`) | Assign it (`heading.TextContent = Title`) |
+| Setup allocations | One `AttributePart` and closure per attribute, one array per element | One `Bindable` per static value, one closure and one scope per element |
+
+- Metano 4.0.2 emits a named `params` argument given as an array (`content: [P("x")]`) as one rest element, so the callee receives a nested array (strict tsc TS2345; Metano #829). The spike passes the skipped optional prop positionally instead.
+- G's `Mount` collects the children in a detached `div` before `Render` runs, so the content gets a wrapper element; the renderer port's insert-before-anchor removes it.
+
+Option H (maintainer's proposal): builder lambdas over the platform element itself (`[External]` DOM types, so the web emits no wrapper: `section.className = "variant"`), plain properties everywhere, and bindings as effects that write them. Checked in Chrome:
+
+- Three binding forms work on elements: `count.BindTo(value => p.TextContent = ...)` (one explicit source), split `Bind(() => expr, value => p.TextContent = value)` (the write runs in the apply phase of the flush), and fused `Bind(() => p.TextContent = $"...")` (the write runs in the tracked compute, at once and on every change).
+- Component props backed by signals (`public string Title { get => _title.Value; set => _title.Value = value; }`) take a static assignment or a split `Bind` from the consumer and react inside `Render`.
+- A fused `Bind` that writes a signal-backed prop throws ("Writing to a signal inside a computation is not allowed", spec 0001); the failed effect stays subscribed and throws again, out of the flush, on every change of what it read.
+- A plain prop (`public int Start { get; set; }`) bound with a split `Bind` silently loses the value: `Render` reads the default before the first apply, which runs at the end of the flush; the counter showed `Count: 1 (Start = 106)`. With G's `Bindable<T>`, binding a plain-typed prop is a compile error instead.
+- A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter; Metano #832 proposes `new this()`), so each component exposes a one-line factory until then.
+
+Option H, `Counter` and `CounterList` (smoke test `spikes/dsl-web/counter-list.smoke.test.ts`, on a fake DOM, because the browser extension was offline):
+
+- `Counter` (label prop, own count, remove callback) works standalone.
+- `CounterList` adds counters through a keyed `For`, but a keyed list cannot be built on the Phase 1 core alone. An item root created in an effect's apply is rejected ("the apply has no owner"); created in the compute, it is owned by the effect and disposed when the compute runs again (probed: two reruns, two disposals). Adding a counter therefore kills the earlier counters' bindings while their rows stay in the DOM. `For` needs a core primitive: Solid's `mapArray` (per-item owners kept across runs), or an owner the list keeps and runs item roots under. The list test is marked `test.failing` until then.
+- Two `count.Value++` in the same tick count once: a read after a write returns the committed value until the flush (spec 0001, Solid 2.0). Real clicks flush in between; a handler that writes twice needs a read-modify-write helper (Solid 2.0's function setter), which the core does not have yet.
+- A component body runs inside the list's computation, so a signal write in `Render` throws, as in Solid 2.0.
+
+Other findings:
+
+- A base class with an implicit conversion that creates a subclass forms an import cycle (MS0005, a real ESM TDZ hazard); the subclass is nested in the base.
+- Class components with constructor props work; a reactive prop is a `Func<T>`. Records were not used for props: Metano gives them .NET value semantics, which a fine-grained renderer never uses.
+- Metano 4.0.2 (#804) shrank the whole gallery bundle from 55,503 to 51,618 bytes minified (13,000 to 12,713 gzipped), all of it from options A and D; the other variants emit the same code.
+- Strict `tsc` over the spike output fails on two Metano defects that 4.0.1 already had: a cross-project reference to an `[External]` interface emits `import type` from a subpath the referenced package does not export (#826), and `$runtimeType` assigns a class with a private constructor to `ClassType<T>`'s public `ctor` (#827). Bun erases the type import, so the bundle works.
+- The spike's `Part.AttachTo(HTMLElement)` is DOM-bound. The real layering puts a platform-neutral renderer port under the DSL (see "Layering").
 
 ## Inputs
 
