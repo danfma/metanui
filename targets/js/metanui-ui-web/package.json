@@ -1,0 +1,21 @@
+{
+  "name": "metanui-ui-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/ui/web": {
+      "bun": "./src/metanui/ui/web/index.ts",
+      "types": "./dist/metanui/ui/web/index.d.ts",
+      "import": "./dist/metanui/ui/web/index.js"
+    }
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0",
+    "metanui-ui": "^1.0.0"
+  },
+  "peerDependencies": {
+    "metano-runtime": "^4.0.3"
+  }
+}

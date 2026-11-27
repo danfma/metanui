@@ -4,6 +4,7 @@
     <Project Path="src/Metanui.Reactive.Scenarios/Metanui.Reactive.Scenarios.csproj" />
     <Project Path="src/Metanui.Ui/Metanui.Ui.csproj" />
     <Project Path="src/Metanui.Ui.Scenarios/Metanui.Ui.Scenarios.csproj" />
+    <Project Path="src/Metanui.Ui.Web/Metanui.Ui.Web.csproj" />
   </Folder>
   <Folder Name="/spikes/">
     <Project Path="spikes/Metanui.Spike.Counter/Metanui.Spike.Counter.csproj" />

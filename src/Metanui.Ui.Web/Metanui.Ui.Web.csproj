@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Metanui.Ui.Web</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-ui-web/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Metanui.Reactive/Metanui.Reactive.csproj" />
+    <ProjectReference Include="../Metanui.Ui/Metanui.Ui.csproj" />
+  </ItemGroup>
+</Project>
