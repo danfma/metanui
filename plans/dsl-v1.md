@@ -120,23 +120,23 @@ Done 2026-11-27 (commits fc7d564..93f5665). `src/Metanui.Ui` (package metanui-ui
 Open: signal-backed props cannot be assigned inside For/Show (writes in a computation throw; a Root under a computation still counts) — documented (option c) pending the maintainer's props-model decision (recommended: accessor props `Func<T>`). Follow-ups in the SDD ledger: compute-only effect in core (fused Bind/For/Show queue an empty apply), LIS-minimal moves, several minors.
 
 ## Phase 4: `Metanui.Ui.Web`
-Status: Not started
+Status: Complete
 
 **Files:** `src/Metanui.Ui.Web/` (new project → `targets/js/metanui-ui-web`), `tests/js/ui-web` (fake-DOM tests).
 
-- [ ] `[External]` DOM types, hand-written: `Node`, `Text`, `Comment`, `HTMLElement` (`TextContent`, `ClassName`, `Disabled` where it applies), `HTMLInputElement` (`Value`, `Checked`), `Document` (`CreateElement`, `CreateTextNode`, `CreateComment`), and a `[NoContainer]` `Browser` static (`Document`, `QueueMicrotask`). Only what the factories and samples use.
-- [ ] Factories: `Div`, `Span`, `P`, `H1`, `H2`, `H3`, `Section`, `Button`, `Input`, `Ul`, `Li`, each `(Action<TElement> build)` with the typed element.
-- [ ] Event extensions: `OnClick(this HTMLElement, Action)`, `OnInput(this HTMLInputElement, Action<string>)`.
-- [ ] `DomNodePort : INodePort` and `MicrotaskScheduler : IFlushScheduler`; `Web.Mount(Action build, HTMLElement container)` wires both and returns `IDisposable`.
-- [ ] Fake-DOM tests under Bun (port the spike's `FakeNode`): factories, events, port operations, anchors.
-- [ ] Check bundle tree-shaking: a sample that uses only `Div` and `OnClick` does not pull the other factories' code (`bun build --minify` size recorded).
+- [x] `[External]` DOM types, hand-written: `Node`, `Text`, `Comment`, `HTMLElement` (`TextContent`, `ClassName`, `Disabled` where it applies), `HTMLInputElement` (`Value`, `Checked`), `Document` (`CreateElement`, `CreateTextNode`, `CreateComment`), and a `[NoContainer]` `Browser` static (`Document`, `QueueMicrotask`). Only what the factories and samples use.
+- [x] Factories: `Div`, `Span`, `P`, `H1`, `H2`, `H3`, `Section`, `Button`, `Input`, `Ul`, `Li`, each `(Action<TElement> build)` with the typed element.
+- [x] Event extensions: `OnClick(this HTMLElement, Action)`, `OnInput(this HTMLInputElement, Action<string>)`.
+- [x] `DomNodePort : INodePort` and `MicrotaskScheduler : IFlushScheduler`; `Web.Mount(Action build, HTMLElement container)` wires both and returns `IDisposable`.
+- [x] Fake-DOM tests under Bun (port the spike's `FakeNode`): factories, events, port operations, anchors.
+- [x] Check bundle tree-shaking: a sample that uses only `Div` and `OnClick` does not pull the other factories' code (`bun build --minify` size recorded).
 
 ### Verification Plan
 - Build and tests green; strict tsc over `targets/js/metanui-ui-web/src` → 0 diagnostics (open Metano issues excepted, listed).
 - Reviewers run, none `REPROVADO`.
 
 ### Phase Summary
-_(write when phase completes)_
+Done 2026-11-27 (commits 0403cc2..1dce372). `src/Metanui.Ui.Web` (package metanui-ui-web): hand-written `[External]` DOM types under `Dom/` (Node, Text, Comment, HTMLElement, HTMLButtonElement, HTMLInputElement, Document) plus a `[NoContainer]` `Browser` (document, queueMicrotask); `[NoContainer]` `Html` factories (Div, Span, P, H1–H3, Section, Button, Input, Ul, Li) through one `Create<TElement>` (`UnsafeCast`, Metano enhancement requested); `HtmlEvents.OnClick/OnInput` (listeners live as long as the element); `DomNodePort`; `MicrotaskScheduler`; `WebApp.Render(build, container)` installing the microtask scheduler only over the core's default manual one (`EnsureMicrotaskScheduler`). `INodePort` docs are platform-neutral, and `PortContractScenarios.For(platform, createPort, probe)` (7 scenarios) runs on the fake port (.NET, Bun) and on `DomNodePort` (Bun) — reusable by an Avalonia port. Fake-DOM tests in `tests/js/ui-web` (30) with a shared render fixture; tree-shaking test (a `Div`+`OnClick` bundle carries no other factory). Bun 215, .NET 183, bench 12/12, strict tsc: web 0. Bundle baseline 72.7 KB min / 19.2 KB gzip, adapter ~0.5 KB (size pass is a follow-up).
 
 ## Phase 5: `samples/counter-web`
 Status: Not started
