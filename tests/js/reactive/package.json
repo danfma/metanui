@@ -5,6 +5,7 @@
   "dependencies": {
     "metano-runtime": "^4.0.3",
     "metanui-reactive": "workspace:*",
-    "metanui-reactive-scenarios": "workspace:*"
+    "metanui-reactive-scenarios": "workspace:*",
+    "metanui-test-support": "workspace:*"
   }
 }

@@ -1,7 +1,7 @@
-import { afterAll, expect, test } from "bun:test";
-import { defaultEquals } from "metano-runtime";
+import { afterAll, test } from "bun:test";
 import { type FakeNode, installFakeDocument } from "metanui-fake-dom";
-import { type IExpect, ScenarioRunner } from "metanui-reactive-scenarios/metanui/reactive/scenarios";
+import { ScenarioRunner } from "metanui-reactive-scenarios/metanui/reactive/scenarios";
+import { bunExpect } from "metanui-test-support";
 import {
   type INodePortProbe,
   PortContractScenarios,
@@ -20,19 +20,6 @@ const domProbe: INodePortProbe = {
   childAt: (parent: unknown, index: number) => node(parent).childNodes[index],
   isAnchor: (candidate: unknown) => node(candidate).nodeName === "#comment",
   textOf: (text: unknown) => node(text).data,
-};
-
-// The same IExpect adapter as tests/js/ui (shared test support is deferred until it is worth a package).
-const bunExpect: IExpect = {
-  equal<T>(expected: T, actual: T, label: string): void {
-    const message = `${label}: expected ${Bun.inspect(expected)}, got ${Bun.inspect(actual)}`;
-
-    expect(defaultEquals(expected, actual), message).toBe(true);
-  },
-
-  isTrue(condition: boolean, label: string): void {
-    expect(condition, label).toBe(true);
-  },
 };
 
 afterAll(() => {

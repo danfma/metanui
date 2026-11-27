@@ -1,0 +1,12 @@
+{
+  "name": "metanui-test-support",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "metano-runtime": "^4.0.3",
+    "metanui-reactive-scenarios": "workspace:*"
+  }
+}
