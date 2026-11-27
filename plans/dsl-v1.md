@@ -139,7 +139,7 @@ Status: Complete
 Done 2026-11-27 (commits 0403cc2..1dce372). `src/Metanui.Ui.Web` (package metanui-ui-web): hand-written `[External]` DOM types under `Dom/` (Node, Text, Comment, HTMLElement, HTMLButtonElement, HTMLInputElement, Document) plus a `[NoContainer]` `Browser` (document, queueMicrotask); `[NoContainer]` `Html` factories (Div, Span, P, H1–H3, Section, Button, Input, Ul, Li) through one `Create<TElement>` (`UnsafeCast`, Metano enhancement requested); `HtmlEvents.OnClick/OnInput` (listeners live as long as the element); `DomNodePort`; `MicrotaskScheduler`; `WebApp.Render(build, container)` installing the microtask scheduler only over the core's default manual one (`EnsureMicrotaskScheduler`). `INodePort` docs are platform-neutral, and `PortContractScenarios.For(platform, createPort, probe)` (7 scenarios) runs on the fake port (.NET, Bun) and on `DomNodePort` (Bun) — reusable by an Avalonia port. Fake-DOM tests in `tests/js/ui-web` (30) with a shared render fixture; tree-shaking test (a `Div`+`OnClick` bundle carries no other factory). Bun 215, .NET 183, bench 12/12, strict tsc: web 0. Bundle baseline 72.7 KB min / 19.2 KB gzip, adapter ~0.5 KB (size pass is a follow-up).
 
 ## Phase 5: `samples/counter-web`
-Status: Done (reviews pending)
+Status: Complete
 
 **Files:** `samples/Metanui.Samples.Counter/` (C#), `samples/counter-web/` (host: `index.html`, `main.ts`, `package.json` with `bun build --conditions=bun`), a smoke test.
 
