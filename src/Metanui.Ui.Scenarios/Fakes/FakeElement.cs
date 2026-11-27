@@ -15,6 +15,9 @@ public sealed class FakeElement(string tag) : FakeNode
     /// <summary>Every child, anchors included.</summary>
     public int ChildCount => _children.Count;
 
+    /// <summary>The child at <paramref name="index" />, anchors included.</summary>
+    public FakeNode ChildAt(int index) => _children[index];
+
     public override string Print()
     {
         var text = Text.Length == 0 ? "" : $"\"{Text}\"";

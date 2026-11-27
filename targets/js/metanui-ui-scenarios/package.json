@@ -19,6 +19,11 @@
       "bun": "./src/metanui/ui/scenarios/index.ts",
       "types": "./dist/metanui/ui/scenarios/index.d.ts",
       "import": "./dist/metanui/ui/scenarios/index.js"
+    },
+    "./metanui/ui/scenarios/port-contract": {
+      "bun": "./src/metanui/ui/scenarios/port-contract/index.ts",
+      "types": "./dist/metanui/ui/scenarios/port-contract/index.d.ts",
+      "import": "./dist/metanui/ui/scenarios/port-contract/index.js"
     }
   },
   "dependencies": {

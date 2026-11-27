@@ -1,4 +1,6 @@
 using Metanui.Reactive.Scenarios;
+using Metanui.Ui.Scenarios.Fakes;
+using Metanui.Ui.Scenarios.PortContract;
 
 namespace Metanui.Ui.Scenarios;
 
@@ -13,5 +15,6 @@ public static class UiScenarios
         .. ForScenarios.All,
         .. ShowScenarios.All,
         .. RenderScenarios.All,
+        .. PortContractScenarios.For("fake", () => new FakePort(), new FakePortProbe()),
     ];
 }

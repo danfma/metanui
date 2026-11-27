@@ -37,6 +37,10 @@ export class FakeElement extends FakeNode {
     return this._children.count;
   }
 
+  childAt(index: number): FakeNode {
+    return this._children.get(index);
+  }
+
   override print(): string {
     const text = this.text.length === 0 ? "" : `"${this.text}"`;
     const children = this.printChildren();
