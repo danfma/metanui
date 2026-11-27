@@ -203,6 +203,14 @@ Custom components, C vs G (the same `Card`: title static or reactive, reactive `
 - Metano 4.0.2 emits a named `params` argument given as an array (`content: [P("x")]`) as one rest element, so the callee receives a nested array (strict tsc TS2345; Metano #829). The spike passes the skipped optional prop positionally instead.
 - G's `Mount` collects the children in a detached `div` before `Render` runs, so the content gets a wrapper element; the renderer port's insert-before-anchor removes it.
 
+Option H (maintainer's proposal): builder lambdas over the platform element itself (`[External]` DOM types, so the web emits no wrapper: `section.className = "variant"`), plain properties everywhere, and bindings as effects that write them. Checked in Chrome:
+
+- Three binding forms work on elements: `count.BindTo(value => p.TextContent = ...)` (one explicit source), split `Bind(() => expr, value => p.TextContent = value)` (the write runs in the apply phase of the flush), and fused `Bind(() => p.TextContent = $"...")` (the write runs in the tracked compute, at once and on every change).
+- Component props backed by signals (`public string Title { get => _title.Value; set => _title.Value = value; }`) take a static assignment or a split `Bind` from the consumer and react inside `Render`.
+- A fused `Bind` that writes a signal-backed prop throws ("Writing to a signal inside a computation is not allowed", spec 0001); the failed effect stays subscribed and throws again, out of the flush, on every change of what it read.
+- A plain prop (`public int Start { get; set; }`) bound with a split `Bind` silently loses the value: `Render` reads the default before the first apply, which runs at the end of the flush; the counter showed `Count: 1 (Start = 106)`. With G's `Bindable<T>`, binding a plain-typed prop is a compile error instead.
+- A generic `Component<TSelf>.Use(build)` calling `new TSelf()` does not transpile (MS0019: TypeScript erases the type parameter), so each component exposes a one-line factory.
+
 Other findings:
 
 - A base class with an implicit conversion that creates a subclass forms an import cycle (MS0005, a real ESM TDZ hazard); the subclass is nested in the base.
