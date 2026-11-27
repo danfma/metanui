@@ -187,6 +187,22 @@ Option G binding forms (maintainer's proposal; C# semantics checked in a standal
 4. `p.TextContent = Bind($"...{count.Value}")` cannot be reactive: the hole is evaluated before the call, so an interpolated string handler receives the `int`. `Bind(() => $"...")` (4a) works through an implicit `Binding<T>` → `Bindable<T>` conversion. `Bind($"...{count}")` (4b) works on .NET through a custom `[InterpolatedStringHandler]` that keeps signal holes live, but Metano 4.0.2 emits a template literal and passes a string (#828); and `{count}` vs `{count.Value}` silently decides between live and frozen.
 5. A fused `Bind(() => p.TextContent = ...)` next to `Bind<T>(Func<T>)` silently binds to the `Func` overload (the assignment has a value), so it returns a reader and binds nothing. The two need different names.
 
+Custom components, C vs G (the same `Card`: title static or reactive, reactive `Highlighted`, `OnClose`, child content; both work in Chrome):
+
+| | C (`CardC`, constructor props) | G (`CardG`, `Bindable<T>` properties) |
+|---|---|---|
+| Author code (lines, no blanks or comments) | 15 | 19, plus a one-line factory |
+| Consumer code for two cards | 20 | 31 |
+| A static prop value | Wrapped: `title: () => "x"` | Plain: `card.Title = "x"` |
+| A reactive prop value | `title: () => $"..."` | `card.Title = Bind(() => $"...")` |
+| Optional props | Defaults before `params`; skipping one forces named arguments, and the children then need `content: [...]` | Free: unset properties keep their default |
+| Adding a prop | A constructor parameter; positional callers break | One property |
+| Forwarding a prop to an element | Wrap or call it (`Text(title)`) | Assign it (`heading.TextContent = Title`) |
+| Setup allocations | One `AttributePart` and closure per attribute, one array per element | One `Bindable` per static value, one closure and one scope per element |
+
+- Metano 4.0.2 emits a named `params` argument given as an array (`content: [P("x")]`) as one rest element, so the callee receives a nested array (strict tsc TS2345); reported upstream. The spike passes the skipped optional prop positionally instead.
+- G's `Mount` collects the children in a detached `div` before `Render` runs, so the content gets a wrapper element; the renderer port's insert-before-anchor removes it.
+
 Other findings:
 
 - A base class with an implicit conversion that creates a subclass forms an import cycle (MS0005, a real ESM TDZ hazard); the subclass is nested in the base.

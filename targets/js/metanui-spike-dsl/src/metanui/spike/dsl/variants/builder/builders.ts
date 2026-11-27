@@ -4,6 +4,7 @@ import { Reactivity, Signal } from "metanui-reactive/metanui/reactive";
 import { El } from "../../core/el.js";
 import type { Part } from "../../core/part.js";
 import { Binding } from "./binding.js";
+import type { BuilderComponent } from "./builder-component.js";
 import { ElementScope } from "./element-scope.js";
 import { TextTemplate } from "./text-template.js";
 
@@ -14,6 +15,10 @@ export class Builders {
 
   static section(build: (obj: ElementScope) => void): El {
     return Builders.create("section", build);
+  }
+
+  static div(build: (obj: ElementScope) => void): El {
+    return Builders.create("div", build);
   }
 
   static h2(build: (obj: ElementScope) => void): El {
@@ -74,6 +79,25 @@ export class Builders {
     }
 
     throw new Error("No matching overload for bind");
+  }
+
+  static mount<TComponent extends BuilderComponent>(component: TComponent, build: (obj: TComponent) => void): El {
+    const parent = Builders._current;
+    const content = document.createElement("div");
+    Builders._current = new ElementScope(content);
+    try {
+      build(component);
+    } finally {
+      Builders._current = null;
+    }
+    try {
+      const root = component.render(new El(content));
+      parent?.node.appendChild(root.node);
+
+      return root;
+    } finally {
+      Builders._current = parent;
+    }
   }
 
   private static create(tagName: string, build: (obj: ElementScope) => void): El {

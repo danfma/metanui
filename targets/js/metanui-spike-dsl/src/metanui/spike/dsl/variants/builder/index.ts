@@ -1,7 +1,10 @@
 export { Bindable } from "./bindable.js";
 export { Binding } from "./binding.js";
+export { BuilderComponent } from "./builder-component.js";
 export { BuilderVariant } from "./builder-variant.js";
 export { Builders } from "./builders.js";
+export { CardGUsage } from "./card-g-usage.js";
+export { CardG } from "./card-g.js";
 export { ClickEvent } from "./click-event.js";
 export { ElementScope } from "./element-scope.js";
 export { TextTemplate } from "./text-template.js";

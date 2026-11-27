@@ -32,6 +32,9 @@ public sealed class Bindable<T>
 
     public static Bindable<T> operator <<(Bindable<T> current, Func<T> read) => new(default!, read);
 
+    /// <summary>The current value; inside a tracked read it subscribes to the reader.</summary>
+    public T Get() => Read is null ? Value : Read();
+
     /// <summary>Writes the value once, or binds the reader with one effect.</summary>
     public void ApplyTo(Action<T> write)
     {

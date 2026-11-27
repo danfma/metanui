@@ -14,6 +14,8 @@ public static class Builders
 
     public static El Section(Action<ElementScope> build) => Create("section", build);
 
+    public static El Div(Action<ElementScope> build) => Create("div", build);
+
     public static El H2(Action<ElementScope> build) => Create("h2", build);
 
     public static El P(Action<ElementScope> build) => Create("p", build);
@@ -36,6 +38,42 @@ public static class Builders
 
     /// <summary>A text template whose signal holes stay live.</summary>
     public static Binding<string> Bind(TextTemplate template) => new(template.Render);
+
+    /// <summary>
+    /// Mounts a component: the builder sets its props and adds its children (collected in a detached
+    /// content element), then Render builds the component's own tree, detached, and the result is
+    /// appended to the element being built.
+    /// </summary>
+    public static El Mount<TComponent>(TComponent component, Action<TComponent> build)
+        where TComponent : BuilderComponent
+    {
+        var parent = _current;
+        var content = Browser.Document.CreateElement("div");
+
+        _current = new ElementScope(content);
+
+        try
+        {
+            build(component);
+        }
+        finally
+        {
+            _current = null;
+        }
+
+        try
+        {
+            var root = component.Render(new El(content));
+
+            parent?.Node.AppendChild(root.Node);
+
+            return root;
+        }
+        finally
+        {
+            _current = parent;
+        }
+    }
 
     private static El Create(string tagName, Action<ElementScope> build)
     {

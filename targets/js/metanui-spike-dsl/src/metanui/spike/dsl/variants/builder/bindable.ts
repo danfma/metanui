@@ -44,6 +44,10 @@ export class Bindable<T> {
     return Bindable.__shiftLeft(this, read);
   }
 
+  get(): T {
+    return this.read == null ? this.value : this.read();
+  }
+
   applyTo(write: (obj: T) => void): void {
     if (this.read == null) {
       write(this.value);
