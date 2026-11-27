@@ -3,11 +3,13 @@
     <Project Path="src/Metanui.Reactive/Metanui.Reactive.csproj" />
     <Project Path="src/Metanui.Reactive.Scenarios/Metanui.Reactive.Scenarios.csproj" />
     <Project Path="src/Metanui.Ui/Metanui.Ui.csproj" />
+    <Project Path="src/Metanui.Ui.Scenarios/Metanui.Ui.Scenarios.csproj" />
   </Folder>
   <Folder Name="/spikes/">
     <Project Path="spikes/Metanui.Spike.Counter/Metanui.Spike.Counter.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Metanui.Reactive.Tests/Metanui.Reactive.Tests.csproj" />
+    <Project Path="tests/Metanui.Ui.Tests/Metanui.Ui.Tests.csproj" />
   </Folder>
 </Solution>

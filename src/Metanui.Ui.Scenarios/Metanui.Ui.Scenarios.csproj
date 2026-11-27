@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Metanui.Ui.Scenarios</RootNamespace>
+    <MetanoOutputDir>../../targets/js/metanui-ui-scenarios/src</MetanoOutputDir>
+    <MetanoClean>true</MetanoClean>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Metano" />
+    <PackageReference Include="Metano.Build.TypeScript" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Metanui.Ui/Metanui.Ui.csproj" />
+    <ProjectReference Include="../Metanui.Reactive.Scenarios/Metanui.Reactive.Scenarios.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,32 @@
+{
+  "name": "metanui-ui-scenarios",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./metanui/ui/scenarios/components": {
+      "bun": "./src/metanui/ui/scenarios/components/index.ts",
+      "types": "./dist/metanui/ui/scenarios/components/index.d.ts",
+      "import": "./dist/metanui/ui/scenarios/components/index.js"
+    },
+    "./metanui/ui/scenarios/fakes": {
+      "bun": "./src/metanui/ui/scenarios/fakes/index.ts",
+      "types": "./dist/metanui/ui/scenarios/fakes/index.d.ts",
+      "import": "./dist/metanui/ui/scenarios/fakes/index.js"
+    },
+    "./metanui/ui/scenarios": {
+      "bun": "./src/metanui/ui/scenarios/index.ts",
+      "types": "./dist/metanui/ui/scenarios/index.d.ts",
+      "import": "./dist/metanui/ui/scenarios/index.js"
+    }
+  },
+  "dependencies": {
+    "metanui-reactive": "^1.0.0",
+    "metanui-reactive-scenarios": "^1.0.0",
+    "metanui-ui": "^1.0.0"
+  },
+  "peerDependencies": {
+    "metano-runtime": "^4.0.3"
+  }
+}

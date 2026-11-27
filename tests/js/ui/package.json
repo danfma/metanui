@@ -1,0 +1,11 @@
+{
+  "name": "metanui-ui-tests",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "metano-runtime": "^4.0.3",
+    "metanui-reactive-scenarios": "workspace:*",
+    "metanui-ui": "workspace:*",
+    "metanui-ui-scenarios": "workspace:*"
+  }
+}
