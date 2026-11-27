@@ -19,9 +19,8 @@ public static class View
     /// (<c>Bind(() =&gt; label.TextContent = $"Count: {count.Value}")</c>).
     /// </summary>
     /// <remarks>
-    /// The write runs inside a computation, so writing a signal there, which includes a
-    /// signal-backed component prop, throws (spec 0001); use
-    /// <see cref="Bind{T}(Func{T}, Action{T})" /> for those.
+    /// The write runs inside a computation, so writing a signal there throws (spec 0001). To make a
+    /// component prop reactive, assign it <see cref="Live{T}" /> instead of binding it.
     /// </remarks>
     /// <returns>The effect's handle, which disposes the binding before its owner does.</returns>
     public static IDisposable Bind(Action write) => FusedBinding.Start(write);
@@ -29,12 +28,24 @@ public static class View
     /// <summary>
     /// Split binding: <paramref name="compute" /> is tracked; <paramref name="apply" /> writes its
     /// result in the apply phase, at the end of the flush, and skips a result equal to the previous
-    /// one (<see cref="EqualityComparer{T}.Default" />). Use it for signal-backed props, and when the
-    /// result changes less often than its sources.
+    /// one (<see cref="EqualityComparer{T}.Default" />). Use it when the result changes less often than
+    /// its sources.
     /// </summary>
     /// <returns>The effect's handle, which disposes the binding before its owner does.</returns>
     public static IDisposable Bind<T>(Func<T> compute, Action<T> apply) =>
         Reactivity.Effect(compute, new SplitBinding<T>(apply).Apply);
+
+    /// <summary>
+    /// A reactive <see cref="Prop{T}" />: <paramref name="read" /> runs on every read of
+    /// <see cref="Prop{T}.Value" />, so the component's bindings follow what it reads
+    /// (<c>counter.Label = Live(() =&gt; $"#{count.Value}")</c>). A static value needs no call: it
+    /// converts implicitly.
+    /// </summary>
+    /// <remarks>
+    /// Not a <c>Bind</c> overload: a lambda whose body is an assignment has a value, so C# would pick
+    /// a <c>Func</c> overload over the fused <see cref="Bind(Action)" /> and silently bind nothing.
+    /// </remarks>
+    public static Prop<T> Live<T>(Func<T> read) => Prop<T>.Reading(read);
 
     /// <summary>Inserts a static text node at the ambient insertion point.</summary>
     public static void Text(string value) => Builder.Add(Builder.Target.Port.CreateText(value));

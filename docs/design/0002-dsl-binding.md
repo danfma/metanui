@@ -43,14 +43,18 @@ Section(section =>
 
 - A builder lambda receives the typed platform element; a child created inside it attaches to it through an ambient scope. Static values are plain assignments.
 - **Fused `Bind(() => target.Prop = expr)`:** the write runs in the tracked compute, at once and on every change. Use it for platform properties. A signal write there throws (spec 0001).
-- **Split `Bind(() => expr, value => target.Prop = value)`:** the write runs in the apply phase, and equality skips unchanged values. Use it for signal-backed props and when the result changes less often than its sources.
+- **Split `Bind(() => expr, value => target.Prop = value)`:** the write runs in the apply phase, and equality skips unchanged values. Use it when the result changes less often than its sources.
 - Events are extension methods (`OnClick`, `OnInput`) emitted as module functions.
 
 ### Components
 
-- `sealed class Card : Component<Card>` with a `Render(content)` that runs once. Props are plain C# properties.
-- **Reactive props are signal-backed** (`public string Title { get => _title.Value; set => _title.Value = value; }`): the consumer assigns a static value or binds with a split `Bind`, and `Render` reacts.
-- **A plain auto-property is init-only:** `Render` reads it once, and a later binding to it is lost silently (spike: `Count: 1 (Start = 106)`). Documented in v1; an analyzer and a `[Prop]` source generator come later.
+- `sealed class Card : Component<Card>` with a `Render()` that runs once; children go in the `Content` render prop.
+- **A prop that `Render` binds is a `Prop<T>`** (maintainer decision, 2026-11-27): a `readonly struct` holding a static value or a reader `Func<T>`, with no signal inside. `Value` returns the value or calls the reader, so a read inside a `Bind` in `Render` is tracked.
+  - **Static:** an implicit conversion from `T` (`card.Title = "Solo"`); it reaches `Render` at once, with no flush.
+  - **Reactive:** `View.Live(() => expr)` (`card.Title = Live(() => $"#{count.Value}")`). A lambda does not convert to a user type (CS1660), so a factory is needed. It is not a `Bind` overload: an assignment lambda has a value, so C# would pick a `Func` overload over the fused `Bind(Action)` and bind nothing. It is not `Prop.Of`: a non-generic `Prop` next to `Prop<T>` is one TS name (Metano MS0070).
+  - Assigning a `Prop<T>` writes no signal, so it works in a factory lambda inside a `For` item or a `Show` branch, where a signal-backed prop threw (spec 0001).
+  - Emitted TS: the conversion is a static call (`Prop.__implicitFromT("Solo")`), `Live` a static call that builds one `Prop` at setup; a read is `prop.value`, a field test plus the reader call, with no allocation per update. Metano emits `equals`/`hashCode` for any struct, unused here. Metano requires a `Prop<T>` property to be initialized (MS0001), so `default(Prop<T>)` exists only on .NET, where it reads as `default(T)`.
+- **A plain property is read-once configuration:** `Render` reads it once, and a later binding to it is lost silently (spike: `Count: 1 (Start = 106)`). Events stay plain delegates (`Action OnRemove`). An analyzer comes later.
 - Each component exposes a one-line static factory until Metano #832 lets `Component<TSelf>.Use(...)` construct `TSelf`.
 
 ### Control flow and mounting
@@ -63,7 +67,7 @@ Section(section =>
 
 ### Out of v1
 
-Avalonia, WebIDL-generated DOM types, context, analyzers, the `[Prop]` source generator, `ReactiveList<T>`, interpolated-template binding (`Bind($"Count: {count}")`, after Metano #828), the read abstraction over `Signal`/`Computed`, and js-framework-benchmark.
+Avalonia, WebIDL-generated DOM types, context, analyzers, `ReactiveList<T>`, interpolated-template binding (`Bind($"Count: {count}")`, after Metano #828), the read abstraction over `Signal`/`Computed`, and js-framework-benchmark.
 
 ## Decisions taken
 
@@ -101,7 +105,7 @@ The core ships no `implicit operator T` and no combining operators. `.Value` sta
   2. a wrapper struct over either node, with a type test or a stored delegate per read;
   3. a virtual `Value` on a non-generic base. The base cannot name `T`, so the read returns `object` (boxing for value types on .NET) or is a generic virtual method, and costs a virtual call per read.
 - **Context per owner.** If context is resolved through the owner chain, where does it live? A field on `OwnerNode` adds a slot to every computed, effect and root, which costs creation time on V8 (handoff F2, node layout). A side table or a context node that only some owners carry must be compared on `createComputations`.
-- **Derived values.** A lambda does not convert to `Prop<T>` (CS1660). What is the cheapest way to write `Text(() => $"Count {count.Value}")` or its equivalent?
+- **Derived values.** A lambda does not convert to `Prop<T>` (CS1660); v1 uses `Live(() => ...)` for props and `Text(() => ...)` for text. Is there a cheaper spelling?
 - **Props to custom components.** A signal passed to a child is read, and therefore bound, in the child. Is that acceptable, or must the parent bind?
 - **Element API.** Generated from WebIDL/webref and Avalonia metadata, or hand-written per platform?
 - **Analyzers.** How are reactive reads outside a tracking scope, and missing keys in `For`, reported?

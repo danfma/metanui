@@ -13,8 +13,8 @@ public static class ComponentScenarios
     public static Scenario[] All { get; } =
     [
         new Scenario(
-            "signal-backed prop takes a static value or a split bind",
-            SignalBackedPropTakesAStaticValueOrASplitBind
+            "a prop takes a static value or a live reader",
+            APropTakesAStaticValueOrALiveReader
         ),
         new Scenario("plain prop is init-only: a split bind to it is lost", PlainPropIsInitOnly),
         new Scenario(
@@ -30,12 +30,16 @@ public static class ComponentScenarios
             AnElementCreatedInThePropsLambdaThrows
         ),
         new Scenario(
-            "a signal-backed prop assigned inside a For item throws",
-            ASignalBackedPropAssignedInsideAForItemThrows
+            "a prop assigned inside a For item and a Show branch works",
+            APropAssignedInsideAForItemAndAShowBranchWorks
         ),
     ];
 
-    private static void SignalBackedPropTakesAStaticValueOrASplitBind(IExpect expect)
+    /// <summary>
+    /// A static prop reaches <c>Render</c> at once, with no flush; a live prop is read by the
+    /// binding in <c>Render</c>, so it follows its source.
+    /// </summary>
+    private static void APropTakesAStaticValueOrALiveReader(IExpect expect)
     {
         var host = new FakeHost();
         var name = Reactivity.Signal("Ada");
@@ -43,15 +47,13 @@ public static class ComponentScenarios
         host.Render(() =>
         {
             Card.Create(card => card.Title = "Static");
-            Card.Create(card => Bind(() => name.Value, value => card.Title = value));
+            Card.Create(card => card.Title = Live(() => name.Value));
         });
-
-        Reactivity.Flush();
 
         expect.Equal(
             "box\"card\"(label\"Static\") box\"card\"(label\"Ada\")",
             host.Print(),
-            "after the first flush"
+            "before any flush"
         );
 
         name.Value = "Grace";
@@ -142,20 +144,52 @@ public static class ComponentScenarios
     }
 
     /// <summary>
-    /// Documented v1 limitation: a For item renders inside a computation, where a signal write
-    /// throws (spec 0001), so a signal-backed prop must be bound there, not assigned.
+    /// A <c>For</c> item and a <c>Show</c> branch render inside a computation, where a signal write
+    /// throws (spec 0001); assigning a <see cref="Prop{T}" /> writes no signal, so it works there,
+    /// static or live.
     /// </summary>
-    private static void ASignalBackedPropAssignedInsideAForItemThrows(IExpect expect)
+    private static void APropAssignedInsideAForItemAndAShowBranchWorks(IExpect expect)
     {
         var host = new FakeHost();
         var items = Reactivity.Signal<IReadOnlyList<string>>(["a"]);
+        var suffix = Reactivity.Signal("!");
 
-        var error = ScenarioRunner.Catch(() =>
-            host.Render(() =>
-                For(() => items.Value, item => Card.Create(card => card.Title = item))
-            )
+        host.Render(() =>
+        {
+            For(
+                () => items.Value,
+                item =>
+                {
+                    Card.Create(card => card.Title = item);
+                    Card.Create(card => card.Title = Live(() => item + suffix.Value));
+                }
+            );
+
+            Show(
+                () => true,
+                () =>
+                {
+                    Card.Create(card => card.Title = "shown");
+                    Card.Create(card => card.Title = Live(() => "shown" + suffix.Value));
+                }
+            );
+        });
+
+        expect.Equal(
+            "box\"card\"(label\"a\") box\"card\"(label\"a!\") "
+                + "box\"card\"(label\"shown\") box\"card\"(label\"shown!\")",
+            host.Print(),
+            "initial"
         );
 
-        expect.Equal(ExpectedUiMessages.SignalWriteInComputation, error?.Message, "error");
+        suffix.Value = "?";
+        Reactivity.Flush();
+
+        expect.Equal(
+            "box\"card\"(label\"a\") box\"card\"(label\"a?\") "
+                + "box\"card\"(label\"shown\") box\"card\"(label\"shown?\")",
+            host.Print(),
+            "after the change"
+        );
     }
 }

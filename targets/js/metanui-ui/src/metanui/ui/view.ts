@@ -8,6 +8,7 @@ import type { Component } from "./component.js";
 import { ListRegion } from "./flow/list-region.js";
 import { SwitchRegion } from "./flow/switch-region.js";
 import type { INodePort } from "./i-node-port.js";
+import { Prop } from "./prop.js";
 import { RenderedView } from "./rendering/rendered-view.js";
 
 export class View {
@@ -35,6 +36,10 @@ export class View {
     }
 
     throw new Error("No matching overload for bind");
+  }
+
+  static live<T>(read: () => T): Prop<T> {
+    return Prop.reading(read);
   }
 
   static textString(value: string): void {
